@@ -8,6 +8,7 @@ import {
   Marker,
 } from "react-simple-maps";
 import { MapPin, Phone, Mail } from "lucide-react";
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Office {
   city: string;
@@ -61,6 +62,7 @@ const majorCities: City[] = [
 export default function InteractiveMap() {
   const [hoveredOffice, setHoveredOffice] = useState<Office | null>(null);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const allOffices = useMemo(() => Object.values(offices).flat(), []);
   const cityLabels = useMemo(
@@ -69,8 +71,8 @@ export default function InteractiveMap() {
   );
 
   const countryLabels = [
-    { code: "SK", name: "Slovensko", coordinates: [19.6, 48.7] as [number, number] },
-    { code: "CZ", name: "Česko", coordinates: [15.3, 49.8] as [number, number] },
+    { code: "SK", name: t.map.slovakia, coordinates: [19.6, 48.7] as [number, number] },
+    { code: "CZ", name: t.map.czechRepublic, coordinates: [15.3, 49.8] as [number, number] },
   ];
 
   const cityToCountry: Record<string, string> = {
@@ -136,7 +138,7 @@ export default function InteractiveMap() {
               return (
                 <Marker key={name} coordinates={coordinates}>
                   <text
-                    y={-6}
+                    y={7}
                     textAnchor="middle"
                     style={{ fontSize, paintOrder: "stroke" as any, stroke: "#fff", strokeWidth: 3, pointerEvents: 'none', letterSpacing: 1.2, fontFamily: 'var(--font-geist-sans, ui-sans-serif)' }}
                     fontWeight={800}

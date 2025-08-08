@@ -234,7 +234,7 @@ export default function LawFirmHomepage() {
           </div>
         </section>
 
-        <section className="py-24 bg-transparent reveal">
+        <section id="team" className="py-24 bg-transparent reveal">
           <div className="container mx-auto px-4">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -421,13 +421,10 @@ export default function LawFirmHomepage() {
             <div className="flex flex-col md:flex-row items-center justify-between">
               <div className="md:w-1/2 mb-10 md:mb-0">
                 <h3 className="text-base font-semibold text-[var(--mint-400)] mb-2 uppercase tracking-wide">
-                  Klienti
+                  {t.clients.title}
                 </h3>
-                <h2 className="text-5xl md:text-6xl font-extrabold text-[#210059] mb-4 tracking-tight">
-                  Sme hrdí na dôveru,
-                  <span className="block text-2xl md:text-3xl font-normal mt-2">
-                    ktorú nám prejavujú naši klienti z rôznych odvetví
-                  </span>
+                <h2 className="text-4xl md:text-5xl font-extrabold text-[#210059] mb-4 tracking-tight">
+                  {t.clients.subtitle}
                 </h2>
               </div>
               <div className="md:w-1/2 relative h-32 overflow-hidden">
@@ -461,7 +458,7 @@ export default function LawFirmHomepage() {
               transition={{ duration: 0.6, ease: 'easeOut' }}
               className="text-5xl font-extrabold mb-12 text-center tracking-tight"
             >
-              Novinky
+              {t.news.title}
             </motion.h2>
             <BlogCarousel />
           </div>
@@ -492,26 +489,26 @@ export default function LawFirmHomepage() {
               </a>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Služby</h3>
+              <h3 className="text-lg font-semibold mb-4">{t.navigation.services}</h3>
               <ul className="space-y-2">
                 <li>
                   <a href="#" className="hover:underline">
-                    Obchodné právo
+                    {t.services.items.corporate.title}
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:underline">
-                    Zmluvné právo
+                    {t.services.items.contracts.title}
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:underline">
-                    Súdne spory
+                    {t.services.items.litigation.title}
                   </a>
                 </li>
                 <li>
                   <a href="#" className="hover:underline">
-                    Pracovné právo
+                    {t.services.items.employment.title}
                   </a>
                 </li>
               </ul>
@@ -536,13 +533,13 @@ export default function LawFirmHomepage() {
                 </li>
                 <li>
                   <a href="#" className="hover:underline">
-                    Nehnuteľnosti
+                    {t.services.items.realEstate.title}
                   </a>
                 </li>
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Novinky</h3>
+              <h3 className="text-lg font-semibold mb-4">{t.news.title}</h3>
               <form className="flex flex-col space-y-2">
                 <input
                   type="email"

@@ -79,6 +79,10 @@ export interface Translations {
     subtitle: string;
     viewAll: string;
   };
+  clients: {
+    title: string;
+    subtitle: string;
+  };
   contact: {
     title: string;
     subtitle: string;
@@ -89,6 +93,10 @@ export interface Translations {
   };
   footer: {
     copyright: string;
+  };
+  map: {
+    slovakia: string;
+    czechRepublic: string;
   };
 }
 
@@ -189,6 +197,10 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Najnovšie články a komentáre z právneho sveta',
       viewAll: 'Zobraziť všetky články',
     },
+    clients: {
+      title: 'Klienti',
+      subtitle: 'Sme hrdí na dôveru, ktorú nám prejavujú naši klienti z rôznych odvetví',
+    },
     contact: {
       title: 'Kontakt',
       subtitle: 'Kontaktujte nás pre bezplatnú konzultáciu',
@@ -199,6 +211,10 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       copyright: '© 2023 Advokátska kancelária SKALLARS®. Všetky práva vyhradené.',
+    },
+    map: {
+      slovakia: 'Slovensko',
+      czechRepublic: 'Česko',
     },
   },
   de: {
@@ -297,6 +313,10 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Neueste Artikel und Kommentare aus der Rechtswelt',
       viewAll: 'Alle Artikel anzeigen',
     },
+    clients: {
+      title: 'Kunden',
+      subtitle: 'Wir sind stolz auf das Vertrauen, das uns unsere Kunden aus verschiedenen Branchen entgegenbringen',
+    },
     contact: {
       title: 'Kontakt',
       subtitle: 'Kontaktieren Sie uns für eine kostenlose Beratung',
@@ -307,6 +327,10 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       copyright: '© 2023 SKALLARS® Anwaltskanzlei. Alle Rechte vorbehalten.',
+    },
+    map: {
+      slovakia: 'Slowakei',
+      czechRepublic: 'Tschechien',
     },
   },
   en: {
@@ -405,6 +429,10 @@ export const translations: Record<Language, Translations> = {
       subtitle: 'Latest articles and comments from the legal world',
       viewAll: 'View all articles',
     },
+    clients: {
+      title: 'Clients',
+      subtitle: 'We are proud of the trust that our clients from various industries place in us',
+    },
     contact: {
       title: 'Contact',
       subtitle: 'Contact us for a free consultation',
@@ -416,5 +444,9 @@ export const translations: Record<Language, Translations> = {
     footer: {
       copyright: '© 2023 SKALLARS® Law Firm. All rights reserved.',
     },
-
+    map: {
+      slovakia: 'Slovakia',
+      czechRepublic: 'Czech Republic',
+    },
+  },
 };

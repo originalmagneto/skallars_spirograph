@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { MOCK_POSTS } from '@/lib/mockPosts';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type PostPreview = {
   id: string;
@@ -21,6 +22,7 @@ export default function BlogCarousel() {
   const [isLoading, setIsLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const autoplayRef = useRef<NodeJS.Timeout | null>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     async function load() {
@@ -44,25 +46,39 @@ export default function BlogCarousel() {
 
   // Autoplay slow scroll (pause on hover)
   useEffect(() => {
-    if (!scrollRef.current) return;
+    if (!scrollRef.current || posts.length === 0) return;
+    
     const start = () => {
       autoplayRef.current && clearInterval(autoplayRef.current);
       autoplayRef.current = setInterval(() => {
         if (!scrollRef.current) return;
         const el = scrollRef.current;
-        const next = el.scrollLeft + 2; // slow drift
+        const next = el.scrollLeft + 1; // slower drift
         const end = el.scrollWidth - el.clientWidth;
-        el.scrollTo({ left: next >= end ? 0 : next, behavior: 'smooth' });
-      }, 60);
+        if (next >= end) {
+          el.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          el.scrollTo({ left: next, behavior: 'smooth' });
+        }
+      }, 50);
     };
+    
     const stop = () => {
-      if (autoplayRef.current) clearInterval(autoplayRef.current);
+      if (autoplayRef.current) {
+        clearInterval(autoplayRef.current);
+        autoplayRef.current = null;
+      }
     };
-    start();
+    
+    // Start autoplay after a short delay
+    const timer = setTimeout(start, 1000);
+    
     const el = scrollRef.current;
     el.addEventListener('mouseenter', stop);
     el.addEventListener('mouseleave', start);
+    
     return () => {
+      clearTimeout(timer);
       el.removeEventListener('mouseenter', stop);
       el.removeEventListener('mouseleave', start);
       stop();
@@ -71,7 +87,41 @@ export default function BlogCarousel() {
 
   const scrollBy = (delta: number) => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: delta, behavior: 'smooth' });
+      // Pause autoplay when manually scrolling
+      if (autoplayRef.current) {
+        clearInterval(autoplayRef.current);
+        autoplayRef.current = null;
+      }
+      
+      const el = scrollRef.current;
+      const currentScroll = el.scrollLeft;
+      const newScroll = currentScroll + delta;
+      
+      // Ensure we don't scroll beyond bounds
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      const targetScroll = Math.max(0, Math.min(newScroll, maxScroll));
+      
+      el.scrollTo({ left: targetScroll, behavior: 'smooth' });
+      
+      // Resume autoplay after manual scroll
+      setTimeout(() => {
+        if (!autoplayRef.current) {
+          const start = () => {
+            autoplayRef.current = setInterval(() => {
+              if (!scrollRef.current) return;
+              const el = scrollRef.current;
+              const next = el.scrollLeft + 1;
+              const end = el.scrollWidth - el.clientWidth;
+              if (next >= end) {
+                el.scrollTo({ left: 0, behavior: 'smooth' });
+              } else {
+                el.scrollTo({ left: next, behavior: 'smooth' });
+              }
+            }, 50);
+          };
+          start();
+        }
+      }, 3000); // Resume after 3 seconds
     }
   };
 
@@ -94,7 +144,7 @@ export default function BlogCarousel() {
       <div className="absolute -left-4 top-1/2 -translate-y-1/2 z-10">
         <button
           aria-label="Scroll left"
-          className="rounded-full bg-white/80 hover:bg-white shadow-lg p-2 transition-transform duration-200 hover:scale-105"
+          className="rounded-full bg-white/90 hover:bg-white shadow-lg p-3 transition-all duration-200 hover:scale-110 text-gray-700 hover:text-gray-900 text-xl font-bold"
           onClick={() => scrollBy(-320)}
         >
           ‹
@@ -103,7 +153,7 @@ export default function BlogCarousel() {
       <div className="absolute -right-4 top-1/2 -translate-y-1/2 z-10">
         <button
           aria-label="Scroll right"
-          className="rounded-full bg-white/80 hover:bg-white shadow-lg p-2 transition-transform duration-200 hover:scale-105"
+          className="rounded-full bg-white/90 hover:bg-white shadow-lg p-3 transition-all duration-200 hover:scale-110 text-gray-700 hover:text-gray-900 text-xl font-bold"
           onClick={() => scrollBy(320)}
         >
           ›
@@ -159,7 +209,7 @@ export default function BlogCarousel() {
           className="inline-block px-4 py-2 rounded-full font-semibold shadow-md transition-transform duration-200 hover:scale-[1.02]"
           style={{ backgroundColor: '#210059', color: '#FFFFFF', textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}
         >
-          Zobraziť všetky články
+          {t.news.viewAll}
         </Link>
       </div>
     </div>

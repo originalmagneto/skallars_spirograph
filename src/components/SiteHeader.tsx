@@ -14,7 +14,7 @@ export default function SiteHeader() {
   useEffect(() => {
     if (pathname !== '/') return;
     const options: IntersectionObserverInit = { root: null, rootMargin: '-40% 0px -55% 0px', threshold: 0 };
-    const sections = ['home', 'services', 'countries', 'clients', 'contact'];
+    const sections = ['home', 'services', 'countries', 'team', 'clients', 'contact'];
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
@@ -77,8 +77,8 @@ export default function SiteHeader() {
               </Link>
             </li>
             <li>
-              <Link href="/#clients" className={`${linkBase}`}>
-                <span className={`mr-2 inline-block w-2 h-2 rounded-full transition-opacity ${pathname === '/' && activeSection === 'clients' ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'var(--mint-400)' }} />
+              <Link href="/#team" className={`${linkBase}`}>
+                <span className={`mr-2 inline-block w-2 h-2 rounded-full transition-opacity ${pathname === '/' && activeSection === 'team' ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'var(--mint-400)' }} />
                 {t.navigation.team}
               </Link>
             </li>
