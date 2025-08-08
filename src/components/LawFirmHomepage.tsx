@@ -484,8 +484,8 @@ export default function LawFirmHomepage() {
                               <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
               <p>Staré Grunty 18</p>
               <p>841 04 Bratislava</p>
-              <a href="mailto:skallars@skallars.sk" className="hover:underline">
-                skallars@skallars.sk
+              <a href="mailto:info@skallars.sk" className="hover:underline">
+                info@skallars.sk
               </a>
             </div>
             <div>
