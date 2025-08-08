@@ -3,10 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useLanguage } from '@/contexts/LanguageContext';
+import LanguageToggle from './LanguageToggle';
 
 export default function SiteHeader() {
   const pathname = usePathname();
   const [activeSection, setActiveSection] = useState<string>('');
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (pathname !== '/') return;
@@ -64,25 +67,25 @@ export default function SiteHeader() {
             <li>
               <Link href="/#services" className={`${linkBase}`}>
                 <span className={`mr-2 inline-block w-2 h-2 rounded-full transition-opacity ${pathname === '/' && activeSection === 'services' ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'var(--mint-400)' }} />
-                Služby
+                {t.navigation.services}
               </Link>
             </li>
             <li>
               <Link href="/#countries" className={`${linkBase}`}>
                 <span className={`mr-2 inline-block w-2 h-2 rounded-full transition-opacity ${pathname === '/' && activeSection === 'countries' ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'var(--mint-400)' }} />
-                Pôsobenie
+                {t.navigation.countries}
               </Link>
             </li>
             <li>
               <Link href="/#clients" className={`${linkBase}`}>
                 <span className={`mr-2 inline-block w-2 h-2 rounded-full transition-opacity ${pathname === '/' && activeSection === 'clients' ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'var(--mint-400)' }} />
-                Referencie
+                {t.navigation.team}
               </Link>
             </li>
             <li>
               <Link href="/#contact" className={`${linkBase}`}>
                 <span className={`mr-2 inline-block w-2 h-2 rounded-full transition-opacity ${pathname === '/' && activeSection === 'contact' ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'var(--mint-400)' }} />
-                Kontakt
+                {t.navigation.contact}
               </Link>
             </li>
             <li className="pl-2">
@@ -95,8 +98,11 @@ export default function SiteHeader() {
                   textShadow: '0 1px 1px rgba(0,0,0,0.25)'
                 }}
               >
-                Blog
+                {t.navigation.blog}
               </Link>
+            </li>
+            <li className="pl-4">
+              <LanguageToggle />
             </li>
           </ul>
         </nav>

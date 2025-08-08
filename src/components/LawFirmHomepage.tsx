@@ -17,7 +17,8 @@ import {
 } from "framer-motion";
 import dynamic from 'next/dynamic';
 import InteractiveMap from './InteractiveMap';
-  import BlogCarousel from './BlogCarousel';
+import BlogCarousel from './BlogCarousel';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 // Dynamically import the Spirograph component with no SSR
 const Spirograph = dynamic(() => import('./Spirograph'), {
@@ -35,6 +36,7 @@ export default function LawFirmHomepage() {
   const [activeSection, setActiveSection] = useState("");
   const { scrollYProgress } = useScroll();
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
+  const { t } = useLanguage();
 
   const images = [
     "/images/legal-consultation.jpg",
@@ -110,107 +112,59 @@ export default function LawFirmHomepage() {
     }
   };
 
-  const teamMembers = [
-    {
-      name: "Marián Čuprík",
-      role: "Advokát",
-      description:
-        "Marián Čuprík, v advokátskej kancelárii SKALLARS®, sa špecializuje na korporátne, technologické právo a ochranu duševného vlastníctva, s dôrazom na nové technológie.",
-      phone: "+421 949 110 446",
-      email: "cuprik@skallars.sk",
-      image:
-        "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Maria%CC%81n%20C%CC%8Cupri%CC%81k-9zF7Dkbxqk0u4RVyBSMfbZZaXf4fXk.jpg",
-    },
-    {
-      name: "Martin Žák",
-      role: "Advokát",
-      description:
-        "Martin Žák je skúsený advokát v SKALLARS®, špecializujúci sa na obchodné právo a medzinárodné transakcie.",
-      phone: "+421 123 456 789",
-      email: "zak@skallars.sk",
-      image:
-        "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Martin%20Z%CC%8Ca%CC%81k-wuaynP4mw11iW5cYwB5nKEaJvFwBlh.jpg",
-    },
-    {
-      name: "Juraj Hudák",
-      role: "Advokát",
-      description:
-        "Juraj Hudák je v advokátskej kancelárii SKALLARS® zameraním na litigácie, zmluvné právo a pracovné právo.",
-      phone: "+421 917 580 442",
-      email: "hudak@skallars.sk",
-      image:
-        "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/JH_dark-USHq2kdwHiMPCT2em1Zj2DZer2raMo.jpg",
-    },
-    {
-      name: "Dominic Ye",
-      role: "Partnerský advokát SKALLARS® pre Čínu",
-      description:
-        "Dominic Ye, partnerský advokát SKALLARS® pre Čínu, ponúka poradenstvo v oblasti cezhraničných obchodných transakcií a riešenia sporov. Disponuje hlbokými znalosťami v oblasti čínskeho práva a poskytuje právnu podporu pri medzinárodných investičných projektoch v Ázii.",
-      phone: "0905 444 444",
-      email: "ye@skallars.sk",
-      image:
-        "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/img-dy-2-KgydSWygusjb6XI7tw5yi7Oif17dz1.png",
-    },
-  ];
+  const teamMembers = t.team.members.map((member, index) => ({
+    name: member.name,
+    role: member.position,
+    description: member.description,
+    phone: index === 0 ? "+421 949 110 446" : index === 1 ? "+421 123 456 789" : index === 2 ? "+421 917 580 442" : "0905 444 444",
+    email: index === 0 ? "cuprik@skallars.sk" : index === 1 ? "zak@skallars.sk" : index === 2 ? "hudak@skallars.sk" : "ye@skallars.sk",
+    image: index === 0 
+      ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Maria%CC%81n%20C%CC%8Cupri%CC%81k-9zF7Dkbxqk0u4RVyBSMfbZZaXf4fXk.jpg"
+      : index === 1 
+      ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Martin%20Z%CC%8Ca%CC%81k-wuaynP4mw11iW5cYwB5nKEaJvFwBlh.jpg"
+      : index === 2 
+      ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/JH_dark-USHq2kdwHiMPCT2em1Zj2DZer2raMo.jpg"
+      : "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/img-dy-2-KgydSWygusjb6XI7tw5yi7Oif17dz1.png",
+  }));
 
   const officeInfo = {
     Slovakia: {
-      city: "Bratislava",
-      address: "Staré Grunty 18, 841 04 Bratislava",
-      phone: "+421 2 123 456 789",
+      city: t.countries.officeInfo.Slovakia.city,
+      address: t.countries.officeInfo.Slovakia.address,
+      phone: t.countries.officeInfo.Slovakia.phone,
     },
     "Czech Republic": {
-      city: "Prague",
-      address: "Václavské náměstí 1, 110 00 Prague",
-      phone: "+420 2 987 654 321",
+      city: t.countries.officeInfo['Czech Republic'].city,
+      address: t.countries.officeInfo['Czech Republic'].address,
+      phone: t.countries.officeInfo['Czech Republic'].phone,
     },
     Austria: {
-      city: "Vienna",
-      address: "Stephansplatz 1, 1010 Vienna",
-      phone: "+43 1 234 567 890",
+      city: t.countries.officeInfo.Austria.city,
+      address: t.countries.officeInfo.Austria.address,
+      phone: t.countries.officeInfo.Austria.phone,
     },
   };
 
   const legalServices = [
     {
-      title: "Obchodné právo a obchodné spoločnosti",
-      description:
-        "Riešenie komplexných otázok obchodného práva a obchodných spoločností si vyžaduje odbornosť a precíznosť. Poskytujeme poradenstvo v oblasti zakladania spoločností, korporátneho riadenia, zmlúv, fúzií a akvizícií, ako aj pri dodržiavaní regulačných požiadaviek, aby vaše podnikanie prosperovalo v dynamickom prostredí.",
+      title: t.services.items.corporate.title,
+      description: t.services.items.corporate.description,
     },
     {
-      title: "Zmluvné právo",
-      description:
-        "Zmluvy sú základom úspešných obchodných vzťahov. Pripravujeme, posudzujeme a vyjednávame zmluvy prispôsobené vašim potrebám, aby sme chránili vaše záujmy a minimalizovali riziká.",
+      title: t.services.items.contracts.title,
+      description: t.services.items.contracts.description,
     },
     {
-      title: "Súdne spory",
-      description:
-        "Pri vzniku sporov sme vašimi spoľahlivými obhajcami. Naši skúsení právnici zastupujú vaše záujmy pred súdmi a poskytujú strategické poradenstvo a pevnú reprezentáciu s cieľom dosiahnuť čo najlepší výsledok.",
+      title: t.services.items.litigation.title,
+      description: t.services.items.litigation.description,
     },
     {
-      title: "Pracovné právo",
-      description:
-        "Orientácia v oblasti pracovného práva si vyžaduje hlboké znalosti predpisov a osvedčených postupov. Radíme v otázkach pracovných zmlúv, vzťahov so zamestnancami, ukončenia pracovného pomeru a dodržiavania právnych predpisov, aby sme chránili vaše podnikanie a podporili pozitívne pracovné prostredie.",
+      title: t.services.items.employment.title,
+      description: t.services.items.employment.description,
     },
     {
-      title: "IT a ochrana osobných údajov",
-      description:
-        "V digitálnej dobe je ochrana osobných údajov kľúčová. Poskytujeme odborné poradenstvo v oblasti ochrany údajov, kybernetickej bezpečnosti, IT zmlúv a riešenia incidentov s narušením údajov, aby sme zaistili, že vaše podnikanie spĺňa všetky právne požiadavky a chráni citlivé informácie.",
-    },
-    {
-      title: "Duševné vlastníctvo",
-      description:
-        "Duševné vlastníctvo je cenným aktívom každej spoločnosti. Pomáhame chrániť vaše ochranné známky, patenty, autorské práva a obchodné tajomstvá prostredníctvom registrácie, licencovania a presadzovania, aby sme maximalizovali hodnotu vašich inovatívnych riešení a tvorivých diel.",
-    },
-    {
-      title: "Umelá inteligencia",
-      description:
-        "Nárast umelej inteligencie prináša jedinečné právne výzvy a príležitosti. Poskytujeme poradenstvo v oblasti regulácie AI, etických aspektov, ochrany údajov a duševného vlastníctva, aby sme vám pomohli orientovať sa v tomto vznikajúcom odvetví a zodpovedne využívať jeho potenciál.",
-    },
-    {
-      title: "Nehnuteľnosti",
-      description:
-        "Transakcie s nehnuteľnosťami si vyžadujú precízne plánovanie a právnu odbornosť. Poskytujeme komplexné právne služby pri nadobúdaní, vývoji, financovaní, prenájme a predaji nehnuteľností, aby sme zaistili ochranu vašich investícií a hladký priebeh transakcií.",
+      title: t.services.items.realEstate.title,
+      description: t.services.items.realEstate.description,
     },
   ];
 
@@ -267,9 +221,7 @@ export default function LawFirmHomepage() {
               transition={{ duration: 0.7, ease: 'easeOut' }}
               className="text-7xl md:text-8xl font-extrabold mb-6 text-[#210059] tracking-tight"
             >
-              Komplexná právna podpora
-              <br />
-              <span className="text-6xl md:text-7xl font-normal">pre Vaše podnikanie.</span>
+              {t.hero.subtitle}
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 14 }}
@@ -277,11 +229,7 @@ export default function LawFirmHomepage() {
               transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
               className="text-2xl text-gray-600 max-w-3xl"
             >
-              V Skallars veríme, že právna pomoc by mala byť{" "}
-              <span className="font-semibold">
-                transparentná, efektívna a prispôsobená potrebám každého klienta
-              </span>
-              .
+              {t.hero.description}
             </motion.p>
           </div>
         </section>
@@ -295,7 +243,7 @@ export default function LawFirmHomepage() {
               transition={{ duration: 0.6, ease: 'easeOut' }}
               className="text-5xl font-extrabold mb-12 text-center text-[#210059] tracking-tight"
             >
-              Náš tím
+              {t.team.title}
             </motion.h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {teamMembers.map((member, index) => (
@@ -337,7 +285,7 @@ export default function LawFirmHomepage() {
                       </a>
                     </div>
                     <a href="#" className="text-[#210059] hover:underline">
-                      Vizitka
+                      {t.team.businessCard}
                     </a>
                   </div>
                 </div>
@@ -359,14 +307,10 @@ export default function LawFirmHomepage() {
                 style={{ height: "fit-content" }}
               >
                 <h2 className="text-4xl font-bold mb-6 text-[#210059]">
-                  Komplexné právne poradenstvo v kľúčových právnych oblastiach
+                  {t.services.title}
                 </h2>
                 <p className="text-xl text-gray-600 mb-6">
-                  Našim klientom poskytujeme právne poradenstvo vo všetkých
-                  kľúčových právnych oblastiach. Cieľom našich právnych služieb
-                  je minimalizovať právne riziká na strane klientov a odbremeniť
-                  ich od právnych problémov v čo najväčšej miere, aby sa mohli
-                  naplno sústrediť na svoje podnikanie.
+                  {t.services.subtitle}
                 </p>
                 <div className="relative h-64 rounded-lg overflow-hidden">
                   {images.map((src, index) => (
@@ -425,10 +369,10 @@ export default function LawFirmHomepage() {
                   transition={{ duration: 0.6, ease: 'easeOut' }}
                   className="text-6xl font-extrabold mb-6 text-[#210059] tracking-tight"
                 >
-                  Krajiny pôsobnosti
+                  {t.countries.title}
                 </motion.h2>
                 <p className="text-xl text-gray-700 mb-8 max-w-xl">
-                  Pôsobíme v troch kľúčových krajinách regiónu. Naši advokáti poskytujú právne služby v slovenčine a češtine, so spoľahlivým zázemím v Rakúsku.
+                  {t.countries.subtitle}
                 </p>
                 <div className="flex flex-wrap gap-3 mb-6">
                   {(['Slovakia','Czech Republic','Austria'] as Array<keyof typeof officeInfo>).map((c) => (
@@ -451,7 +395,7 @@ export default function LawFirmHomepage() {
                   transition={{ duration: 0.3 }}
                   className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm max-w-md"
                 >
-                  <div className="text-sm text-[var(--mint-400)] font-semibold mb-1 uppercase tracking-wide">Aktuálna kancelária</div>
+                  <div className="text-sm text-[var(--mint-400)] font-semibold mb-1 uppercase tracking-wide">{t.countries.currentOffice}</div>
                   <div className="text-2xl font-semibold text-[#210059] mb-1">{officeInfo[activeCountry].city}</div>
                   <div className="text-gray-700">{officeInfo[activeCountry].address}</div>
                   <div className="text-gray-700 mt-2">{officeInfo[activeCountry].phone}</div>
@@ -540,7 +484,7 @@ export default function LawFirmHomepage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Kontakt</h3>
+                              <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
               <p>Staré Grunty 18</p>
               <p>841 04 Bratislava</p>
               <a href="mailto:skallars@skallars.sk" className="hover:underline">
@@ -616,8 +560,7 @@ export default function LawFirmHomepage() {
           </div>
           <div className="mt-8 pt-8 border-t border-gray-800 text-center">
             <p>
-              &copy; 2023 Advokátska kancelária SKALLARS®. Všetky práva
-              vyhradené.
+                            {t.footer.copyright}
             </p>
           </div>
         </div>
