@@ -17,6 +17,7 @@ import {
 } from "framer-motion";
 import dynamic from 'next/dynamic';
 import InteractiveMap from './InteractiveMap';
+  import BlogCarousel from './BlogCarousel';
 
 // Dynamically import the Spirograph component with no SSR
 const Spirograph = dynamic(() => import('./Spirograph'), {
@@ -27,7 +28,9 @@ export default function LawFirmHomepage() {
   const servicesRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const serviceRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+  const [activeCountry, setActiveCountry] = useState<keyof typeof officeInfo>('Slovakia');
   const [currentClientIndex, setCurrentClientIndex] = useState(0);
   const [activeSection, setActiveSection] = useState("");
   const { scrollYProgress } = useScroll();
@@ -38,24 +41,11 @@ export default function LawFirmHomepage() {
     "/images/contract-review.jpg",
     "/images/court-representation.jpg",
     "/images/corporate-law.jpg",
+    "/images/europe-map.jpg",
   ];
 
   useEffect(() => {
     const handleScroll = () => {
-      if (servicesRef.current && stickyRef.current) {
-        const servicesRect = servicesRef.current.getBoundingClientRect();
-        const stickyRect = stickyRef.current.getBoundingClientRect();
-        const windowHeight = window.innerHeight;
-
-        const scrollProgress =
-          (window.scrollY - servicesRect.top) /
-          (servicesRect.height - windowHeight);
-        const clampedProgress = Math.max(0, Math.min(1, scrollProgress));
-
-        const imageIndex = Math.floor(clampedProgress * images.length);
-        setCurrentImageIndex(Math.min(imageIndex, images.length - 1));
-      }
-
       const sections = ["home", "services", "countries", "clients", "contact"];
       let current = "";
       for (const section of sections) {
@@ -70,6 +60,37 @@ export default function LawFirmHomepage() {
     window.addEventListener("scroll", handleScroll);
     handleScroll(); // Initial check
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Observe which service card is most in view and update the sticky image accordingly
+  useEffect(() => {
+    if (!serviceRefs.current?.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const indexAttr = (entry.target as HTMLElement).dataset.index;
+            if (indexAttr) {
+              const idx = parseInt(indexAttr, 10);
+              setCurrentImageIndex(idx % images.length);
+            }
+          }
+        });
+      },
+      { root: null, threshold: 0.6 }
+    );
+
+    serviceRefs.current.forEach((el) => {
+      if (el) observer.observe(el);
+    });
+
+    return () => {
+      serviceRefs.current.forEach((el) => {
+        if (el) observer.unobserve(el);
+      });
+      observer.disconnect();
+    };
   }, [images.length]);
 
   useEffect(() => {
@@ -230,107 +251,52 @@ export default function LawFirmHomepage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <Spirograph />
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white bg-opacity-20 backdrop-filter backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-6 flex justify-between items-center">
-          <img
-            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-dark-G5tVbs8tg8buqtWwaFJjCCudUb9tJa.svg"
-            alt="SKALLARS Logo"
-            className="h-10"
-          />
-          <nav>
-            <ul className="flex space-x-6">
-              <li>
-                <button
-                  onClick={() => scrollToSection("home")}
-                  className={`text-[#210059] hover:text-[#210059]/80 font-bold ${
-                    activeSection === "home"
-                      ? "border-b-2 border-[#210059]"
-                      : ""
-                  }`}
-                >
-                  Skallars
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => scrollToSection("services")}
-                  className={`text-[#210059] hover:text-[#210059]/80 font-bold ${
-                    activeSection === "services"
-                      ? "border-b-2 border-[#210059]"
-                      : ""
-                  }`}
-                >
-                  Služby
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => scrollToSection("countries")}
-                  className={`text-[#210059] hover:text-[#210059]/80 font-bold ${
-                    activeSection === "countries"
-                      ? "border-b-2 border-[#210059]"
-                      : ""
-                  }`}
-                >
-                  Pôsobenie
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => scrollToSection("clients")}
-                  className={`text-[#210059] hover:text-[#210059]/80 font-bold ${
-                    activeSection === "clients"
-                      ? "border-b-2 border-[#210059]"
-                      : ""
-                  }`}
-                >
-                  Referencie
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => scrollToSection("contact")}
-                  className={`text-[#210059] hover:text-[#210059]/80 font-bold  ${
-                    activeSection === "contact"
-                      ? "border-b-2 border-[#210059]"
-                      : ""
-                  }`}
-                >
-                  Kontakt
-                </button>
-              </li>
-            </ul>
-          </nav>
-        </div>
-      </header>
+      {/* Header moved to global SiteHeader in layout */}
 
       <main>
         <section
           id="home"
-          className="min-h-screen flex items-center justify-center relative overflow-hidden pt-20"
+          className="min-h-screen flex items-center justify-center relative overflow-visible pt-24"
         >
+          {/* Spirograph moved to fixed background; renders once */}
+          <Spirograph />
           <div className="container mx-auto px-4 py-20 relative z-10">
-            <h1 className="text-7xl font-bold mb-6 text-[#210059]">
+            <motion.h1
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: 'easeOut' }}
+              className="text-7xl md:text-8xl font-extrabold mb-6 text-[#210059] tracking-tight"
+            >
               Komplexná právna podpora
               <br />
-              <span className="text-6xl font-normal">pre Vaše podnikanie.</span>
-            </h1>
-            <p className="text-2xl text-gray-600 max-w-3xl">
+              <span className="text-6xl md:text-7xl font-normal">pre Vaše podnikanie.</span>
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
+              className="text-2xl text-gray-600 max-w-3xl"
+            >
               V Skallars veríme, že právna pomoc by mala byť{" "}
               <span className="font-semibold">
                 transparentná, efektívna a prispôsobená potrebám každého klienta
               </span>
               .
-            </p>
+            </motion.p>
           </div>
         </section>
 
-        <section className="py-20 bg-gradient-to-b from-white to-gray-100">
+        <section className="py-24 bg-transparent reveal">
           <div className="container mx-auto px-4">
-            <h2 className="text-4xl font-bold mb-10 text-center text-[#210059]">
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="text-5xl font-extrabold mb-12 text-center text-[#210059] tracking-tight"
+            >
               Náš tím
-            </h2>
+            </motion.h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {teamMembers.map((member, index) => (
                 <div
@@ -422,6 +388,8 @@ export default function LawFirmHomepage() {
                   {legalServices.map((service, index) => (
                     <div
                       key={index}
+                      ref={(el) => (serviceRefs.current[index] = el)}
+                      data-index={index}
                       className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow"
                     >
                       <Check className="text-[#210059] flex-shrink-0 mt-1" />
@@ -439,34 +407,77 @@ export default function LawFirmHomepage() {
           </div>
         </section>
 
-        <section
-          id="countries"
-          className="py-20 bg-gradient-to-b from-white to-[#210059] text-white"
-        >
+        <section id="countries" className="relative py-28 bg-white overflow-hidden reveal">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-40 right-[-10%] w-[60vw] h-[60vw] rounded-full blur-3xl opacity-20"
+            style={{ background: 'radial-gradient(600px circle at 30% 30%, rgba(33,0,89,0.18), transparent 60%)' }}
+          />
           <div className="container mx-auto px-4">
-            <h2 className="text-4xl font-bold mb-10 text-center text-[#210059]">
-              Krajiny pôsobnosti
-            </h2>
-            <p className="text-lg text-gray-600 mb-8">
-              Naši advokáti sú členmi Slovenskej advokátskej komory a Českej
-              advokátskej komory. Majú dlhoročné skúsenosti s poskytovaním
-              právnych služieb na Slovensku aj v Českej republike.
-              Prostredníctvom spolupracujúcej rakúskej advokátskej kancelárie
-              podporujeme našich klientov pri riešení právnych záležitostí aj v
-              Rakúsku.
-            </p>
-            <InteractiveMap />
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <motion.h2
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.6 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="text-6xl font-extrabold mb-6 text-[#210059] tracking-tight"
+                >
+                  Krajiny pôsobnosti
+                </motion.h2>
+                <p className="text-xl text-gray-700 mb-8 max-w-xl">
+                  Pôsobíme v troch kľúčových krajinách regiónu. Naši advokáti poskytujú právne služby v slovenčine a češtine, so spoľahlivým zázemím v Rakúsku.
+                </p>
+                <div className="flex flex-wrap gap-3 mb-6">
+                  {(['Slovakia','Czech Republic','Austria'] as Array<keyof typeof officeInfo>).map((c) => (
+                    <motion.button
+                      key={c}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setActiveCountry(c)}
+                      className={`px-4 py-2 rounded-full border transition-colors ${
+                        activeCountry === c ? 'bg-[var(--indigo-900)] text-white border-[var(--indigo-900)]' : 'bg-white text-[var(--indigo-900)] border-[var(--indigo-900)]/30 hover:border-[var(--indigo-900)]'
+                      }`}
+                    >
+                      {c === 'Slovakia' ? 'Slovensko' : c === 'Czech Republic' ? 'Česko' : 'Rakúsko'}
+                    </motion.button>
+                  ))}
+                </div>
+                <motion.div
+                  key={activeCountry}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm max-w-md"
+                >
+                  <div className="text-sm text-[var(--mint-400)] font-semibold mb-1 uppercase tracking-wide">Aktuálna kancelária</div>
+                  <div className="text-2xl font-semibold text-[#210059] mb-1">{officeInfo[activeCountry].city}</div>
+                  <div className="text-gray-700">{officeInfo[activeCountry].address}</div>
+                  <div className="text-gray-700 mt-2">{officeInfo[activeCountry].phone}</div>
+                </motion.div>
+              </div>
+              <div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ duration: 0.5 }}
+                  className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-200"
+                >
+                  <InteractiveMap />
+                </motion.div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section id="clients" className="py-20 bg-white">
+        <section id="clients" className="py-20 bg-white reveal">
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center justify-between">
               <div className="md:w-1/2 mb-10 md:mb-0">
-                <h3 className="text-sm font-medium text-green-400 mb-2">
+                <h3 className="text-base font-semibold text-[var(--mint-400)] mb-2 uppercase tracking-wide">
                   Klienti
                 </h3>
-                <h2 className="text-4xl md:text-5xl font-bold text-[#210059] mb-4">
+                <h2 className="text-5xl md:text-6xl font-extrabold text-[#210059] mb-4 tracking-tight">
                   Sme hrdí na dôveru,
                   <span className="block text-2xl md:text-3xl font-normal mt-2">
                     ktorú nám prejavujú naši klienti z rôznych odvetví
@@ -495,54 +506,18 @@ export default function LawFirmHomepage() {
           </div>
         </section>
 
-        <section className="py-20 bg-gradient-to-b from-[#210059] to-gray-900 text-white">
+        <section className="py-24 bg-gradient-to-b from-[#210059] to-gray-900 text-white reveal">
           <div className="container mx-auto px-4">
-            <h2 className="text-4xl font-bold mb-10 text-center">Novinky</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                {
-                  title:
-                    "NAŠI KLIENTI MÔŽU VYUŽIŤ PEČIATKU CHZ NA FAKTÚRY PROTI NEPLATIČOM",
-                  excerpt:
-                    'Tento rozhovor sa bude odohrávať v obklopení dizajnu, množstva „koní" a skvelej kávy. Majiteľovi pd drive clubu sa podarilo vytvoriť miesto, ktoré si zamilujú všetci milovníci áut a',
-                  image:
-                    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop",
-                },
-                {
-                  title:
-                    "STRAVOVANIE ZAMESTNANCOV Z POHĽADU ZÁKONA O DANI Z PRÍJMOV",
-                  excerpt:
-                    'Tento rozhovor sa bude odohrávať v obklopení dizajnu, množstva „koní" a skvelej kávy. Majiteľovi pd drive clubu sa podarilo vytvoriť miesto, ktoré si zamilujú všetci milovníci áut a',
-                  image:
-                    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop",
-                },
-                {
-                  title: "Zdanenie osobného dôchodkového produktu",
-                  excerpt:
-                    'Tento rozhovor sa bude odohrávať v obklopení dizajnu, množstva „koní" a skvelej kávy. Majiteľovi pd drive clubu sa podarilo vytvoriť miesto, ktoré si zamilujú všetci milovníci áut a',
-                  image:
-                    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop",
-                },
-              ].map((post, index) => (
-                <div
-                  key={index}
-                  className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105"
-                >
-                  <img
-                    src={post.image}
-                    alt={post.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="p-6">
-                    <h3 className="text-xl font-semibold mb-4">{post.title}</h3>
-                    <p className="text-gray-300 mb-4">{post.excerpt}</p>
-                    <a href="#" className="text-[#210059] hover:underline">
-                      Čítať viac
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.6 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="text-5xl font-extrabold mb-12 text-center tracking-tight"
+            >
+              Novinky
+            </motion.h2>
+            <BlogCarousel />
           </div>
         </section>
       </main>

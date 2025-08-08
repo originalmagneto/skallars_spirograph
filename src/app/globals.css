@@ -2,6 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Smooth in-page anchor scrolling */
+html { scroll-behavior: smooth; }
+body { color: #111827; background-color: #ffffff; }
+
+/* Make main sections transparent so fixed background art is visible */
+main section { background-color: transparent; }
+
+/* Headings weight and tracking for modern feel */
+h1, h2, h3 { letter-spacing: -0.02em; }
+
+/* Brand tokens */
+:root{
+  --indigo-900: #210059;
+  --indigo-600: #5E00FF;
+  --indigo-300: #938FFF;
+  --mint-400: #38F8B8;
+  --rose-200: #F5B5C2;
+  --slate-400: #ADB2C2;
+  --ink-950: #15171E;
+  --paper: #FFFFFF;
+}
+
+/* Section reveal base animation */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity 600ms ease, transform 600ms ease; }
+.reveal.in-view { opacity: 1; transform: translateY(0); }
+
+/* Enable optional thin scrollbar for the carousel */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 9999px;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -22,8 +57,7 @@ body {
 
 .spirograph {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100vh;
   pointer-events: none;
@@ -46,24 +80,4 @@ body {
   }
 }
 
-/* Ensure content is properly layered */
-section {
-  position: relative;
-  z-index: 1;
-}
-
-/* Hero section specific styling */
-section:first-of-type {
-  position: relative;
-  z-index: 1;
-  background: transparent;
-  margin-bottom: -1px; /* Remove any gap between sections */
-}
-
-/* Other sections should be fully opaque */
-section:not(:first-of-type) {
-  position: relative;
-  z-index: 2;
-  background: linear-gradient(to bottom, transparent 0%, transparent 30%, #ffffff 70%);
-  padding-top: 4rem; /* Add padding to prevent content from being too close to the top */
-}
+/* Remove global section overrides to avoid layout side effects */

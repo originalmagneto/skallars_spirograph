@@ -15,6 +15,7 @@ export default function Spirograph() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const fallbackRef = useRef<HTMLScriptElement | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -27,12 +28,13 @@ export default function Spirograph() {
           return;
         }
 
-        // If script element already exists but not loaded
-        if (scriptRef.current) {
-          document.body.removeChild(scriptRef.current);
+        // If script element already exists but not loaded, safely remove it
+        if (scriptRef.current && scriptRef.current.parentNode) {
+          scriptRef.current.parentNode.removeChild(scriptRef.current);
+          scriptRef.current = null;
         }
 
-        // Create and load script
+        // Load full spirograph script used in production; fallback to lightweight version
         const script = document.createElement('script');
         script.src = '/script/script.js';
         script.async = true;
@@ -54,11 +56,39 @@ export default function Spirograph() {
         // Wait a small delay to ensure script is fully initialized
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        if (!window.J || typeof window.J.initAll !== 'function') {
-          throw new Error('Spirograph script failed to initialize properly');
-        }
+        const initFromGlobal = () => {
+          if (!window.J) return false;
+          if (typeof window.J.initAll === 'function') {
+            window.J.initAll();
+            return true;
+          }
+          const targets = Array.from(document.querySelectorAll('[data-spirograph]')) as HTMLElement[];
+          targets.forEach((el) => {
+            try {
+              el.querySelectorAll('canvas').forEach((c) => c.remove());
+              new (window.J as any)({ container: el, type: (el as any).dataset.spirograph });
+            } catch (e) {
+              console.error('Spirograph instance init failed', e);
+            }
+          });
+          return true;
+        };
 
-        window.J.initAll();
+        if (!initFromGlobal()) {
+          // Fallback: load lightweight script
+          const fallback = document.createElement('script');
+          fallback.src = '/script.js';
+          fallback.async = true;
+          fallbackRef.current = fallback;
+          await new Promise((resolve, reject) => {
+            fallback.onload = resolve as any;
+            fallback.onerror = reject as any;
+            document.body.appendChild(fallback);
+          });
+          if (!initFromGlobal()) {
+            throw new Error('Spirograph script failed to initialize');
+          }
+        }
         setError(null);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load spirograph';
@@ -73,6 +103,9 @@ export default function Spirograph() {
     return () => {
       if (scriptRef.current && scriptRef.current.parentNode) {
         scriptRef.current.parentNode.removeChild(scriptRef.current);
+      }
+      if (fallbackRef.current && fallbackRef.current.parentNode) {
+        fallbackRef.current.parentNode.removeChild(fallbackRef.current);
       }
     };
   }, []);
@@ -89,7 +122,7 @@ export default function Spirograph() {
     <div 
       data-spirograph="tetra"
       ref={containerRef} 
-      className="spirograph"
+      className="spirograph fixed inset-0 -z-10 pointer-events-none"
       data-spirograph-options='{
         "autoRotateNonAxis": true,
         "objectsCount": 12,
@@ -99,10 +132,9 @@ export default function Spirograph() {
       }'
     >
       <canvas
-        className="spirograph__canvas"
+        className="spirograph__canvas w-full h-full"
         data-spirograph-canvas
-        data-parallax
-        data-parallax-speed="30"
+        
       ></canvas>
     </div>
   );

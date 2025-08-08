@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ComposableMap,
   Geographies,
   Geography,
   Marker,
-  Annotation,
-  ZoomableGroup
 } from "react-simple-maps";
+import { MapPin, Phone, Mail } from "lucide-react";
 
 interface Office {
   city: string;
@@ -32,169 +31,157 @@ const offices: CountryOffices = {
       city: "Bratislava",
       address: "Staré Grunty 18, 841 04 Bratislava",
       phone: "+421 2 5443 5941",
-      coordinates: [17.0688, 48.1690]
+      coordinates: [17.1077, 48.1486],
     },
     {
       city: "Košice",
       address: "Hlavná 87, 040 01 Košice",
       phone: "+421 55 729 0711",
-      coordinates: [21.2611, 48.7164]
-    }
+      coordinates: [21.2611, 48.7164],
+    },
   ],
   CZE: [
     {
       city: "Praha",
       address: "Bozděchova 7, 150 00 Praha 5",
       phone: "+420 224 103 316",
-      coordinates: [14.3989, 50.0713]
-    }
+      coordinates: [14.4378, 50.0755],
+    },
   ],
-  AUT: [
-    {
-      city: "Wien",
-      address: "Schottenring 12, 1010 Wien",
-      phone: "+43 1 513 8120",
-      coordinates: [16.3738, 48.2082]
-    }
-  ]
 };
 
-const highlightedCountries = ["SVK", "CZE", "AUT"];
+const highlightedCountries = ["SK", "CZ"];
 
 const majorCities: City[] = [
-  { name: "Praha", coordinates: [14.3989, 50.0713] as [number, number] },
-  { name: "Bratislava", coordinates: [17.0688, 48.1690] as [number, number] },
-  { name: "Wien", coordinates: [16.3738, 48.2082] as [number, number] }
+  { name: "Praha", coordinates: [14.4378, 50.0755] as [number, number] },
+  { name: "Bratislava", coordinates: [17.1077, 48.1486] as [number, number] },
+  { name: "Košice", coordinates: [21.2611, 48.7164] as [number, number] },
 ];
 
 export default function InteractiveMap() {
   const [hoveredOffice, setHoveredOffice] = useState<Office | null>(null);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
 
+  const allOffices = useMemo(() => Object.values(offices).flat(), []);
+  const cityLabels = useMemo(
+    () => allOffices.map((o) => ({ name: o.city, coordinates: o.coordinates })),
+    [allOffices]
+  );
+
+  const countryLabels = [
+    { code: "SK", name: "Slovensko", coordinates: [19.6, 48.9] as [number, number] },
+    { code: "CZ", name: "Česko", coordinates: [15.1, 50.0] as [number, number] },
+  ];
+
+  const cityToCountry: Record<string, string> = {
+    Bratislava: "SK",
+    "Košice": "SK",
+    Praha: "CZ",
+  };
+
   return (
-    <div className="relative w-full h-[500px] bg-gray-50 rounded-lg overflow-hidden" onWheel={(e) => e.stopPropagation()}>
+    <div
+      className="relative w-full h-[520px] rounded-2xl overflow-hidden bg-white select-none"
+      style={{ WebkitTapHighlightColor: 'transparent' as any }}
+    >
       <ComposableMap
         projection="geoMercator"
-        projectionConfig={{
-          center: [16, 49],
-          scale: 2500
+        projectionConfig={{ center: [17.2, 49.3], scale: 2600 }}
+        style={{ width: "100%", height: "100%", outline: 'none', userSelect: 'none' as any }}
+        tabIndex={-1 as any}
+        focusable={false as any}
+        onMouseDown={(e: any) => {
+          // Prevent focus ring on click/drag
+          e.preventDefault();
         }}
       >
-        <ZoomableGroup
-          zoom={1}
-          maxZoom={1}
-          minZoom={1}
-          center={[16, 49]}
-        >
-          <Geographies geography="/europe.json">
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const isHighlighted = highlightedCountries.includes(geo.properties.ISO_A3);
-                const isHovered = hoveredCountry === geo.properties.ISO_A3;
-                
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={() => {
-                      if (isHighlighted) {
-                        setHoveredCountry(geo.properties.ISO_A3);
-                      }
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredCountry(null);
-                    }}
-                    style={{
-                      default: {
-                        fill: isHighlighted
-                          ? "#210059"
-                          : "#f1f5f9",
-                        stroke: "#94a3b8",
-                        strokeWidth: 0.5,
-                        outline: "none",
-                        opacity: isHighlighted ? 0.8 : 1
-                      },
-                      hover: {
-                        fill: isHighlighted ? "#210059" : "#f1f5f9",
-                        stroke: "#94a3b8",
-                        strokeWidth: 0.5,
-                        outline: "none",
-                        opacity: isHighlighted ? 1 : 1
-                      },
-                      pressed: {
-                        fill: "#210059",
-                        stroke: "#94a3b8",
-                        strokeWidth: 0.5,
-                        outline: "none",
-                      },
-                    }}
-                  />
-                );
-              })
-            }
-          </Geographies>
+            <Geographies geography="/europe.json">
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const code = (geo.id as string) || (geo.properties.ISO_A3 as string) || (geo.properties.ISO_A2 as string);
+                  const isHighlighted = highlightedCountries.includes(code);
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      onMouseEnter={() => {
+                        if (isHighlighted) setHoveredCountry(code);
+                      }}
+                      onMouseLeave={() => setHoveredCountry(null)}
+                      style={{
+                        default: {
+                          fill: isHighlighted ? "rgba(33,0,89,0.08)" : "#eef2f7",
+                          stroke: isHighlighted ? "#8b88c9" : "#94a3b8",
+                          strokeWidth: isHighlighted ? 1 : 0.8,
+                          vectorEffect: "non-scaling-stroke" as any,
+                          filter: isHighlighted ? "drop-shadow(0 0 4px rgba(33,0,89,0.14))" : undefined,
+                          outline: "none",
+                        },
+                        hover: { fill: isHighlighted ? "rgba(33,0,89,0.22)" : "#e8edf4", stroke: isHighlighted ? "#210059" : "#94a3b8", strokeWidth: isHighlighted ? 1.6 : 0.9 },
+                        pressed: { fill: isHighlighted ? "rgba(33,0,89,0.28)" : "#e8edf4" },
+                      }}
+                    />
+                  );
+                })
+              }
+            </Geographies>
 
-          {/* Major city labels */}
-          {majorCities.map(({ name, coordinates }) => (
-            <Annotation
-              key={name}
-              subject={coordinates as [number, number]}
-              dx={0}
-              dy={-10}
-              connectorProps={{
-                stroke: "#210059",
-                strokeWidth: 1,
-                strokeLinecap: "round"
-              }}
-            >
-              <text
-                x={4}
-                textAnchor="middle"
-                alignmentBaseline="middle"
-                fill="#210059"
-                className="text-[10px] font-semibold"
-              >
-                {name}
-              </text>
-            </Annotation>
-          ))}
+            {/* Country text labels */}
+            {countryLabels.map(({ code, name, coordinates }) => {
+              const hide = hoveredOffice && cityToCountry[hoveredOffice.city] === code;
+              if (hide) return null;
+              const isHovered = hoveredCountry === code;
+              const fontSize = isHovered ? 17 : 15;
+              const fill = isHovered ? "#210059" : "#938FFF"; // brand indigo vs soft per brand
+              return (
+                <Marker key={name} coordinates={coordinates}>
+                  <text
+                    y={-6}
+                    textAnchor="middle"
+                    style={{ fontSize, paintOrder: "stroke" as any, stroke: "#fff", strokeWidth: 3, pointerEvents: 'none', letterSpacing: 1.2, fontFamily: 'var(--font-geist-sans, ui-sans-serif)' }}
+                    fontWeight={800}
+                    fill={fill}
+                  >
+                    {name.toUpperCase()}
+                  </text>
+                </Marker>
+              );
+            })}
 
-          {/* Office markers */}
-          {Object.entries(offices).map(([countryCode, countryOffices]) =>
-            countryOffices.map((office, index) => (
+            {/* City labels always visible */}
+            {cityLabels.map(({ name, coordinates }) => {
+              const isHovered = hoveredOffice?.city === name;
+              const fontSize = isHovered ? 14 : 12;
+              return (
+                <Marker key={`label-${name}`} coordinates={coordinates}>
+                  <text
+                    y={-10}
+                    x={10}
+                    textAnchor="start"
+                    style={{ fontSize, paintOrder: "stroke" as any, stroke: "#fff", strokeWidth: 2, pointerEvents: 'none', fontFamily: 'var(--font-geist-sans, ui-sans-serif)' }}
+                    fontWeight={700}
+                    fill="#210059"
+                  >
+                    {name}
+                  </text>
+                </Marker>
+              );
+            })}
+
+            {allOffices.map((office) => (
               <Marker
-                key={`${countryCode}-${index}`}
+                key={office.city}
                 coordinates={office.coordinates}
                 onMouseEnter={() => setHoveredOffice(office)}
                 onMouseLeave={() => setHoveredOffice(null)}
               >
-                <circle
-                  r={4}
-                  fill={hoveredOffice === office ? "#210059" : "#475569"}
-                  stroke="#fff"
-                  strokeWidth={2}
-                  className="cursor-pointer transition-colors duration-300"
-                />
+                <g className="cursor-pointer">
+                  <circle className="animate-ping" r={8} fill="#21005922" />
+                  <circle r={5} fill="#210059" stroke="#fff" strokeWidth={2} />
+                </g>
               </Marker>
-            ))
-          )}
-        </ZoomableGroup>
+            ))}
       </ComposableMap>
-
-      {hoveredOffice && (
-        <div
-          className="absolute z-10 bg-white text-[#210059] p-4 rounded-lg shadow-lg"
-          style={{
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)"
-          }}
-        >
-          <h4 className="font-bold text-lg">{hoveredOffice.city}</h4>
-          <p className="text-gray-600">{hoveredOffice.address}</p>
-          <p className="text-gray-600">{hoveredOffice.phone}</p>
-        </div>
-      )}
     </div>
   );
 }
