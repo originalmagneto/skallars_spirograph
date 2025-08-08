@@ -7,7 +7,7 @@ import { ChevronDown } from 'lucide-react';
 
 const languages: { code: Language; name: string }[] = [
   { code: 'sk', name: 'SK' },
-  { code: 'cz', name: 'CZ' },
+  { code: 'de', name: 'DE' },
   { code: 'en', name: 'EN' },
 ];
 

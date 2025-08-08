@@ -1,4 +1,4 @@
-export type Language = 'sk' | 'cz' | 'en';
+export type Language = 'sk' | 'de' | 'en';
 
 export interface Translations {
   navigation: {
@@ -201,52 +201,52 @@ export const translations: Record<Language, Translations> = {
       copyright: '© 2023 Advokátska kancelária SKALLARS®. Všetky práva vyhradené.',
     },
   },
-  cz: {
+  de: {
     navigation: {
-      home: 'Domů',
-      services: 'Služby',
-      countries: 'Země',
-      team: 'Tým',
-      news: 'Novinky',
+      home: 'Startseite',
+      services: 'Dienstleistungen',
+      countries: 'Länder',
+      team: 'Team',
+      news: 'Nachrichten',
       blog: 'Blog',
       contact: 'Kontakt',
     },
     hero: {
       title: 'Skallars',
-      subtitle: 'Komplexní právní podpora pro vaše podnikání.',
-      description: 'Ve Skallars věříme, že právní pomoc by měla být transparentní, efektivní a přizpůsobená potřebám každého klienta.',
-      cta: 'Kontaktujte nás',
+      subtitle: 'Umfassende rechtliche Unterstützung für Ihr Unternehmen.',
+      description: 'Bei Skallars glauben wir, dass rechtliche Unterstützung transparent, effektiv und auf die Bedürfnisse jedes Kunden zugeschnitten sein sollte.',
+      cta: 'Kontaktieren Sie uns',
     },
     services: {
-      title: 'Komplexní právní poradenství v klíčových právních oblastech',
-      subtitle: 'Našim klientům poskytujeme právní poradenství ve všech klíčových právních oblastech. Cílem našich právních služeb je minimalizovat právní rizika na straně klientů a odbřemenit je od právních problémů v co největší míře, aby se mohli naplno soustředit na své podnikání.',
+      title: 'Umfassende Rechtsberatung in wichtigen Rechtsbereichen',
+      subtitle: 'Wir bieten unseren Kunden Rechtsberatung in allen wichtigen Rechtsbereichen. Das Ziel unserer Rechtsdienstleistungen ist es, rechtliche Risiken auf der Kundenseite zu minimieren und sie von rechtlichen Problemen in größtmöglichem Umfang zu entlasten, damit sie sich voll und ganz auf ihr Geschäft konzentrieren können.',
       items: {
         corporate: {
-          title: 'Obchodní právo a obchodní společnosti',
-          description: 'Řešení komplexních otázek obchodního práva a obchodních společností vyžaduje odbornost a preciznost. Poskytujeme poradenství v oblasti zakládání společností, korporátního řízení, smluv, fúzí a akvizic, jakož i při dodržování regulačních požadavků, aby vaše podnikání prosperovalo v dynamickém prostředí.',
+          title: 'Gesellschaftsrecht und Handelsgesellschaften',
+          description: 'Die Lösung komplexer Fragen des Gesellschaftsrechts und der Handelsgesellschaften erfordert Expertise und Präzision. Wir bieten Beratung in den Bereichen Unternehmensgründung, Corporate Governance, Verträge, Fusionen und Übernahmen sowie bei der Einhaltung regulatorischer Anforderungen, damit Ihr Unternehmen in einem dynamischen Umfeld prosperiert.',
         },
         contracts: {
-          title: 'Smluvní právo',
-          description: 'Smlouvy jsou základem úspěšných obchodních vztahů. Připravujeme, posuzujeme a vyjednáváme smlouvy přizpůsobené vašim potřebám, abychom chránili vaše zájmy a minimalizovali rizika.',
+          title: 'Vertragsrecht',
+          description: 'Verträge sind die Grundlage erfolgreicher Geschäftsbeziehungen. Wir erstellen, prüfen und verhandeln Verträge, die auf Ihre Bedürfnisse zugeschnitten sind, um Ihre Interessen zu schützen und Risiken zu minimieren.',
         },
         litigation: {
-          title: 'Soudní spory',
-          description: 'Při vzniku sporů jsme vašimi spolehlivými obhájci. Naši zkušení právníci zastupují vaše zájmy před soudy a poskytují strategické poradenství a pevnou reprezentaci s cílem dosáhnout co nejlepšího výsledku.',
+          title: 'Prozessführung',
+          description: 'Bei der Entstehung von Streitigkeiten sind wir Ihre zuverlässigen Anwälte. Unsere erfahrenen Rechtsanwälte vertreten Ihre Interessen vor Gerichten und bieten strategische Beratung und solide Vertretung mit dem Ziel, das bestmögliche Ergebnis zu erzielen.',
         },
         employment: {
-          title: 'Pracovní právo',
-          description: 'Orientace v oblasti pracovního práva vyžaduje hluboké znalosti předpisů a osvědčených postupů. Radíme v otázkách pracovních smluv, vztahů se zaměstnanci, ukončení pracovního poměru a dodržování právních předpisů, abychom chránili vaše podnikání a podporovali pozitivní pracovní prostředí.',
+          title: 'Arbeitsrecht',
+          description: 'Die Orientierung im Arbeitsrecht erfordert tiefgreifende Kenntnisse der Vorschriften und bewährter Praktiken. Wir beraten in Fragen von Arbeitsverträgen, Mitarbeiterbeziehungen, Beendigung des Arbeitsverhältnisses und Einhaltung rechtlicher Vorschriften, um Ihr Unternehmen zu schützen und eine positive Arbeitsumgebung zu fördern.',
         },
         realEstate: {
-          title: 'Nemovitosti',
-          description: 'Transakce s nemovitostmi vyžadují precizní plánování a právní odbornost. Poskytujeme komplexní právní služby při nabývání, vývoji, financování, pronájmu a prodeji nemovitostí, abychom zajistili ochranu vašich investic a hladký průběh transakcí.',
+          title: 'Immobilien',
+          description: 'Immobilientransaktionen erfordern präzise Planung und rechtliche Expertise. Wir bieten umfassende Rechtsdienstleistungen bei Erwerb, Entwicklung, Finanzierung, Vermietung und Verkauf von Immobilien, um den Schutz Ihrer Investitionen und einen reibungslosen Transaktionsablauf zu gewährleisten.',
         },
       },
     },
     countries: {
-      title: 'Země působnosti',
-      subtitle: 'Působíme ve třech klíčových zemích regionu. Naši advokáti poskytují právní služby ve slovenštině a češtině, se spolehlivým zázemím v Rakousku.',
-      currentOffice: 'Aktuální kancelář',
+      title: 'Tätigkeitsländer',
+      subtitle: 'Wir sind in drei wichtigen Ländern der Region tätig. Unsere Anwälte bieten Rechtsdienstleistungen in Slowakisch und Tschechisch mit zuverlässiger Unterstützung in Österreich.',
+      currentOffice: 'Aktuelles Büro',
       officeInfo: {
         Slovakia: {
           city: 'Bratislava',
@@ -254,59 +254,59 @@ export const translations: Record<Language, Translations> = {
           phone: '+421 2 123 456 789',
         },
         'Czech Republic': {
-          city: 'Praha',
-          address: 'Václavské náměstí 1, 110 00 Prague',
+          city: 'Prag',
+          address: 'Václavské náměstí 1, 110 00 Prag',
           phone: '+420 2 987 654 321',
         },
         Austria: {
-          city: 'Vienna',
-          address: 'Stephansplatz 1, 1010 Vienna',
+          city: 'Wien',
+          address: 'Stephansplatz 1, 1010 Wien',
           phone: '+43 1 234 567 890',
         },
       },
     },
     team: {
-      title: 'Náš tým',
-      subtitle: 'Zkušení advokáti s dlouholetou praxí v mezinárodním prostředí',
-      businessCard: 'Vizitka',
+      title: 'Unser Team',
+      subtitle: 'Erfahrene Anwälte mit langjähriger Praxis im internationalen Umfeld',
+      businessCard: 'Visitenkarte',
       members: [
         {
           name: 'Marián Čuprík',
-          position: 'Advokát',
-          description: 'Marián Čuprík, v advokátní kanceláři SKALLARS®, se specializuje na korporátní, technologické právo a ochranu duševního vlastnictví, s důrazem na nové technologie.',
+          position: 'Rechtsanwalt',
+          description: 'Marián Čuprík, in der Anwaltskanzlei SKALLARS®, spezialisiert sich auf Gesellschaftsrecht, Technologierecht und Schutz geistigen Eigentums mit Schwerpunkt auf neuen Technologien.',
         },
         {
           name: 'Martin Žák',
-          position: 'Advokát',
-          description: 'Martin Žák je zkušený advokát v SKALLARS®, specializující se na obchodní právo a mezinárodní transakce.',
+          position: 'Rechtsanwalt',
+          description: 'Martin Žák ist ein erfahrener Rechtsanwalt bei SKALLARS®, spezialisiert auf Gesellschaftsrecht und internationale Transaktionen.',
         },
         {
           name: 'Juraj Hudák',
-          position: 'Advokát',
-          description: 'Juraj Hudák je v advokátní kanceláři SKALLARS® zaměřením na litigace, smluvní právo a pracovní právo.',
+          position: 'Rechtsanwalt',
+          description: 'Juraj Hudák ist in der Anwaltskanzlei SKALLARS® auf Prozessführung, Vertragsrecht und Arbeitsrecht fokussiert.',
         },
         {
           name: 'Dominic Ye',
-          position: 'Partnerský advokát SKALLARS® pro Čínu',
-          description: 'Dominic Ye, partnerský advokát SKALLARS® pro Čínu, nabízí poradenství v oblasti přeshraničních obchodních transakcí a řešení sporů. Disponuje hlubokými znalostmi v oblasti čínského práva a poskytuje právní podporu při mezinárodních investičních projektech v Asii.',
+          position: 'Partneranwalt SKALLARS® für China',
+          description: 'Dominic Ye, Partneranwalt SKALLARS® für China, bietet Beratung im Bereich grenzüberschreitender Geschäftstransaktionen und Streitbeilegung. Er verfügt über tiefgreifende Kenntnisse im chinesischen Recht und bietet rechtliche Unterstützung bei internationalen Investitionsprojekten in Asien.',
         },
       ],
     },
     news: {
-      title: 'Novinky',
-      subtitle: 'Nejnovější články a komentáře z právního světa',
-      viewAll: 'Zobrazit všechny články',
+      title: 'Nachrichten',
+      subtitle: 'Neueste Artikel und Kommentare aus der Rechtswelt',
+      viewAll: 'Alle Artikel anzeigen',
     },
     contact: {
       title: 'Kontakt',
-      subtitle: 'Kontaktujte nás pro bezplatnou konzultaci',
+      subtitle: 'Kontaktieren Sie uns für eine kostenlose Beratung',
       address: 'Staré Grunty 18, 841 04 Bratislava',
       phone: '+421 2 5443 5941',
       email: 'info@skallars.sk',
-      workingHours: 'Pondělí - Pátek: 9:00 - 17:00',
+      workingHours: 'Montag - Freitag: 9:00 - 17:00',
     },
     footer: {
-      copyright: '© 2023 Advokátní kancelář SKALLARS®. Všechna práva vyhrazena.',
+      copyright: '© 2023 SKALLARS® Anwaltskanzlei. Alle Rechte vorbehalten.',
     },
   },
   en: {
