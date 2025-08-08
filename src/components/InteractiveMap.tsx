@@ -135,10 +135,12 @@ export default function InteractiveMap() {
               const isHovered = hoveredCountry === code;
               const fontSize = isHovered ? 17 : 15;
               const fill = isHovered ? "#210059" : "#938FFF"; // brand indigo vs soft per brand
+              // Move Slovensko label 15 pixels up
+              const yPosition = code === "SK" ? -1 : 1;
               return (
                 <Marker key={name} coordinates={coordinates}>
                   <text
-                    y={7}
+                    y={yPosition}
                     textAnchor="middle"
                     style={{ fontSize, paintOrder: "stroke" as any, stroke: "#fff", strokeWidth: 3, pointerEvents: 'none', letterSpacing: 1.2, fontFamily: 'var(--font-geist-sans, ui-sans-serif)' }}
                     fontWeight={800}
