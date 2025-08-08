@@ -69,8 +69,8 @@ export default function InteractiveMap() {
   );
 
   const countryLabels = [
-    { code: "SK", name: "Slovensko", coordinates: [19.6, 48.9] as [number, number] },
-    { code: "CZ", name: "Česko", coordinates: [15.1, 50.0] as [number, number] },
+    { code: "SK", name: "Slovensko", coordinates: [19.6, 48.7] as [number, number] },
+    { code: "CZ", name: "Česko", coordinates: [15.3, 49.8] as [number, number] },
   ];
 
   const cityToCountry: Record<string, string> = {

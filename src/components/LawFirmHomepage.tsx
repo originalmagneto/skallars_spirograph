@@ -388,7 +388,9 @@ export default function LawFirmHomepage() {
                   {legalServices.map((service, index) => (
                     <div
                       key={index}
-                      ref={(el) => (serviceRefs.current[index] = el)}
+                      ref={(el) => {
+                        serviceRefs.current[index] = el;
+                      }}
                       data-index={index}
                       className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow"
                     >
