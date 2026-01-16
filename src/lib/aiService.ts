@@ -1,30 +1,30 @@
 import { supabase } from "@/lib/supabase";
 
 export interface GeneratedArticle {
-    title_sk: string;
-    title_en: string;
-    title_de: string;
-    title_cn: string;
-    excerpt_sk: string;
-    excerpt_en: string;
-    excerpt_de: string;
-    excerpt_cn: string;
-    content_sk: string;
-    content_en: string;
-    content_de: string;
-    content_cn: string;
-    meta_title_sk: string;
-    meta_title_en: string;
-    meta_title_de: string;
-    meta_title_cn: string;
-    meta_description_sk: string;
-    meta_description_en: string;
-    meta_description_de: string;
-    meta_description_cn: string;
-    meta_keywords_sk: string;
-    meta_keywords_en: string;
-    meta_keywords_de: string;
-    meta_keywords_cn: string;
+    title_sk?: string;
+    title_en?: string;
+    title_de?: string;
+    title_cn?: string;
+    excerpt_sk?: string;
+    excerpt_en?: string;
+    excerpt_de?: string;
+    excerpt_cn?: string;
+    content_sk?: string;
+    content_en?: string;
+    content_de?: string;
+    content_cn?: string;
+    meta_title_sk?: string;
+    meta_title_en?: string;
+    meta_title_de?: string;
+    meta_title_cn?: string;
+    meta_description_sk?: string;
+    meta_description_en?: string;
+    meta_description_de?: string;
+    meta_description_cn?: string;
+    meta_keywords_sk?: string;
+    meta_keywords_en?: string;
+    meta_keywords_de?: string;
+    meta_keywords_cn?: string;
     tags: string[];
     usage?: {
         promptTokens: number;
@@ -123,7 +123,14 @@ ${selectedStyle}
 1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
 2. **Value**: Every paragraph must add value. No filler.
 3. **Multilingual**: You must generate the article in the following languages: **${selectedLangNames}** simultaneously.
-4. **Formatting**: Use HTML tags (\`<h2>\`, \`<h3>\`, \`<ul>\`, \`<li>\`, \`<p>\`, \`<strong>\`) for content. Do not use Markdown characters like # or ** inside the JSON strings.
+4. **Formatting**: 
+   - Use **HTML tags** for all content semantics.
+   - **Headings**: Use `<h2>` for main sections and `<h3>` for subsections.
+   - **Paragraphs**: Wrap all body text in `<p>` tags.
+   - **Lists**: Use `<ul>` with `<li>` for bullet points.
+   - **Emphasis**: Use `<strong>` for key terms.
+   - **Structure**: Break long text into readable chunks with frequent subheadings.
+   - **Prohibited**: Do NOT use markdown characters like `#`, ` ** `, or ` - ` inside the JSON strings. Use HTML only.
 
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
