@@ -26,6 +26,11 @@ export interface GeneratedArticle {
     meta_keywords_de: string;
     meta_keywords_cn: string;
     tags: string[];
+    usage?: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+    };
 }
 
 async function getSetting(key: string): Promise<string | null> {
