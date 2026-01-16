@@ -148,6 +148,23 @@ const AILab = () => {
                 targetLanguages
             });
             setGeneratedContent(content);
+
+            // Log token usage if available
+            if (user && content.usage) {
+                try {
+                    await supabase.from('ai_usage_logs').insert({
+                        user_id: user.id,
+                        action: 'generate_article',
+                        model: await supabase.from('settings').select('value').eq('key', 'gemini_model').single().then(r => r.data?.value || 'gemini-2.0-flash'),
+                        input_tokens: content.usage.promptTokens,
+                        output_tokens: content.usage.completionTokens,
+                        total_tokens: content.usage.totalTokens
+                    });
+                } catch (err) {
+                    console.error('Failed to log AI usage:', err);
+                }
+            }
+
             toast.success('Article generated successfully!');
         } catch (error: any) {
             toast.error(error.message || 'Generation failed');
