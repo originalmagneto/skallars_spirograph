@@ -17,7 +17,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Load language from localStorage on client side
     const savedLanguage = localStorage.getItem('language') as Language;
-    if (savedLanguage && ['sk', 'en', 'de'].includes(savedLanguage)) {
+    if (savedLanguage && ['sk', 'en', 'de', 'cn'].includes(savedLanguage)) {
       setLanguageState(savedLanguage);
     }
   }, []);

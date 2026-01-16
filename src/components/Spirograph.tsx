@@ -42,7 +42,7 @@ export default function Spirograph() {
           console.error('Failed to load script:', error);
           setError('Failed to load spirograph script');
         };
-        
+
         const loadPromise = new Promise((resolve, reject) => {
           script.onload = resolve;
           script.onerror = reject;
@@ -119,10 +119,10 @@ export default function Spirograph() {
   }
 
   return (
-    <div 
+    <div
       data-spirograph="tetra"
-      ref={containerRef} 
-      className="spirograph fixed inset-0 -z-10 pointer-events-none"
+      ref={containerRef}
+      className="spirograph absolute top-0 left-0 right-0 h-[150vh] -translate-y-[25%] -z-10 pointer-events-none"
       data-spirograph-options='{
         "autoRotateNonAxis": true,
         "objectsCount": 12,
@@ -134,7 +134,7 @@ export default function Spirograph() {
       <canvas
         className="spirograph__canvas w-full h-full"
         data-spirograph-canvas
-        
+
       ></canvas>
     </div>
   );

@@ -1,4 +1,8 @@
-export type Language = 'sk' | 'de' | 'en';
+export type Language = 'sk' | 'de' | 'en' | 'cn';
+
+// ... (interface unchanged)
+
+
 
 export interface Translations {
   navigation: {
@@ -45,6 +49,8 @@ export interface Translations {
   countries: {
     title: string;
     subtitle: string;
+    description: string;
+    connectionsTitle: string;
     currentOffice: string;
     officeInfo: {
       Slovakia: {
@@ -146,6 +152,8 @@ export const translations: Record<Language, Translations> = {
     countries: {
       title: 'Krajiny pôsobnosti',
       subtitle: 'Medzinárodná sieť',
+      description: 'Spolupracujeme s partnermi po celom svete, aby sme vám poskytli komplexné služby bez ohľadu na to, kde podnikáte.',
+      connectionsTitle: 'Naše spojenia:',
       currentOffice: 'Aktuálna kancelária',
       officeInfo: {
         Slovakia: {
@@ -262,6 +270,8 @@ export const translations: Record<Language, Translations> = {
     countries: {
       title: 'Tätigkeitsländer',
       subtitle: 'Internationales Netzwerk',
+      description: 'Wir arbeiten mit Partnern auf der ganzen Welt zusammen, um Ihnen umfassende Dienstleistungen anzubieten, unabhängig davon, wo Sie geschäftlich tätig sind.',
+      connectionsTitle: 'Unsere Verbindungen:',
       currentOffice: 'Aktuelles Büro',
       officeInfo: {
         Slovakia: {
@@ -334,6 +344,7 @@ export const translations: Record<Language, Translations> = {
     },
   },
   en: {
+    // ... (unchanged)
     navigation: {
       home: 'Home',
       services: 'Services',
@@ -378,6 +389,8 @@ export const translations: Record<Language, Translations> = {
     countries: {
       title: 'Countries of Operation',
       subtitle: 'International Network',
+      description: 'We collaborate with partners around the world to provide you with comprehensive services regardless of where you do business.',
+      connectionsTitle: 'Our connections:',
       currentOffice: 'Current Office',
       officeInfo: {
         Slovakia: {
@@ -447,6 +460,124 @@ export const translations: Record<Language, Translations> = {
     map: {
       slovakia: 'Slovakia',
       czechRepublic: 'Czech Republic',
+    },
+  },
+  cn: {
+    navigation: {
+      home: '主页',
+      services: '服务',
+      countries: '国家',
+      team: '团队',
+      news: '新闻',
+      blog: '博客',
+      contact: '联系我们',
+    },
+    hero: {
+      title: 'Skallars',
+      subtitle: '为您的企业提供全面的法律支持',
+      description: '在 Skallars，我们相信法律援助应该是透明、高效并根据每位客户的需求量身定制的。',
+      cta: '联系我们',
+    },
+    services: {
+      title: '关键法律领域的全面法律咨询',
+      subtitle: '我们为客户提供包括所有关键法律领域的法律咨询。我们法律服务的目标是最大限度地降低客户方面的法律风险，并在最大程度上减轻他们的法律问题，使他们能够专注于自己的业务。',
+      items: {
+        corporate: {
+          title: '公司法和商业公司',
+          description: '解决复杂的公司法和商业公司问题需要专业知识和精确性。我们提供公司成立、公司治理、合同、并购以及合规要求方面的咨询，以确保您的业务在充满活力的环境中蓬勃发展。',
+        },
+        contracts: {
+          title: '合同法',
+          description: '合同是成功商业关系的基础。我们起草、审查和谈判根据您的需求量身定制的合同，以保护您的利益并尽量减少风险。',
+        },
+        litigation: {
+          title: '诉讼',
+          description: '当发生争议时，我们是您可靠的辩护人。我们经验丰富的律师在法庭上代表您的利益，为您提供战略建议和坚定的代理，旨在实现最佳结果。',
+        },
+        employment: {
+          title: '劳动法',
+          description: '驾驭劳动法需要对法规和最佳实践有深入的了解。我们就此提供劳动合同、员工关系、终止雇佣和遵守法律法规方面的建议，以保护您的业务并支持积极的工作环境。',
+        },
+        realEstate: {
+          title: '房地产',
+          description: '房地产交易需要精确的规划和法律专业知识。我们提供房地产收购、开发、融资、租赁和销售方面的全面法律服务，以确保您的投资受到保护并确保交易顺畅进行。',
+        },
+      },
+    },
+    countries: {
+      title: '运营国家',
+      subtitle: '国际网络',
+      description: '我们与世界各地的合作伙伴合作，无论您在哪里开展业务，都能为您提供全面的服务。',
+      connectionsTitle: '我们的连接：',
+      currentOffice: '当前办事处',
+      officeInfo: {
+        Slovakia: {
+          city: '布拉迪斯拉发',
+          address: 'Staré Grunty 18, 841 04 Bratislava',
+          phone: '+421 2 123 456 789',
+        },
+        'Czech Republic': {
+          city: '布拉格',
+          address: 'Václavské náměstí 1, 110 00 Prague',
+          phone: '+420 2 987 654 321',
+        },
+        Austria: {
+          city: '维也纳',
+          address: 'Stephansplatz 1, 1010 Vienna',
+          phone: '+43 1 234 567 890',
+        },
+      },
+    },
+    team: {
+      title: '我们的团队',
+      subtitle: '在国际环境中拥有多年实践经验的资深律师',
+      businessCard: '名片',
+      members: [
+        {
+          name: 'Marián Čuprík',
+          position: '律师',
+          description: 'Marián Čuprík，SKALLARS® 律师事务所律师，专注于公司法、科技法和知识产权保护，重点关注新技术领域。',
+        },
+        {
+          name: 'Martin Žák',
+          position: '律师',
+          description: 'Martin Žák 是 SKALLARS® 的资深律师，专注于公司法和国际交易。',
+        },
+        {
+          name: 'Juraj Hudák',
+          position: '律师',
+          description: 'Juraj Hudák 在 SKALLARS® 律师事务所专注于诉讼、合同法和劳动法。',
+        },
+        {
+          name: 'Dominic Ye',
+          position: 'SKALLARS® 中国合伙律师',
+          description: 'Dominic Ye，SKALLARS® 中国合伙律师，提供跨境商业交易和争议解决方面的建议。他拥有深厚的中国法律知识，并为亚洲的国际投资项目提供法律支持。',
+        },
+      ],
+    },
+    news: {
+      title: '新闻',
+      subtitle: '来自法律界的最新文章和评论',
+      viewAll: '查看所有文章',
+    },
+    clients: {
+      title: '客户',
+      subtitle: '我们为来自不同行业的客户对我们的信任感到自豪',
+    },
+    contact: {
+      title: '联系我们',
+      subtitle: '联系我们获得免费咨询',
+      address: 'Staré Grunty 18, 841 04 布拉迪斯拉发',
+      phone: '+421 2 5443 5941',
+      email: 'info@skallars.sk',
+      workingHours: '周一至周五：9:00 - 17:00',
+    },
+    footer: {
+      copyright: '© 2023 SKALLARS® 律师事务所。保留所有权利。',
+    },
+    map: {
+      slovakia: '斯洛伐克',
+      czechRepublic: '捷克共和国',
     },
   },
 };

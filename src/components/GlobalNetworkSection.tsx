@@ -6,6 +6,7 @@ import { useMapSettings } from '@/contexts/MapSettingsContext';
 import { Globe02Icon, Location01Icon } from 'hugeicons-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { COUNTRY_COORDINATES } from '@/lib/countryCoordinates';
 
 // SVG dimensions: 1009.6727 x 665.96301
 // geoViewBox: minLng=-169.110266, maxLat=83.600842, maxLng=190.486279, minLat=-58.508473
@@ -33,6 +34,7 @@ const geoToSvg = (lat: number, lng: number) => {
 interface MapCity {
     id: string;
     name: string;
+    country?: string;
     latitude: number;
     longitude: number;
     is_main: boolean;
@@ -52,23 +54,13 @@ interface ConnectionPoint {
 
 // Fallback data to implement immediate functionality (lines working) even if DB is empty
 const FALLBACK_CITIES: MapCity[] = [
-    { id: '1', name: 'Bratislava', latitude: 48.1486, longitude: 17.1077, is_main: true, is_secondary: false, region: 'Europe', display_order: 1 },
-    { id: '2', name: 'London', latitude: 51.5074, longitude: -0.1278, is_main: false, is_secondary: true, region: 'Europe', display_order: 2 },
-    { id: '3', name: 'New York', latitude: 40.7128, longitude: -74.0060, is_main: false, is_secondary: true, region: 'North America', display_order: 3 },
-    { id: '4', name: 'Dubai', latitude: 25.2048, longitude: 55.2708, is_main: false, is_secondary: true, region: 'Asia', display_order: 4 },
-    { id: '5', name: 'Singapore', latitude: 1.3521, longitude: 103.8198, is_main: false, is_secondary: true, region: 'Asia', display_order: 5 },
-    { id: '6', name: 'Hong Kong', latitude: 22.3193, longitude: 114.1694, is_main: false, is_secondary: true, region: 'Asia', display_order: 6 },
-    { id: '7', name: 'Zurich', latitude: 47.3769, longitude: 8.5417, is_main: false, is_secondary: true, region: 'Europe', display_order: 7 },
-];
-
-const CENTRAL_EUROPE_COUNTRIES = [
-    { name: 'Slovakia', nameSk: 'Slovensko', labelLat: 48.7, labelLng: 19.5 },
-    { name: 'Czech Republic', nameSk: 'Česko', labelLat: 49.8, labelLng: 15.5 },
-    { name: 'Poland', nameSk: 'Poľsko', labelLat: 52.0, labelLng: 19.5 },
-    { name: 'Hungary', nameSk: 'Maďarsko', labelLat: 47.0, labelLng: 19.5 },
-    { name: 'Austria', nameSk: 'Rakúsko', labelLat: 47.5, labelLng: 14.0 },
-    { name: 'Germany', nameSk: 'Nemecko', labelLat: 51.0, labelLng: 10.5 },
-    { name: 'Ukraine', nameSk: 'Ukrajina', labelLat: 49.0, labelLng: 32.0 },
+    { id: '1', name: 'Bratislava', country: 'Slovakia', latitude: 48.1486, longitude: 17.1077, is_main: true, is_secondary: false, region: 'Europe', display_order: 1 },
+    { id: '2', name: 'London', country: 'UK', latitude: 51.5074, longitude: -0.1278, is_main: false, is_secondary: true, region: 'Europe', display_order: 2 },
+    { id: '3', name: 'New York', country: 'USA', latitude: 40.7128, longitude: -74.0060, is_main: false, is_secondary: true, region: 'North America', display_order: 3 },
+    { id: '4', name: 'Dubai', country: 'UAE', latitude: 25.2048, longitude: 55.2708, is_main: false, is_secondary: true, region: 'Asia', display_order: 4 },
+    { id: '5', name: 'Singapore', country: 'Singapore', latitude: 1.3521, longitude: 103.8198, is_main: false, is_secondary: true, region: 'Asia', display_order: 5 },
+    { id: '6', name: 'Hong Kong', country: 'Hong Kong', latitude: 22.3193, longitude: 114.1694, is_main: false, is_secondary: true, region: 'Asia', display_order: 6 },
+    { id: '7', name: 'Zurich', country: 'Switzerland', latitude: 47.3769, longitude: 8.5417, is_main: false, is_secondary: true, region: 'Europe', display_order: 7 },
 ];
 
 const getViewConfigs = (mainPoint?: ConnectionPoint) => {
@@ -84,21 +76,21 @@ const getViewConfigs = (mainPoint?: ConnectionPoint) => {
             y: 0,
             width: SVG_WIDTH,
             height: SVG_HEIGHT,
-            label: { sk: 'Globálny', en: 'Global', de: 'Global' },
+            label: { sk: 'Globálny', en: 'Global', de: 'Global', cn: '全球' },
         },
         europe: {
             x: centerPoint.x - 120,
             y: centerPoint.y - 80,
             width: 240,
             height: 180,
-            label: { sk: 'Európa', en: 'Europe', de: 'Europa' },
+            label: { sk: 'Európa', en: 'Europe', de: 'Europa', cn: '欧洲' },
         },
         centralEurope: {
             x: centralEuropeCenter.x - 50,
             y: centralEuropeCenter.y - 35,
             width: 100,
             height: 75,
-            label: { sk: 'Stredná Európa', en: 'Central EU', de: 'Mitteleuropa' },
+            label: { sk: 'Stredná Európa', en: 'Central EU', de: 'Mitteleuropa', cn: '中欧' },
         },
     };
 };
@@ -107,9 +99,19 @@ type FocusMode = 'global' | 'europe' | 'centralEurope';
 
 const CountryLabel = ({ lat, lng, name, scale }: { lat: number; lng: number; name: string; scale: number }) => {
     const { x, y } = geoToSvg(lat, lng);
-    if (scale > 0.15) return null;
+    // Adjusted visibility threshold to show labels more easily on zoom
+    if (scale > 0.3) return null; // Hide if zoomed out too much? No, scale is zoomScale = viewBox.width / SVG_WIDTH. Smaller scale = zoomed in? No. 
+    // zoomScale = width / originalWidth. 
+    // Full map: 1009 / 1009 = 1.
+    // Europe: 240 / 1009 = 0.23.
+    // Central EU: 100 / 1009 = 0.09.
+    // So smaller number = more zoomed in.
 
-    const fontSize = 2.2 * Math.max(0.8, scale * 8);
+    // We want labels to show when zoomed in (small scale value) or always?
+    // User wants to see country names. 
+    // Let's allow them up to scale 0.5 (half world view)
+
+    const fontSize = 1.3 * Math.max(0.8, scale * 10);
     const formattedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 
     return (
@@ -117,18 +119,21 @@ const CountryLabel = ({ lat, lng, name, scale }: { lat: number; lng: number; nam
             x={x}
             y={y}
             textAnchor="middle"
-            fill="hsl(var(--muted-foreground))" // Unified unified text color
+            fill="hsl(var(--muted-foreground))"
             fontSize={fontSize}
             fontFamily="var(--font-body)"
             fontWeight="500"
-            letterSpacing="0.05em"
-            opacity={0.7}
-            style={{ pointerEvents: 'none' }}
+            letterSpacing="0.1em"
+            opacity={0.6}
+            className="uppercase"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
         >
             {formattedName}
         </text>
     );
 };
+
+// ... (CountryLabel component above)
 
 const PulsingDot = ({ x, y, isMain, isSecondary, delay = 0, name, scale = 1 }: { x: number; y: number; isMain: boolean; isSecondary?: boolean; delay?: number; name: string; scale?: number }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -139,8 +144,6 @@ const PulsingDot = ({ x, y, isMain, isSecondary, delay = 0, name, scale = 1 }: {
     const labelOffset = baseRadius * 3 + 4 * labelScale;
 
     // Unified Design Colors
-    // Pulse: Brand Accent (Emerald)
-    // Core: Brand Indigo (Primary)
     const pulseColor = "hsl(var(--brand-accent))";
     const coreColor = isMain ? "hsl(var(--brand-indigo))" : "hsl(var(--brand-indigo))";
     const glowColor = "hsl(var(--brand-accent))";
@@ -151,7 +154,6 @@ const PulsingDot = ({ x, y, isMain, isSecondary, delay = 0, name, scale = 1 }: {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            {/* Pulse ring */}
             <circle
                 cx={x}
                 cy={y}
@@ -164,17 +166,10 @@ const PulsingDot = ({ x, y, isMain, isSecondary, delay = 0, name, scale = 1 }: {
                     transformOrigin: `${x}px ${y}px`,
                 }}
             />
-
-            {/* Outer glow */}
             <circle cx={x} cy={y} r={baseRadius * 1.6} fill={glowColor} opacity={0.3} />
-
-            {/* Core */}
             <circle cx={x} cy={y} r={baseRadius} fill={coreColor} />
-
-            {/* Center highlight */}
             <circle cx={x} cy={y} r={baseRadius * 0.4} fill="hsl(var(--background))" opacity={0.8} />
 
-            {/* City name label on hover */}
             {isHovered && (
                 <g style={{ pointerEvents: 'none' }}>
                     <line
@@ -227,10 +222,7 @@ const ConnectionLine = ({ x1, y1, x2, y2, delay = 0, index, scale = 1 }: { x1: n
 
     return (
         <g>
-            {/* Subtle base stroke - Indigo */}
             <path d={pathD} fill="none" stroke="hsl(var(--brand-indigo))" strokeWidth={0.5 * scale} opacity={0.15} />
-
-            {/* Moving dashes - Emerald Accent */}
             <path
                 d={pathD}
                 fill="none"
@@ -240,18 +232,12 @@ const ConnectionLine = ({ x1, y1, x2, y2, delay = 0, index, scale = 1 }: { x1: n
                 opacity={0.6}
                 style={{ animation: `dash-move 5s linear infinite`, animationDelay: `${delay}ms` }}
             />
-
-            {/* Particle path */}
             <path id={pathId} d={pathD} fill="none" stroke="transparent" />
-
-            {/* Particle head - Emerald */}
             <circle r={2 * scale} fill="hsl(var(--brand-accent))">
                 <animateMotion dur={dur} repeatCount="indefinite" begin={`${delay}ms`}>
                     <mpath xlinkHref={`#${pathId}`} />
                 </animateMotion>
             </circle>
-
-            {/* Trailing particles */}
             <circle r={1.2 * scale} fill="hsl(var(--brand-accent))" opacity={0.6}>
                 <animateMotion dur={dur} repeatCount="indefinite" begin={`${delay + 150}ms`}>
                     <mpath xlinkHref={`#${pathId}`} />
@@ -261,7 +247,8 @@ const ConnectionLine = ({ x1, y1, x2, y2, delay = 0, index, scale = 1 }: { x1: n
     );
 };
 
-const GlobalNetworkSection = () => {
+const GlobalNetworkSection = ({ id }: { id?: string }) => {
+    // ... (hooks unchanged) ...
     const { t, language } = useLanguage();
     const { settings } = useMapSettings();
     const sectionRef = useRef<HTMLElement>(null);
@@ -269,7 +256,7 @@ const GlobalNetworkSection = () => {
     const [focusMode, setFocusMode] = useState<FocusMode>('centralEurope');
     const [svgContent, setSvgContent] = useState<string>('');
 
-    // Fetch SVG content
+    // ... (fetch SVG and DB data unchanged) ...
     useEffect(() => {
         fetch('/world-map-borders.svg')
             .then(res => res.text())
@@ -285,7 +272,6 @@ const GlobalNetworkSection = () => {
             .catch(console.error);
     }, []);
 
-    // Fetch cities from database
     const { data: dbCities } = useQuery({
         queryKey: ['map-cities-public'],
         queryFn: async () => {
@@ -299,10 +285,47 @@ const GlobalNetworkSection = () => {
         staleTime: 5 * 60 * 1000,
     });
 
-    // Use DB cities if available, otherwise fallback
     const citiesData = (dbCities && dbCities.length > 0) ? dbCities : FALLBACK_CITIES;
 
+    // Calculate Country Labels using fixed coordinates standard, falling back to centroids if missing
+    const countryLabels = useMemo(() => {
+        if (!citiesData) return [];
+
+        const uniqueCountries = new Set<string>();
+        const countryGroups: Record<string, { totalLat: number; totalLng: number; count: number }> = {};
+
+        citiesData.forEach(city => {
+            if (city.country) {
+                const c = city.country.trim();
+                uniqueCountries.add(c);
+
+                // Keep centroid data just in case we need fallback
+                if (!countryGroups[c]) {
+                    countryGroups[c] = { totalLat: 0, totalLng: 0, count: 0 };
+                }
+                countryGroups[c].totalLat += city.latitude;
+                countryGroups[c].totalLng += city.longitude;
+                countryGroups[c].count += 1;
+            }
+        });
+
+        return Array.from(uniqueCountries).map(name => {
+            const fixedCoord = COUNTRY_COORDINATES[name];
+            if (fixedCoord) {
+                return { name, lat: fixedCoord.lat, lng: fixedCoord.lng };
+            }
+            // Fallback to centroid
+            const data = countryGroups[name];
+            return {
+                name,
+                lat: data.totalLat / data.count,
+                lng: data.totalLng / data.count
+            };
+        });
+    }, [citiesData]);
+
     const connectionPoints = useMemo<ConnectionPoint[]>(() => {
+        // ... (unchanged) ...
         if (!citiesData) return [];
         return citiesData.map((city) => {
             const { x, y } = geoToSvg(city.latitude, city.longitude);
@@ -317,10 +340,12 @@ const GlobalNetworkSection = () => {
         });
     }, [citiesData]);
 
+    // ... (rest of component) ...
+
     const mainPoint = connectionPoints.find((p) => p.isMain) || connectionPoints[0];
     const VIEW_CONFIGS = useMemo(() => getViewConfigs(mainPoint), [mainPoint]);
 
-    // ViewBox state
+    // ... (ViewBox state and effects unchanged) ...
     const [viewBox, setViewBox] = useState(VIEW_CONFIGS.centralEurope);
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0, viewX: 0, viewY: 0 });
@@ -334,6 +359,8 @@ const GlobalNetworkSection = () => {
             setViewBox(VIEW_CONFIGS.europe);
         }
     }, [VIEW_CONFIGS, focusMode]);
+
+    // ... (snapToView, drag logic unchanged) ...
 
     const snapToView = useCallback((mode: FocusMode) => {
         setFocusMode(mode);
@@ -361,7 +388,6 @@ const GlobalNetworkSection = () => {
         requestAnimationFrame(animate);
     }, [VIEW_CONFIGS, viewBox]);
 
-    // Drag handlers
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         setIsDragging(true);
         setDragStart({ x: e.clientX, y: e.clientY, viewX: viewBox.x, viewY: viewBox.y });
@@ -420,7 +446,8 @@ const GlobalNetworkSection = () => {
     const currentViewBox = `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`;
 
     return (
-        <section ref={sectionRef} className="relative py-20 md:py-32 overflow-visible">
+        <section id={id} ref={sectionRef} className="relative py-20 md:py-32 overflow-visible">
+            {/* ... styles and container ... */}
             <div className="absolute inset-0 bg-card" />
 
             {/* Styles injected to properly map CSS variables */}
@@ -455,8 +482,8 @@ const GlobalNetworkSection = () => {
                 <div className="grid lg:grid-cols-2 gap-12 items-center">
                     <div className="space-y-8">
                         <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 flex items-center gap-3">
-                            <div className="h-px w-12 bg-primary" />
-                            <span className="text-sm font-medium tracking-widest uppercase text-primary">
+                            <div className="h-px w-12 bg-[#210059]" />
+                            <span className="text-sm font-medium tracking-widest uppercase text-[#210059]">
                                 {t.countries?.subtitle || 'International Presence'}
                             </span>
                         </div>
@@ -464,7 +491,7 @@ const GlobalNetworkSection = () => {
                             {t.countries?.title || 'Global Reach'}
                         </h2>
                         <p className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-200 text-lg text-muted-foreground max-w-lg">
-                            We collaborate with partners around the world to provide you with comprehensive services regardless of where you do business.
+                            {t.countries.description}
                         </p>
                         <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-300 grid grid-cols-3 gap-6 pt-4">
                             {stats.map((stat, i) => (
@@ -475,7 +502,7 @@ const GlobalNetworkSection = () => {
                             ))}
                         </div>
                         <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-[400ms] pt-4">
-                            <p className="text-sm text-muted-foreground mb-3">Our connections:</p>
+                            <p className="text-sm text-muted-foreground mb-3">{t.countries.connectionsTitle}</p>
                             <div className="flex flex-wrap gap-2">
                                 {connectionPoints.map((city) => (
                                     <span key={city.name} className="text-xs px-3 py-1 bg-primary/10 text-primary rounded-full">
@@ -487,18 +514,19 @@ const GlobalNetworkSection = () => {
                     </div>
 
                     <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-1000 delay-200 h-[400px] md:h-[500px] relative">
+                        {/* ... Labels and Map Controls ... */}
                         <div className="absolute top-2 right-2 z-40 flex bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg p-1 gap-1">
                             {['centralEurope', 'europe', 'global'].map(mode => (
                                 <button
                                     key={mode}
                                     onClick={() => snapToView(mode as FocusMode)}
                                     className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${focusMode === mode
-                                            ? 'bg-primary text-primary-foreground'
-                                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                        ? 'bg-[#210059] text-white'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                                         }`}
                                 >
                                     {mode === 'global' ? <Globe02Icon size={14} /> : <Location01Icon size={14} />}
-                                    {VIEW_CONFIGS[mode as FocusMode].label[language as 'sk' | 'en' | 'de']}
+                                    {VIEW_CONFIGS[mode as FocusMode].label[language as 'sk' | 'en' | 'de' | 'cn']}
                                 </button>
                             ))}
                         </div>
@@ -518,8 +546,8 @@ const GlobalNetworkSection = () => {
                                 <rect x="0" y="0" width={SVG_WIDTH} height={SVG_HEIGHT} fill="hsl(var(--background))" />
                                 <g className="world-map-paths" dangerouslySetInnerHTML={{ __html: svgContent }} />
                                 <g style={{ pointerEvents: 'none' }}>
-                                    {CENTRAL_EUROPE_COUNTRIES.map((country) => (
-                                        <CountryLabel key={country.name} lat={country.labelLat} lng={country.labelLng} name={country.name} scale={zoomScale} />
+                                    {countryLabels.map((country) => (
+                                        <CountryLabel key={country.name} lat={country.lat} lng={country.lng} name={country.name} scale={zoomScale} />
                                     ))}
                                 </g>
                                 <g style={{ pointerEvents: 'none' }}>

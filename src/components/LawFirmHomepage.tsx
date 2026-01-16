@@ -187,7 +187,7 @@ export default function LawFirmHomepage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       {/* Header moved to global SiteHeader in layout */}
 
       <main>
@@ -195,14 +195,14 @@ export default function LawFirmHomepage() {
           id="home"
           className="min-h-screen flex items-center justify-center relative overflow-visible pt-24"
         >
-          {/* Spirograph moved to fixed background; renders once */}
+          {/* Spirograph pinned to hero section */}
           <Spirograph />
           <div className="container mx-auto px-4 py-20 relative z-10">
             <motion.h1
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: 'easeOut' }}
-              className="text-7xl md:text-8xl font-extrabold mb-6 text-[#210059] tracking-tight"
+              className="text-7xl md:text-8xl font-extrabold mb-6 text-foreground tracking-tight"
             >
               {t.hero.subtitle}
             </motion.h1>
@@ -210,7 +210,7 @@ export default function LawFirmHomepage() {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
-              className="text-2xl text-gray-600 max-w-3xl"
+              className="text-2xl text-muted-foreground max-w-3xl"
             >
               {t.hero.description}
             </motion.p>
@@ -224,7 +224,7 @@ export default function LawFirmHomepage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, amount: 0.6 }}
               transition={{ duration: 0.6, ease: 'easeOut' }}
-              className="text-5xl font-extrabold mb-12 text-center text-[#210059] tracking-tight"
+              className="text-5xl font-extrabold mb-12 text-center text-foreground tracking-tight"
             >
               {t.team.title}
             </motion.h2>
@@ -232,42 +232,42 @@ export default function LawFirmHomepage() {
               {teamMembers.map((member, index) => (
                 <div
                   key={index}
-                  className="bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105"
+                  className="bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group"
                 >
-                  <div className="w-full h-64 mb-4 overflow-hidden rounded">
+                  <div className="w-full h-64 mb-4 overflow-hidden rounded relative">
                     <img
                       src={member.image}
                       alt={member.name}
-                      className="w-full h-full object-cover object-top"
+                      className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
                     />
                   </div>
-                  <h4 className="text-xl font-semibold mb-2 text-[#210059]">
+                  <h4 className="text-xl font-semibold mb-2 text-foreground group-hover:text-accent transition-colors">
                     {member.name}
                   </h4>
-                  <p className="text-gray-600 mb-4">{member.role}</p>
-                  <p className="text-sm text-gray-500 mb-4 flex-grow">
+                  <p className="text-muted-foreground mb-4 font-medium">{member.role}</p>
+                  <p className="text-sm text-muted-foreground mb-4 flex-grow">
                     {member.description}
                   </p>
                   <div className="mt-auto">
                     <div className="flex items-center mb-2">
-                      <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                      <Phone className="w-4 h-4 mr-2 text-accent" />
                       <a
                         href={`tel:${member.phone}`}
-                        className="text-[#210059] hover:underline"
+                        className="text-foreground hover:text-secondary transition-colors"
                       >
                         {member.phone}
                       </a>
                     </div>
                     <div className="flex items-center mb-2">
-                      <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                      <Mail className="w-4 h-4 mr-2 text-accent" />
                       <a
                         href={`mailto:${member.email}`}
-                        className="text-[#210059] hover:underline"
+                        className="text-foreground hover:text-secondary transition-colors"
                       >
                         {member.email}
                       </a>
                     </div>
-                    <a href="#" className="text-[#210059] hover:underline">
+                    <a href="#" className="text-[#210059] hover:text-accent hover:underline font-medium transition-colors">
                       {t.team.businessCard}
                     </a>
                   </div>
@@ -277,25 +277,27 @@ export default function LawFirmHomepage() {
           </div>
         </section>
 
+        {/* ... Service Section ... */}
         <section
           id="services"
           ref={servicesRef}
-          className="py-20 bg-gradient-to-b from-gray-100 to-white relative"
+          className="py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden"
         >
-          <div className="container mx-auto px-4">
+          <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
+          <div className="container mx-auto px-4 relative z-10">
             <div className="flex flex-col lg:flex-row">
               <div
                 ref={stickyRef}
                 className="lg:w-1/3 pr-8 lg:sticky lg:top-24 lg:self-start"
                 style={{ height: "fit-content" }}
               >
-                <h2 className="text-4xl font-bold mb-6 text-[#210059]">
+                <h2 className="text-4xl font-bold mb-6 text-foreground">
                   {t.services.title}
                 </h2>
-                <p className="text-xl text-gray-600 mb-6">
+                <p className="text-xl text-muted-foreground mb-6">
                   {t.services.subtitle}
                 </p>
-                <div className="relative h-64 rounded-lg overflow-hidden">
+                <div className="relative h-64 rounded-lg overflow-hidden ring-1 ring-border shadow-md">
                   {images.map((src, index) => (
                     <img
                       key={src}
@@ -307,6 +309,7 @@ export default function LawFirmHomepage() {
                         }`}
                     />
                   ))}
+                  <div className="absolute inset-0 bg-primary/10 mix-blend-multiply" />
                 </div>
               </div>
               <div className="lg:w-2/3 mt-8 lg:mt-0">
@@ -318,14 +321,14 @@ export default function LawFirmHomepage() {
                         serviceRefs.current[index] = el;
                       }}
                       data-index={index}
-                      className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow"
+                      className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border border-transparent hover:border-secondary/20"
                     >
-                      <Check className="text-[#210059] flex-shrink-0 mt-1" />
+                      <Check className="text-accent flex-shrink-0 mt-1" />
                       <div>
-                        <h3 className="text-xl font-semibold mb-2 text-[#210059]">
+                        <h3 className="text-xl font-semibold mb-2 text-foreground">
                           {service.title}
                         </h3>
-                        <p className="text-gray-600">{service.description}</p>
+                        <p className="text-muted-foreground">{service.description}</p>
                       </div>
                     </div>
                   ))}
@@ -386,8 +389,9 @@ export default function LawFirmHomepage() {
         </section>
       </main>
 
-      <footer id="contact" className="bg-gray-900 text-white py-10">
-        <div className="container mx-auto px-4">
+      <footer id="contact" className="bg-[#110C19] text-white py-10 relative overflow-hidden">
+        <div className="absolute inset-0 bg-pattern opacity-10 pointer-events-none mix-blend-soft-light" />
+        <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8">
             <img
               src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_white-oudH0EnuPhJanLlxguzBXMippVasLU.svg"

@@ -20,47 +20,63 @@
 @layer base {
   :root {
     /* Core Brand Colors (HSL) */
-    /* #210059 -> 262 100% 17% */
-    --brand-indigo: 262 100% 17%;
+    /* =========================
+       USER PROVIDED PALETTE
+       ========================= */
 
-    /* #91CF17 -> 79 79% 45% */
-    --brand-accent: 79 79% 45%;
+    /* Main Colors */
+    --brand-purple: 262 100% 50%;
+    /* #5D00FF */
+    --brand-lavender: 240 85% 87%;
+    /* #BFBDFC */
+    --brand-dark: 263 53% 13%;
+    /* #1C0F31 */
+    --brand-mint: 160 93% 60%;
+    /* #38F8B8 */
 
-    /* Semantic Colors */
-    --background: 40 33% 98%;
-    /* Warm white paper */
-    --foreground: 262 100% 17%;
-    /* Brand Indigo */
+    /* Semantic Mapping */
+    --background: 0 0% 98%;
+    /* #FBFBFB */
+    --foreground: 263 53% 13%;
+    /* #1C0F31 */
 
     --card: 0 0% 100%;
-    --card-foreground: 262 100% 17%;
+    /* #FFFFFF */
+    --card-foreground: 263 53% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 262 100% 17%;
+    --popover-foreground: 263 53% 13%;
 
-    --primary: 262 100% 17%;
-    /* Brand Indigo */
+    --primary: 262 100% 50%;
+    /* #5D00FF */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 15% 96%;
-    --secondary-foreground: 262 100% 17%;
+    --secondary: 240 85% 87%;
+    /* #BFBDFC */
+    --secondary-foreground: 263 53% 13%;
 
-    --muted: 220 15% 95%;
-    --muted-foreground: 262 40% 40%;
-    /* Desaturated Indigo for muted text */
+    --muted: 226 14% 72%;
+    /* #ADB2C2 */
+    --muted-foreground: 263 20% 40%;
 
-    --accent: 79 79% 45%;
-    /* Brand Lime */
-    --accent-foreground: 262 100% 10%;
-    /* Dark Indigo on Lime */
+    --accent: 160 93% 60%;
+    /* #38F8B8 */
+    --accent-foreground: 263 53% 13%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --brand-accent: 160 93% 60%;
+    /* Alias */
 
-    --border: 262 20% 90%;
-    --input: 262 20% 90%;
-    --ring: 79 79% 45%;
-    /* Focus ring matches accent */
+    --destructive: 355 76% 85%;
+    /* #F5B5BB */
+    --destructive-foreground: 263 53% 13%;
+
+    --brand-void: 262 35% 7%;
+    /* #110C19 */
+
+    --border: 240 50% 91%;
+    /* #D6D6FD */
+    --input: 240 50% 91%;
+    --ring: 262 100% 50%;
 
     --radius: 0.625rem;
 
@@ -135,9 +151,25 @@
     @apply bg-white/70 backdrop-blur-xl border border-white/30;
   }
 
+  /* Brand Pattern Overlay */
+  .bg-pattern {
+    background-image: url('/patterns/illo.svg');
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: cover;
+  }
+
+  .bg-pattern-subtle {
+    mask-image: url('/patterns/illo.svg');
+    mask-mode: alpha;
+    mask-repeat: no-repeat;
+    mask-size: cover;
+    @apply bg-foreground/5;
+  }
+
   .gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--brand-indigo)) 0%, hsl(var(--brand-accent)) 100%);
+    background-image: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   }
 
   /* Utilities needed for map & animations */
