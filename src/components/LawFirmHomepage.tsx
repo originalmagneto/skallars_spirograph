@@ -145,20 +145,27 @@ export default function LawFirmHomepage() {
 
   // Fetch clients from database
   const [clients, setClients] = useState<any[]>([]);
+  const [team, setTeam] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchClients = async () => {
-      const { data, error } = await supabase
+    const fetchData = async () => {
+      // Clients
+      const { data: clientData } = await supabase
         .from('clients')
         .select('*')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
+      if (clientData) setClients(clientData);
 
-      if (data) {
-        setClients(data);
-      }
+      // Team
+      const { data: teamData } = await supabase
+        .from('team_members')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      if (teamData) setTeam(teamData);
     };
-    fetchClients();
+    fetchData();
   }, []);
 
   // Effect for auto-scrolling clients
@@ -217,48 +224,59 @@ export default function LawFirmHomepage() {
               {t.team.title}
             </motion.h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {teamMembers.map((member, index) => (
+              {team.map((member) => (
                 <div
-                  key={index}
+                  key={member.id}
                   className="bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group"
                 >
-                  <div className="w-full h-64 mb-4 overflow-hidden rounded relative">
-                    <img
-                      src={member.image}
-                      alt={member.name}
-                      className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-110"
-                    />
-                  </div>
-                  <h4 className="text-xl font-semibold mb-2 text-foreground group-hover:text-accent transition-colors">
-                    {member.name}
-                  </h4>
-                  <p className="text-muted-foreground mb-4 font-medium">{member.role}</p>
-                  <p className="text-sm text-muted-foreground mb-4 flex-grow">
-                    {member.description}
-                  </p>
-                  <div className="mt-auto">
-                    <div className="flex items-center mb-2">
-                      <Phone className="w-4 h-4 mr-2 text-accent" />
-                      <a
-                        href={`tel:${member.phone}`}
-                        className="text-foreground hover:text-secondary transition-colors"
-                      >
-                        {member.phone}
-                      </a>
+                  <div className="w-32 h-32 mx-auto mb-6 relative">
+                    <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-md">
+                      <img
+                        src={member.photo_url || "/placeholder-avatar.jpg"}
+                        alt={member.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
                     </div>
-                    <div className="flex items-center mb-2">
-                      <Mail className="w-4 h-4 mr-2 text-accent" />
+                    {member.linkedin_url && (
                       <a
-                        href={`mailto:${member.email}`}
-                        className="text-foreground hover:text-secondary transition-colors"
+                        href={member.linkedin_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute bottom-0 right-0 bg-[#0077b5] text-white p-1.5 rounded-full shadow-sm hover:scale-110 transition-transform"
                       >
-                        {member.email}
+                        <Linkedin01Icon size={16} />
                       </a>
-                    </div>
-                    <a href="#" className="text-[#210059] hover:text-accent hover:underline font-medium transition-colors">
-                      {t.team.businessCard}
-                    </a>
+                    )}
                   </div>
+
+                  <div className="text-center">
+                    <h4 className="text-xl font-semibold mb-1 text-foreground group-hover:text-accent transition-colors">
+                      {member.name}
+                    </h4>
+                    <p className="text-muted-foreground mb-4 font-medium text-sm">
+                      {language === 'sk' ? member.role_sk : member.role_en}
+                    </p>
+                  </div>
+
+                  {/* Contact info logic simplified as DB doesn't have phone/email yet? 
+                      Wait, the schema in migration had `name`, `role`, `photo`. 
+                      The user mentioned "linked to linkedin links".
+                      Existing static data had phone/email but DB schema didn't include them in my previous step?
+                      Let's check schema. `team_members` has: name, role_sk, role_en, company, photo_url, linkedin_url.
+                      It does NOT have phone/email. I will omit them or use placeholders if data is missing, 
+                      or just stick to LinkedIn as the primary contact method if that's what the DB supports.
+                      
+                      Actually, usually these are public profiles. 
+                      Ill add a generic "Contact" button or just the LinkedIn.
+                      User specifically asked for "Linkedin badges... linked to linkedin links".
+                   */}
+
+                  {/* Description/Bio is also missing from DB schema I defined in guide?
+                       Checking guide... schema: id, name, role_sk, role_en, company, photo_url, linkedin_url.
+                       So no bio/description either.
+                       I will stick to Name, Role, and LinkedIn.
+                   */}
+
                 </div>
               ))}
             </div>

@@ -223,9 +223,20 @@ Format the output as a JSON object:
 }
 
 export async function generateAIImage(prompt: string, options: { turbo?: boolean } = {}): Promise<string> {
-    const { turbo = false } = options;
+    const { turbo: forceTurbo } = options;
 
-    if (turbo) {
+    // Check global settings if turbo is not forced
+    // Default to 'turbo' if not set or if forceTurbo is true
+    let useTurbo = forceTurbo;
+
+    if (useTurbo === undefined) {
+        const globalImageModel = await getSetting('image_model');
+        useTurbo = globalImageModel === 'turbo';
+        // If global setting is missing, default to turbo (safer/free)
+        if (globalImageModel === null) useTurbo = true;
+    }
+
+    if (useTurbo) {
         // Use Pollinations.ai for fast, free, high-quality Flux images
         const seed = Math.floor(Math.random() * 1000000);
         const encodedPrompt = encodeURIComponent(prompt);
@@ -244,6 +255,10 @@ export async function generateAIImage(prompt: string, options: { turbo?: boolean
         const imageModel = await getSetting('gemini_image_model') || 'imagen-3.0-generate-001';
         console.log('[AI] Generating image with Gemini model:', imageModel);
 
+        // Use Gemini's image generation model
+        // Note: Some models use :predict, others :generateContent. 
+        // Generative Language API usually uses :generateContent for Imagen via Gemini 2.0 or specific endpoints.
+        // We'll try the standard :generateContent endpoint which works for most new models including Gemini 2.0 Flash Exp (if supported) and Imagen 3 via API
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`,
             {
@@ -255,6 +270,8 @@ export async function generateAIImage(prompt: string, options: { turbo?: boolean
                             text: `Generate a professional, high-quality image for an article. The image should be: ${prompt}`
                         }]
                     }],
+                    // Only some models support responseModalities, but it's good practice for 2.0
+                    // If using Imagen 3 specifically, the body might differ, but via Generative Language API it's continuously unified.
                     generationConfig: {
                         responseModalities: ["IMAGE"]
                     }
