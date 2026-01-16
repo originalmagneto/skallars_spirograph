@@ -521,6 +521,29 @@ const AILab = () => {
                                             <p><strong>Keywords:</strong> {(generatedContent as any)[`meta_keywords_${activeTab}`]}</p>
                                         </div>
                                     </div>
+
+                                    {generatedContent.usage && (
+                                        <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+                                            <h3 className="text-sm font-semibold flex items-center gap-2">
+                                                <AiMagicIcon size={14} className="text-blue-500" />
+                                                Token Usage Stats
+                                            </h3>
+                                            <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                                                <div className="bg-background rounded p-2 border">
+                                                    <p className="text-muted-foreground text-[10px] uppercase">Input</p>
+                                                    <p className="font-mono font-medium">{generatedContent.usage.promptTokens}</p>
+                                                </div>
+                                                <div className="bg-background rounded p-2 border">
+                                                    <p className="text-muted-foreground text-[10px] uppercase">Output</p>
+                                                    <p className="font-mono font-medium">{generatedContent.usage.completionTokens}</p>
+                                                </div>
+                                                <div className="bg-background rounded p-2 border">
+                                                    <p className="text-muted-foreground text-[10px] uppercase">Total</p>
+                                                    <p className="font-mono font-medium">{generatedContent.usage.totalTokens}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </ScrollArea>
                         ) : (
