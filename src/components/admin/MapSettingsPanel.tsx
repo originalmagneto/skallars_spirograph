@@ -6,8 +6,11 @@ import { Settings01Icon, RotateClockwiseIcon } from 'hugeicons-react';
 import MapPreview from './MapPreview';
 
 const DEFAULT_SETTINGS = {
-    borderOpacity: 22,
-    borderWidth: 80,
+    borderOpacity: 20,
+    borderWidth: 100,
+    lineOpacity: 30,
+    lineWidth: 150,
+    lineColor: '#6366f1',
 };
 
 const MapSettingsPanel = () => {
@@ -19,7 +22,10 @@ const MapSettingsPanel = () => {
 
     const isDefault =
         settings.borderOpacity === DEFAULT_SETTINGS.borderOpacity &&
-        settings.borderWidth === DEFAULT_SETTINGS.borderWidth;
+        settings.borderWidth === DEFAULT_SETTINGS.borderWidth &&
+        settings.lineOpacity === DEFAULT_SETTINGS.lineOpacity &&
+        settings.lineWidth === DEFAULT_SETTINGS.lineWidth &&
+        settings.lineColor === DEFAULT_SETTINGS.lineColor;
 
     return (
         <div className="space-y-6 p-4 bg-gray-50 rounded-lg border">
@@ -73,8 +79,54 @@ const MapSettingsPanel = () => {
                         />
                     </div>
 
-                    <p className="text-xs text-gray-500">
-                        These settings control how country borders appear on the global network map. Changes are saved automatically.
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm">Line Opacity (Connecting Lines)</Label>
+                            <span className="text-xs text-gray-500">{settings.lineOpacity}%</span>
+                        </div>
+                        <Slider
+                            value={[settings.lineOpacity]}
+                            onValueChange={([value]) => updateSettings({ lineOpacity: value })}
+                            min={10}
+                            max={100}
+                            step={5}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm">Line Width</Label>
+                            <span className="text-xs text-gray-500">{settings.lineWidth}%</span>
+                        </div>
+                        <Slider
+                            value={[settings.lineWidth]}
+                            onValueChange={([value]) => updateSettings({ lineWidth: value })}
+                            min={50}
+                            max={300}
+                            step={10}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm">Line Color</Label>
+                            <span className="text-xs text-gray-500">{settings.lineColor}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="color"
+                                value={settings.lineColor}
+                                onChange={(e) => updateSettings({ lineColor: e.target.value })}
+                                className="w-12 h-8 rounded cursor-pointer border p-0.5 bg-white"
+                            />
+                            <div className="text-xs text-muted-foreground">Click to change line color</div>
+                        </div>
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-4">
+                        These settings control how country borders and connection lines appear on the global network map. Changes are saved automatically.
                     </p>
                 </div>
 

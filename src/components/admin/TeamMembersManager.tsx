@@ -29,6 +29,8 @@ interface TeamMember {
     linkedin_url: string | null;
     display_order: number;
     is_active: boolean;
+    photo_position_x?: number;
+    photo_position_y?: number;
 }
 
 const emptyMember: Omit<TeamMember, 'id'> = {
@@ -40,6 +42,8 @@ const emptyMember: Omit<TeamMember, 'id'> = {
     linkedin_url: '',
     display_order: 0,
     is_active: true,
+    photo_position_x: 50,
+    photo_position_y: 50,
 };
 
 const TeamMembersManager = () => {
@@ -174,29 +178,70 @@ const TeamMembersManager = () => {
         return (
             <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Photo Upload */}
-                    <div className="row-span-2">
-                        <Label className="text-xs">Photo</Label>
-                        <div className="mt-1 flex flex-col items-center gap-2">
-                            <div className="w-32 h-40 bg-muted border rounded overflow-hidden">
+                    {/* Photo Upload & Positioning */}
+                    <div className="row-span-2 space-y-4">
+                        <Label className="text-xs">Photo & Positioning</Label>
+                        <div className="flex flex-col items-center gap-2">
+                            {/* Preview Area */}
+                            <div className="relative w-48 h-48 bg-muted border rounded-lg overflow-hidden shadow-sm">
                                 {values.photo_url ? (
-                                    <img src={values.photo_url} alt="Preview" className="w-full h-full object-cover" />
+                                    <img
+                                        src={values.photo_url}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover transition-all duration-200"
+                                        style={{
+                                            objectPosition: `${values.photo_position_x || 50}% ${values.photo_position_y || 50}%`
+                                        }}
+                                    />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center">
                                         <UserIcon size={40} className="text-muted-foreground" />
                                     </div>
                                 )}
                             </div>
-                            <label className="cursor-pointer">
+
+                            <label className="cursor-pointer w-full">
                                 <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                                <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
-                                    <span>
-                                        <Upload01Icon size={14} className="mr-1" />
-                                        {uploading ? 'Uploading...' : 'Upload Photo'}
-                                    </span>
+                                <Button type="button" variant="outline" size="sm" disabled={uploading} className="w-full">
+                                    <Upload01Icon size={14} className="mr-1" />
+                                    {uploading ? 'Uploading...' : 'Change Photo'}
                                 </Button>
                             </label>
                         </div>
+
+                        {/* Position Sliders */}
+                        {values.photo_url && (
+                            <div className="space-y-3 bg-card p-3 rounded border">
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider">
+                                        <span>Horizontal</span>
+                                        <span>{values.photo_position_x || 50}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        value={values.photo_position_x || 50}
+                                        onChange={(e) => onChange({ ...values, photo_position_x: parseInt(e.target.value) })}
+                                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-[10px] text-muted-foreground uppercase tracking-wider">
+                                        <span>Vertical</span>
+                                        <span>{values.photo_position_y || 50}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        value={values.photo_position_y || 50}
+                                        onChange={(e) => onChange({ ...values, photo_position_y: parseInt(e.target.value) })}
+                                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary"
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Name */}

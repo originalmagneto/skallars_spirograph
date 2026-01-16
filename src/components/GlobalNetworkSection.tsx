@@ -210,7 +210,13 @@ const PulsingDot = ({ x, y, isMain, isSecondary, delay = 0, name, scale = 1 }: {
     );
 };
 
-const ConnectionLine = ({ x1, y1, x2, y2, delay = 0, index, scale = 1 }: { x1: number; y1: number; x2: number; y2: number; delay?: number; index: number; scale?: number }) => {
+const ConnectionLine = ({
+    x1, y1, x2, y2, delay = 0, index, scale = 1,
+    opacity = 0.15, width = 0.5, color = "hsl(var(--brand-indigo))"
+}: {
+    x1: number; y1: number; x2: number; y2: number; delay?: number; index: number; scale?: number;
+    opacity?: number; width?: number; color?: string;
+}) => {
     const midX = (x1 + x2) / 2;
     const distance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     const curvature = Math.min(distance * 0.15, 60);
@@ -222,12 +228,18 @@ const ConnectionLine = ({ x1, y1, x2, y2, delay = 0, index, scale = 1 }: { x1: n
 
     return (
         <g>
-            <path d={pathD} fill="none" stroke="hsl(var(--brand-indigo))" strokeWidth={0.5 * scale} opacity={0.15} />
+            <path
+                d={pathD}
+                fill="none"
+                stroke={color}
+                strokeWidth={width * scale}
+                opacity={opacity}
+            />
             <path
                 d={pathD}
                 fill="none"
                 stroke="hsl(var(--brand-accent))"
-                strokeWidth={0.8 * scale}
+                strokeWidth={width * 1.6 * scale}
                 strokeDasharray={`${3 * scale} ${5 * scale}`}
                 opacity={0.6}
                 style={{ animation: `dash-move 5s linear infinite`, animationDelay: `${delay}ms` }}
@@ -552,7 +564,19 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
                                 </g>
                                 <g style={{ pointerEvents: 'none' }}>
                                     {mainPoint && otherPoints.map((point, i) => (
-                                        <ConnectionLine key={point.name} x1={mainPoint.x} y1={mainPoint.y} x2={point.x} y2={point.y} delay={i * 200} index={i} scale={zoomScale} />
+                                        <ConnectionLine
+                                            key={point.name}
+                                            x1={mainPoint.x}
+                                            y1={mainPoint.y}
+                                            x2={point.x}
+                                            y2={point.y}
+                                            delay={i * 200}
+                                            index={i}
+                                            scale={zoomScale}
+                                            opacity={(settings.lineOpacity || 30) / 100}
+                                            width={(settings.lineWidth || 150) / 300} // Tuned divider for reasonable thickness
+                                            color={settings.lineColor || "hsl(var(--brand-indigo))"}
+                                        />
                                     ))}
                                 </g>
                                 {connectionPoints.map((point, i) => (

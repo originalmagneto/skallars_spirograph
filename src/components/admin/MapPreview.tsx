@@ -98,9 +98,9 @@ const MapPreview = () => {
                                 key={i}
                                 d={pathD}
                                 fill="none"
-                                stroke="hsl(210, 100%, 55%)"
-                                strokeWidth={0.3}
-                                opacity={0.4}
+                                stroke={settings.lineColor || "hsl(210, 100%, 55%)"}
+                                strokeWidth={(settings.lineWidth || 150) / 500} // Scale down for preview
+                                opacity={(settings.lineOpacity || 30) / 100}
                             />
                         );
                     })}

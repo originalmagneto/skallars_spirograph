@@ -5,6 +5,9 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 interface MapSettings {
     borderWidth: number;
     borderOpacity: number;
+    map_line_opacity: number;
+    map_line_width: number;
+    map_line_color: string;
 }
 
 interface MapSettingsContextType {
@@ -15,6 +18,9 @@ interface MapSettingsContextType {
 const defaultSettings: MapSettings = {
     borderWidth: 50,
     borderOpacity: 15,
+    map_line_opacity: 100,
+    map_line_width: 2,
+    map_line_color: '#FF0000',
 };
 
 const MapSettingsContext = createContext<MapSettingsContextType | undefined>(undefined);

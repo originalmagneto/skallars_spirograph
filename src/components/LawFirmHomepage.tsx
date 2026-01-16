@@ -236,6 +236,9 @@ export default function LawFirmHomepage() {
                         src={member.photo_url || "/placeholder-avatar.jpg"}
                         alt={member.name}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        style={{
+                          objectPosition: `${'photo_position_x' in member ? member.photo_position_x : 50}% ${'photo_position_y' in member ? member.photo_position_y : 50}%`
+                        }}
                       />
                     </div>
                     {member.linkedin_url && (
