@@ -50,6 +50,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [user?.id, fetchRoles]);
 
     useEffect(() => {
+        // Create a safety timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+            setLoading(false);
+        }, 3000);
+
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
@@ -57,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (session?.user) {
                 fetchRoles(session.user.id);
             }
+            clearTimeout(timeoutId);
             setLoading(false);
         });
 
