@@ -11,6 +11,7 @@ import UserManagement from "@/components/admin/UserManagement";
 import ArticlesManager from "@/components/admin/ArticlesManager";
 import AILab from "@/components/admin/AILab";
 import AISettings from "@/components/admin/AISettings";
+import ClientLogosManager from "@/components/admin/ClientLogosManager";
 
 export default function AdminPage() {
     const { user, isAdmin, isEditor } = useAuth();
@@ -42,6 +43,12 @@ export default function AdminPage() {
                     <File01Icon size={14} />
                     Articles
                 </TabsTrigger>
+                {isAdmin && (
+                    <TabsTrigger value="clients" className="gap-2">
+                        <UserMultipleIcon size={14} />
+                        Clients
+                    </TabsTrigger>
+                )}
                 {isAdmin && (
                     <TabsTrigger value="ai-lab" className="gap-2">
                         <AiMagicIcon size={14} />
@@ -76,6 +83,10 @@ export default function AdminPage() {
 
             <TabsContent value="articles">
                 <ArticlesManager />
+            </TabsContent>
+
+            <TabsContent value="clients">
+                <ClientLogosManager />
             </TabsContent>
 
             <TabsContent value="ai-lab">
