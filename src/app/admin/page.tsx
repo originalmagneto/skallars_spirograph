@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon } from "hugeicons-react";
@@ -14,9 +17,24 @@ import AISettings from "@/components/admin/AISettings";
 import ClientLogosManager from "@/components/admin/ClientLogosManager";
 
 export default function AdminPage() {
-    const { user, isAdmin, isEditor } = useAuth();
+    const { user, isAdmin, isEditor, loading } = useAuth();
+    const router = useRouter();
 
-    if (!user) return null;
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push('/login');
+        }
+    }, [user, loading, router]);
+
+    if (loading) {
+        return (
+            <div className="flex h-screen items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+            </div>
+        );
+    }
+
+    if (!user) return null; // Will redirect via useEffect
 
     return (
         <Tabs defaultValue="map" className="space-y-6">
