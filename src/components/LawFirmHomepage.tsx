@@ -9,6 +9,7 @@ import {
   Mail,
   Linkedin,
 } from "lucide-react";
+import { Linkedin01Icon } from "hugeicons-react";
 import {
   motion,
   useScroll,
@@ -36,7 +37,7 @@ export default function LawFirmHomepage() {
   const [activeSection, setActiveSection] = useState("");
   const { scrollYProgress } = useScroll();
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const images = [
     "/images/legal-consultation.jpg",
