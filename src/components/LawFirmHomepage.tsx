@@ -19,6 +19,7 @@ import dynamic from 'next/dynamic';
 import GlobalNetworkSection from './GlobalNetworkSection';
 import BlogCarousel from './BlogCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/lib/supabase';
 
 // Dynamically import the Spirograph component with no SSR
 const Spirograph = dynamic(() => import('./Spirograph'), {
@@ -94,15 +95,6 @@ export default function LawFirmHomepage() {
     };
   }, [images.length]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentClientIndex(
-        (prevIndex) => (prevIndex + 1) % (clients.length - 2)
-      );
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -151,40 +143,36 @@ export default function LawFirmHomepage() {
     },
   ];
 
-  const clients = [
-    {
-      name: "Atwix",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/atwix-logo-1-nqwscZvYv6GmXUsvK2dgCvdAF9TZWU.svg",
-    },
-    {
-      name: "SCP Papier",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/scp_papier_prezent-hH9Q8APq9ofBmMLUggYlZ7YFmExQea.png",
-    },
-    {
-      name: "Slovensko Digital",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/slovensko-digital-CLp8NvlmCCBIjIN559Yq7IVQ665rYq.jpg",
-    },
-    {
-      name: "Charlie Works",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/images-64s2FvF4TbdI8frlhKRtGOeBGePf96.png",
-    },
-    {
-      name: "HDTS",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/hdts_logo-Jbgson7Wd0Wme5cPDwsS40BRI3Botr.jpg",
-    },
-    {
-      name: "Austin Powder",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo_vertical_preview-Lt8kOqgk0t7CDzHYIcKKUKxTFZWvHo.jpg",
-    },
-    {
-      name: "ORKA Systems",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/364754313_599272232380150_8261527438069510069_n-Ucos6zlKH62k6i9jEMOJxpioyidPRv.jpg",
-    },
-    {
-      name: "Inovačné centrum Košického kraja",
-      logo: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ICKK-Logo_NEW_yellow-and-black-3-2-pRYmi5u2fYkl6EWp3ZsYxHprDDT63e.png",
-    },
-  ];
+  // Fetch clients from database
+  const [clients, setClients] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (data) {
+        setClients(data);
+      }
+    };
+    fetchClients();
+  }, []);
+
+  // Effect for auto-scrolling clients
+  useEffect(() => {
+    if (clients.length <= 2) return; // Don't scroll if few clients
+
+    const interval = setInterval(() => {
+      setCurrentClientIndex(
+        (prevIndex) => (prevIndex + 1) % (clients.length - 2)
+      );
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [clients.length]);
 
   return (
     <div className="min-h-screen">
@@ -361,9 +349,9 @@ export default function LawFirmHomepage() {
                   {clients.map((client, index) => (
                     <div key={index} className="w-1/3 px-4 flex-shrink-0">
                       <img
-                        src={client.logo}
+                        src={client.logo_url}
                         alt={`${client.name} logo`}
-                        className="max-w-full h-auto"
+                        className="max-w-full h-auto mx-auto"
                       />
                     </div>
                   ))}
