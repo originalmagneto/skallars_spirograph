@@ -42,9 +42,9 @@ async function getSetting(key: string): Promise<string | null> {
 export function getAIArticlePrompt(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string } = {}
+    options: { type?: string, length?: string, targetLanguages?: string[] } = {}
 ): string {
-    const { type = 'Deep Dive', length = 'Medium' } = options;
+    const { type = 'Deep Dive', length = 'Medium', targetLanguages = ['sk', 'en', 'de', 'cn'] } = options;
     const researchContext = links.length > 0
         ? `\n\n### DEEP RESEARCH SOURCES\nCRITICAL: Analyze and synthesize the following sources to enrich the article. You MUST cite specific facts/figures from these sources where possible.\n${links.join('\n')}`
         : '';
@@ -85,6 +85,23 @@ export function getAIArticlePrompt(
     if (length === 'Comprehensive') lengthGuide = 'Very extensive (1500-2000 words). Cover every angle. Multiple sections, data points, and deep analysis.';
     if (length === 'Report') lengthGuide = 'Maximum depth (2500 words+). Whitepaper quality. Executive summary + Detailed Chapters + Recommendations.';
 
+    // Construct the language instruction and JSON structure dynamically
+    const langNames = {
+        'sk': 'Slovak (SK)',
+        'en': 'English (EN)',
+        'de': 'German (DE)',
+        'cn': 'Chinese (CN)'
+    };
+    const selectedLangNames = targetLanguages.map(l => langNames[l as keyof typeof langNames] || l).join(', ');
+
+    const jsonFields = targetLanguages.map(l => `  "title_${l}": "Title (${l.toUpperCase()})",
+  "excerpt_${l}": "Summary (${l.toUpperCase()})",
+  "content_${l}": "HTML string (${l.toUpperCase()})",
+  "meta_title_${l}": "SEO Title ${l.toUpperCase()} (max 60 chars)",
+  "meta_description_${l}": "SEO Desc ${l.toUpperCase()} (max 160 chars)",
+  "meta_keywords_${l}": "keywords, ${l}"`).join(',\n');
+
+
     return `You are an elite expert writer for OCP (Omni Consulting Products), a premier consulting firm.
 Your task is to write a world-class article that demonstrates deep expertise and strategic value.
 
@@ -100,36 +117,13 @@ ${selectedStyle}
 ### WRITING RULES
 1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
 2. **Value**: Every paragraph must add value. No filler.
-3. **Multilingual**: You must generate the article in **Slovak (SK)**, **English (EN)**, **German (DE)**, and **Chinese (CN)** simultaneously.
+3. **Multilingual**: You must generate the article in the following languages: **${selectedLangNames}** simultaneously.
 4. **Formatting**: Use HTML tags (\`<h2>\`, \`<h3>\`, \`<ul>\`, \`<li>\`, \`<p>\`, \`<strong>\`) for content. Do not use Markdown characters like # or ** inside the JSON strings.
 
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
 {
-  "title_sk": "Title (SK)",
-  "title_en": "Title (EN)",
-  "title_de": "Title (DE)",
-  "title_cn": "Title (CN)",
-  "excerpt_sk": "Summary (SK)",
-  "excerpt_en": "Summary (EN)",
-  "excerpt_de": "Summary (DE)",
-  "excerpt_cn": "Summary (CN)",
-  "content_sk": "HTML string (SK)",
-  "content_en": "HTML string (EN)",
-  "content_de": "HTML string (DE)",
-  "content_cn": "HTML string (CN)",
-  "meta_title_sk": "SEO Title SK (max 60 chars)",
-  "meta_title_en": "SEO Title EN (max 60 chars)",
-  "meta_title_de": "SEO Title DE (max 60 chars)",
-  "meta_title_cn": "SEO Title CN (max 60 chars)",
-  "meta_description_sk": "SEO Desc SK (max 160 chars)",
-  "meta_description_en": "SEO Desc EN (max 160 chars)",
-  "meta_description_de": "SEO Desc DE (max 160 chars)",
-  "meta_description_cn": "SEO Desc CN (max 160 chars)",
-  "meta_keywords_sk": "keywords, sk",
-  "meta_keywords_en": "keywords, en",
-  "meta_keywords_de": "keywords, de",
-  "meta_keywords_cn": "keywords, cn",
+${jsonFields},
   "tags": ["tag1", "tag2", "tag3"]
 }`;
 }
@@ -137,7 +131,7 @@ IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
 export async function generateAIArticle(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[] } = {}
 ): Promise<GeneratedArticle> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');

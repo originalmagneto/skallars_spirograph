@@ -51,6 +51,8 @@ const AILab = () => {
     const [currentModel, setCurrentModel] = useState<string>('');
     const [modelSupportsGrounding, setModelSupportsGrounding] = useState<boolean>(true);
 
+    const [targetLanguages, setTargetLanguages] = useState<string[]>(['sk', 'en']);
+
     // Fetch model settings on load
     useEffect(() => {
         const init = async () => {
@@ -99,7 +101,8 @@ const AILab = () => {
     const handlePreparePrompt = () => {
         const p = getAIArticlePrompt(prompt || '[Your topic here]', links.filter(l => l.trim() !== ''), {
             type: articleType,
-            length: articleLength
+            length: articleLength,
+            targetLanguages
         });
         setCustomPrompt(p);
         setShowPromptEditor(true);
@@ -108,15 +111,29 @@ const AILab = () => {
     const handleResetPrompt = () => {
         const p = getAIArticlePrompt(prompt || '[Your topic here]', links.filter(l => l.trim() !== ''), {
             type: articleType,
-            length: articleLength
+            length: articleLength,
+            targetLanguages
         });
         setCustomPrompt(p);
         toast.success('Prompt reset to default');
     };
 
+    const toggleLanguage = (lang: string) => {
+        setTargetLanguages(prev =>
+            prev.includes(lang)
+                ? prev.filter(l => l !== lang)
+                : [...prev, lang]
+        );
+    };
+
     const handleGenerate = async () => {
         if (!prompt && !customPrompt) {
             toast.error('Please enter a topic or prompt');
+            return;
+        }
+
+        if (targetLanguages.length === 0) {
+            toast.error('Please select at least one language');
             return;
         }
 
@@ -127,7 +144,8 @@ const AILab = () => {
                 type: articleType,
                 length: articleLength,
                 useGrounding: useGrounding,
-                customPrompt: showPromptEditor ? customPrompt : undefined
+                customPrompt: showPromptEditor ? customPrompt : undefined,
+                targetLanguages
             });
             setGeneratedContent(content);
             toast.success('Article generated successfully!');
@@ -229,6 +247,30 @@ const AILab = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Target Languages</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {['sk', 'en', 'de', 'cn'].map((lang) => (
+                                    <div
+                                        key={lang}
+                                        onClick={() => toggleLanguage(lang)}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all border ${targetLanguages.includes(lang)
+                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                            : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            {targetLanguages.includes(lang) && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                            {lang === 'sk' && 'Slovak (SK)'}
+                                            {lang === 'en' && 'English (EN)'}
+                                            {lang === 'de' && 'German (DE)'}
+                                            {lang === 'cn' && 'Chinese (CN)'}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Article Type</Label>
@@ -404,6 +446,7 @@ const AILab = () => {
                                         size="sm"
                                         className="h-7 px-3 text-xs"
                                         onClick={() => setActiveTab('sk')}
+                                        disabled={!generatedContent.title_sk && !generatedContent.content_sk}
                                     >
                                         SK
                                     </Button>
@@ -412,9 +455,31 @@ const AILab = () => {
                                         size="sm"
                                         className="h-7 px-3 text-xs"
                                         onClick={() => setActiveTab('en')}
+                                        disabled={!generatedContent.title_en && !generatedContent.content_en}
                                     >
                                         EN
                                     </Button>
+                                    {/* Additional languages dynamically shown if they exist */}
+                                    {(generatedContent.title_de || generatedContent.content_de) && (
+                                        <Button
+                                            variant={activeTab === 'de' as any ? 'secondary' : 'ghost'}
+                                            size="sm"
+                                            className="h-7 px-3 text-xs"
+                                            onClick={() => setActiveTab('de' as any)}
+                                        >
+                                            DE
+                                        </Button>
+                                    )}
+                                    {(generatedContent.title_cn || generatedContent.content_cn) && (
+                                        <Button
+                                            variant={activeTab === 'cn' as any ? 'secondary' : 'ghost'}
+                                            size="sm"
+                                            className="h-7 px-3 text-xs"
+                                            onClick={() => setActiveTab('cn' as any)}
+                                        >
+                                            CN
+                                        </Button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -425,17 +490,17 @@ const AILab = () => {
                                 <div className="space-y-6">
                                     <div>
                                         <h1 className="text-2xl font-bold mb-2">
-                                            {activeTab === 'sk' ? generatedContent.title_sk : generatedContent.title_en}
+                                            {(generatedContent as any)[`title_${activeTab}`]}
                                         </h1>
                                         <p className="text-muted-foreground italic border-l-2 pl-4 py-1">
-                                            {activeTab === 'sk' ? generatedContent.excerpt_sk : generatedContent.excerpt_en}
+                                            {(generatedContent as any)[`excerpt_${activeTab}`]}
                                         </p>
                                     </div>
 
                                     <div
                                         className="prose prose-sm dark:prose-invert max-w-none"
                                         dangerouslySetInnerHTML={{
-                                            __html: activeTab === 'sk' ? generatedContent.content_sk : generatedContent.content_en
+                                            __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
                                         }}
                                     />
 
@@ -451,9 +516,9 @@ const AILab = () => {
                                             Generated SEO Data
                                         </h3>
                                         <div className="text-xs space-y-1">
-                                            <p><strong>Meta Title:</strong> {activeTab === 'sk' ? generatedContent.meta_title_sk : generatedContent.meta_title_en}</p>
-                                            <p><strong>Meta Desc:</strong> {activeTab === 'sk' ? generatedContent.meta_description_sk : generatedContent.meta_description_en}</p>
-                                            <p><strong>Keywords:</strong> {activeTab === 'sk' ? generatedContent.meta_keywords_sk : generatedContent.meta_keywords_en}</p>
+                                            <p><strong>Meta Title:</strong> {(generatedContent as any)[`meta_title_${activeTab}`]}</p>
+                                            <p><strong>Meta Desc:</strong> {(generatedContent as any)[`meta_description_${activeTab}`]}</p>
+                                            <p><strong>Keywords:</strong> {(generatedContent as any)[`meta_keywords_${activeTab}`]}</p>
                                         </div>
                                     </div>
                                 </div>
