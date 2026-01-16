@@ -24,14 +24,31 @@ Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
 - Cohesive with a clear aesthetic point-of-view
 - Meticulously refined in every detail
 
-## Frontend Aesthetics Guidelines
+## Skallars Brand Guidelines (STRICT)
 
-Focus on:
-- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
-- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
-- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
-- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+All frontend implementations MUST adhere to these brand tokens:
+
+### 1. Typography
+- **Primary Font**: `General Sans` (Variable). Do NOT use any other font (e.g., Inter, Roboto, Bricolage) unless explicitly requested for a specific localized exception.
+- **Weights**: Use a range of weights from the variable font to create hierarchy.
+- **Implementation**: Ensure `GeneralSans-Variable.woff2` is loaded.
+
+### 2. Color Palette
+- **Brand Indigo (Primary)**: `#210059` (Deep, serious, elite). Use for backgrounds, primary text, and strong branding elements.
+- **Brand Lime (Accent)**: `#91CF17` (Innovative, expressive, rebel). Use for calls-to-action, highlights, and active states.
+- **Text**: `#09060E` (Near black) for body text on light backgrounds.
+- **Secondary**: `#5E00FF` (Bright Purple) - usage limited to specific illustrative accents.
+
+### 3. Usage Rules
+- **Logo**: Use the Primary (Indigo) or Stacked/Emblem versions.
+- **Tone**: "Serious, Elite" mixed with "Innovative, Rebel".
+- **Visuals**: Use the spirograph patterns (`Illo.svg` style) as background elements or subtle textures.
+
+### 4. Code Implementation
+- Use CSS Variables:
+  - `--brand-indigo`: `262 100% 17%` (approx matches #210059)
+  - `--brand-accent`: `79 79% 45%` (approx matches #91CF17)
+- Tailwind: Use `bg-primary` (mapped to Indigo) and `text-accent` (mapped to Lime) for consistency.
 
 NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
 

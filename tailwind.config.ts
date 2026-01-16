@@ -57,9 +57,10 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        display: ["var(--font-display)", "Georgia", "serif"],
-        body: ["var(--font-body)", "system-ui", "sans-serif"],
+        display: ["General Sans", "sans-serif"],
+        body: ["General Sans", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
+        sans: ["General Sans", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {

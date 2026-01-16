@@ -1,85 +1,103 @@
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================
-   DESIGN SYSTEM: LUXURY LEGAL AESTHETIC
-   Typography: Bricolage Grotesque (display) + DM Sans (body)
-   Palette: Deep indigo, warm ivory, emerald accent
+   DESIGN SYSTEM: SKALLARS® BRAND
+   Typography: General Sans (Variable)
+   Palette: Brand Indigo (#210059) + Brand Lime (#91CF17)
    ============================================ */
+
+/* Local Font Registration */
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/GeneralSans-Variable.woff2') format('woff2');
+  font-weight: 200 700;
+  font-display: swap;
+  font-style: normal;
+}
 
 @layer base {
   :root {
-    /* Core Brand Colors */
-    --brand-indigo: 210 100% 12%;
-    /* Deep midnight indigo */
-    --brand-accent: 158 94% 50%;
-    /* Vibrant emerald */
-    --brand-warm: 40 33% 96%;
-    /* Warm ivory paper */
-    --brand-rose: 356 85% 70%;
-    /* Soft rose accent */
+    /* Core Brand Colors (HSL) */
+    /* #210059 -> 262 100% 17% */
+    --brand-indigo: 262 100% 17%;
 
-    /* Semantic Colors (HSL format for shadcn/ui) */
+    /* #91CF17 -> 79 79% 45% */
+    --brand-accent: 79 79% 45%;
+
+    /* Semantic Colors */
     --background: 40 33% 98%;
-    --foreground: 210 100% 12%;
+    /* Warm white paper */
+    --foreground: 262 100% 17%;
+    /* Brand Indigo */
+
     --card: 0 0% 100%;
-    --card-foreground: 210 100% 12%;
+    --card-foreground: 262 100% 17%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 210 100% 12%;
-    --primary: 210 100% 12%;
-    --primary-foreground: 40 33% 98%;
+    --popover-foreground: 262 100% 17%;
+
+    --primary: 262 100% 17%;
+    /* Brand Indigo */
+    --primary-foreground: 0 0% 100%;
+
     --secondary: 220 15% 96%;
-    --secondary-foreground: 210 100% 20%;
+    --secondary-foreground: 262 100% 17%;
+
     --muted: 220 15% 95%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 158 94% 50%;
-    --accent-foreground: 210 100% 12%;
+    --muted-foreground: 262 40% 40%;
+    /* Desaturated Indigo for muted text */
+
+    --accent: 79 79% 45%;
+    /* Brand Lime */
+    --accent-foreground: 262 100% 10%;
+    /* Dark Indigo on Lime */
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 15% 90%;
-    --input: 220 15% 90%;
-    --ring: 158 94% 50%;
+
+    --border: 262 20% 90%;
+    --input: 262 20% 90%;
+    --ring: 79 79% 45%;
+    /* Focus ring matches accent */
+
     --radius: 0.625rem;
 
-    /* Typography Scale */
-    --font-display: 'Bricolage Grotesque', Georgia, serif;
-    --font-body: 'DM Sans', system-ui, sans-serif;
-    --font-mono: 'GeistMono', 'SF Mono', monospace;
-
-    /* Legacy brand tokens (for backwards compatibility) */
-    --indigo-900: hsl(var(--brand-indigo));
-    --indigo-600: #4f46e5;
-    --indigo-300: #a5b4fc;
-    --mint-400: hsl(var(--brand-accent));
-    --rose-200: hsl(var(--brand-rose));
-    --slate-400: #94a3b8;
-    --ink-950: #0f172a;
-    --paper: hsl(var(--brand-warm));
+    --font-heading: 'General Sans', sans-serif;
+    --font-body: 'General Sans', sans-serif;
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 158 94% 50%;
-    --primary-foreground: 222 47% 6%;
-    --secondary: 217 19% 15%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 19% 18%;
-    --muted-foreground: 215 16% 60%;
-    --accent: 158 94% 50%;
-    --accent-foreground: 222 47% 6%;
+    --background: 262 50% 5%;
+    /* Very dark indigo */
+    --foreground: 40 33% 98%;
+
+    --card: 262 50% 7%;
+    --card-foreground: 40 33% 98%;
+
+    --popover: 262 50% 7%;
+    --popover-foreground: 40 33% 98%;
+
+    --primary: 79 79% 45%;
+    /* Lime becomes primary in dark mode for visibility */
+    --primary-foreground: 262 100% 10%;
+
+    --secondary: 262 30% 15%;
+    --secondary-foreground: 40 33% 98%;
+
+    --muted: 262 30% 15%;
+    --muted-foreground: 262 20% 70%;
+
+    --accent: 79 79% 45%;
+    --accent-foreground: 262 100% 10%;
+
     --destructive: 0 62% 50%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217 19% 20%;
-    --input: 217 19% 20%;
-    --ring: 158 94% 50%;
+
+    --border: 262 30% 20%;
+    --input: 262 30% 20%;
+    --ring: 79 79% 45%;
   }
 
   * {
@@ -95,49 +113,18 @@
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-body);
     font-feature-settings: 'ss01' on, 'cv11' on;
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Display Typography */
+  /* Typography Defaults */
   h1,
   h2,
   h3,
   h4,
-  h5 {
-    font-family: var(--font-display);
+  h5,
+  h6 {
+    font-family: var(--font-heading);
     font-weight: 600;
-    letter-spacing: -0.025em;
-    line-height: 1.15;
-  }
-
-  h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl;
-  }
-
-  h2 {
-    @apply text-3xl md:text-4xl lg:text-5xl;
-  }
-
-  h3 {
-    @apply text-2xl md:text-3xl;
-  }
-
-  h4 {
-    @apply text-xl md:text-2xl;
-  }
-
-  /* Body Typography */
-  p,
-  li,
-  span {
-    font-family: var(--font-body);
-  }
-
-  /* Links with elegant underline */
-  a:not(.no-underline) {
-    @apply transition-colors duration-300;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -146,257 +133,24 @@
   /* Glass Effect */
   .glass {
     @apply bg-white/70 backdrop-blur-xl border border-white/30;
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.1) inset,
-      0 8px 32px rgba(0, 0, 0, 0.04),
-      0 2px 8px rgba(0, 0, 0, 0.02);
   }
 
-  .glass-dark {
-    @apply bg-slate-900/80 backdrop-blur-xl border border-white/10;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  }
-
-  /* Elegant Card */
-  .card-elevated {
-    @apply bg-white rounded-2xl border border-slate-100;
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.04),
-      0 6px 24px rgba(0, 0, 0, 0.03);
-    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-
-  .card-elevated:hover {
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.06),
-      0 12px 40px rgba(0, 0, 0, 0.06);
-    transform: translateY(-2px);
-  }
-
-  /* Gradient text */
   .gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--brand-indigo)) 0%, #4f46e5 50%, hsl(var(--brand-accent)) 100%);
+    background-image: linear-gradient(135deg, hsl(var(--brand-indigo)) 0%, hsl(var(--brand-accent)) 100%);
   }
 
-  /* Section reveal */
-  .reveal {
-    opacity: 0;
-    transform: translateY(24px);
-    transition: opacity 0.8s cubic-bezier(0.23, 1, 0.32, 1),
-      transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-
-  .reveal.in-view {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  /* Staggered reveal delays */
-  .reveal-delay-1 {
-    transition-delay: 0.1s;
-  }
-
-  .reveal-delay-2 {
-    transition-delay: 0.2s;
-  }
-
-  .reveal-delay-3 {
-    transition-delay: 0.3s;
-  }
-
-  .reveal-delay-4 {
-    transition-delay: 0.4s;
-  }
-
-  .reveal-delay-5 {
-    transition-delay: 0.5s;
-  }
-
-  /* Premium button styles */
-  .btn-primary {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-all duration-300;
-    background: linear-gradient(135deg, hsl(var(--brand-indigo)) 0%, #1e1b4b 100%);
-    color: white;
-    box-shadow: 0 4px 14px rgba(33, 0, 89, 0.25);
-  }
-
-  .btn-primary:hover {
-    box-shadow: 0 6px 20px rgba(33, 0, 89, 0.35);
-    transform: translateY(-1px);
-  }
-
-  .btn-accent {
-    @apply inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-all duration-300;
-    background: hsl(var(--brand-accent));
-    color: hsl(var(--brand-indigo));
-    box-shadow: 0 2px 8px rgba(56, 248, 184, 0.25);
-  }
-
-  .btn-accent:hover {
-    background: hsl(158 94% 45%);
-    box-shadow: 0 4px 16px rgba(56, 248, 184, 0.35);
-    transform: translateY(-1px);
+  /* Utilities needed for map & animations */
+  .scroll-reveal {
+    /* handled in JS/Tailwind util classes */
   }
 }
 
 @layer utilities {
-
-  /* Scrollbar styling */
-  .scrollbar-thin::-webkit-scrollbar {
-    height: 6px;
-    width: 6px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-slate-100 rounded-full;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full;
-    transition: background 0.2s ease;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400;
-  }
-
-  /* Text balance for headings */
   .text-balance {
     text-wrap: balance;
   }
-
-  /* Subtle noise texture overlay */
-  .noise {
-    position: relative;
-  }
-
-  .noise::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-    opacity: 0.015;
-    pointer-events: none;
-    z-index: 1;
-  }
 }
 
-/* Spirograph canvas styling */
-.spirograph {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.spirograph__canvas {
-  height: 100%;
-  max-width: 100%;
-  opacity: 0.65;
-  width: 100%;
-  filter: saturate(0.9);
-}
-
-@media (max-width: 760px) {
-  .spirograph__canvas {
-    opacity: 0.8;
-  }
-
-  .spirograph__canvas--up-mob {
-    margin-top: -40vw;
-  }
-}
-
-/* Animation keyframes */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(1);
-    opacity: 0.35;
-  }
-
-  50% {
-    transform: scale(2.5);
-    opacity: 0.05;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 0.35;
-  }
-}
-
-@keyframes dash-move {
-  0% {
-    stroke-dashoffset: 0;
-  }
-
-  100% {
-    stroke-dashoffset: -100;
-  }
-}
-
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
-  }
-
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-/* Accordion animations for shadcn/ui */
-@keyframes accordion-down {
-  from {
-    height: 0;
-  }
-
-  to {
-    height: var(--radix-accordion-content-height);
-  }
-}
-
-@keyframes accordion-up {
-  from {
-    height: var(--radix-accordion-content-height);
-  }
-
-  to {
-    height: 0;
-  }
-}
-
-.animate-accordion-down {
-  animation: accordion-down 0.2s ease-out;
-}
-
-.animate-accordion-up {
-  animation: accordion-up 0.2s ease-out;
-}
-
-/* Selection styling */
-::selection {
-  background: hsl(var(--brand-accent) / 0.3);
-  color: hsl(var(--brand-indigo));
-}
-
-/* Focus visible styling */
-:focus-visible {
-  @apply outline-none ring-2 ring-offset-2;
-  --tw-ring-color: hsl(var(--ring));
-}
+/* Animations defined in tailwind.config.ts are sufficient, 
+   but we keep keyframes if needed for custom non-tailwind usage */
