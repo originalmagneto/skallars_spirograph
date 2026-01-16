@@ -326,8 +326,57 @@ export async function generateAIImage(prompt: string, options: { turbo?: boolean
         }
 
         throw new Error('No image data in Gemini response');
+        // ... existing code ...
     } catch (err) {
         console.warn('Gemini Imagen failed (Handled), falling back to Turbo mode:', err);
         return generateAIImage(prompt, { turbo: true });
+    }
+}
+
+export async function generateContentTranslation(text_sk: string): Promise<{ en: string; de: string; cn: string }> {
+    const apiKey = await getSetting('gemini_api_key');
+    if (!apiKey) throw new Error('Gemini API Key not found in settings.');
+
+    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+
+    const prompt = `Translate the following Slovak text into English, German, and Chinese (Simplified).
+    
+    Source Text (SK): "${text_sk}"
+
+    Return ONLY a raw JSON object with the following structure (no markdown, no conversation):
+    {
+        "en": "English translation",
+        "de": "German translation",
+        "cn": "Chinese translation"
+    }`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        })
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Translation failed: ${response.statusText} - ${err}`);
+    }
+
+    const result = await response.json();
+    const content = result.candidates[0]?.content?.parts[0]?.text;
+
+    if (!content) throw new Error('No content generated');
+
+    try {
+        return JSON.parse(content);
+    } catch (e) {
+        // Fallback for markdown wrapping
+        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[1] || jsonMatch[0]);
+        }
+        throw new Error('Invalid JSON received from AI');
     }
 }
