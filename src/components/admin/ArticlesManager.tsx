@@ -26,9 +26,13 @@ interface Article {
     id: string;
     title_sk: string;
     title_en: string;
+    title_de: string;
+    title_cn: string;
     slug: string;
     excerpt_sk: string;
     excerpt_en: string;
+    excerpt_de: string;
+    excerpt_cn: string;
     cover_image_url: string;
     is_published: boolean;
     published_at: string | null;

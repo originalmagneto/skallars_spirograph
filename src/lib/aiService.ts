@@ -3,16 +3,28 @@ import { supabase } from "@/lib/supabase";
 export interface GeneratedArticle {
     title_sk: string;
     title_en: string;
+    title_de: string;
+    title_cn: string;
     excerpt_sk: string;
     excerpt_en: string;
+    excerpt_de: string;
+    excerpt_cn: string;
     content_sk: string;
     content_en: string;
+    content_de: string;
+    content_cn: string;
     meta_title_sk: string;
     meta_title_en: string;
+    meta_title_de: string;
+    meta_title_cn: string;
     meta_description_sk: string;
     meta_description_en: string;
+    meta_description_de: string;
+    meta_description_cn: string;
     meta_keywords_sk: string;
     meta_keywords_en: string;
+    meta_keywords_de: string;
+    meta_keywords_cn: string;
     tags: string[];
 }
 
@@ -86,26 +98,38 @@ ${researchContext}
 ${selectedStyle}
 
 ### WRITING RULES
-1. **Professionalism**: Use professional, business-grade Slovak and English. Avoid generic AI phrases (e.g., "In the world of...", "game-changer").
+1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
 2. **Value**: Every paragraph must add value. No filler.
-3. **Bilingual**: You must generate the article in **Slovak (SK)** and **English (EN)** simultaneously.
+3. **Multilingual**: You must generate the article in **Slovak (SK)**, **English (EN)**, **German (DE)**, and **Chinese (CN)** simultaneously.
 4. **Formatting**: Use HTML tags (\`<h2>\`, \`<h3>\`, \`<ul>\`, \`<li>\`, \`<p>\`, \`<strong>\`) for content. Do not use Markdown characters like # or ** inside the JSON strings.
 
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
 {
-  "title_sk": "Engaging, professional title in Slovak",
-  "title_en": "Engaging, professional title in English",
-  "excerpt_sk": "Compelling 2-sentence summary (SK)",
-  "excerpt_en": "Compelling 2-sentence summary (EN)",
+  "title_sk": "Title (SK)",
+  "title_en": "Title (EN)",
+  "title_de": "Title (DE)",
+  "title_cn": "Title (CN)",
+  "excerpt_sk": "Summary (SK)",
+  "excerpt_en": "Summary (EN)",
+  "excerpt_de": "Summary (DE)",
+  "excerpt_cn": "Summary (CN)",
   "content_sk": "HTML string (SK)",
   "content_en": "HTML string (EN)",
-  "meta_title_sk": "SEO Title (max 60 chars)",
-  "meta_title_en": "SEO Title (max 60 chars)",
-  "meta_description_sk": "SEO Description (max 160 chars)",
-  "meta_description_en": "SEO Description (max 160 chars)",
-  "meta_keywords_sk": "comma, separated, keywords",
-  "meta_keywords_en": "comma, separated, keywords",
+  "content_de": "HTML string (DE)",
+  "content_cn": "HTML string (CN)",
+  "meta_title_sk": "SEO Title SK (max 60 chars)",
+  "meta_title_en": "SEO Title EN (max 60 chars)",
+  "meta_title_de": "SEO Title DE (max 60 chars)",
+  "meta_title_cn": "SEO Title CN (max 60 chars)",
+  "meta_description_sk": "SEO Desc SK (max 160 chars)",
+  "meta_description_en": "SEO Desc EN (max 160 chars)",
+  "meta_description_de": "SEO Desc DE (max 160 chars)",
+  "meta_description_cn": "SEO Desc CN (max 160 chars)",
+  "meta_keywords_sk": "keywords, sk",
+  "meta_keywords_en": "keywords, en",
+  "meta_keywords_de": "keywords, de",
+  "meta_keywords_cn": "keywords, cn",
   "tags": ["tag1", "tag2", "tag3"]
 }`;
 }
@@ -180,6 +204,8 @@ export async function generateAIArticle(
                 const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ul>${sources.map((s: string) => `<li>${s}</li>`).join('')}</ul>`;
                 parsedContent.content_sk += sourcesHtml;
                 parsedContent.content_en += sourcesHtml;
+                parsedContent.content_de += sourcesHtml;
+                parsedContent.content_cn += sourcesHtml;
             }
         }
 

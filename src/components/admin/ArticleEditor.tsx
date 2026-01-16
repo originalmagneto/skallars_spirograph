@@ -28,11 +28,17 @@ import Link from 'next/link';
 interface ArticleFormData {
     title_sk: string;
     title_en: string;
+    title_de: string;
+    title_cn: string;
     slug: string;
     excerpt_sk: string;
     excerpt_en: string;
+    excerpt_de: string;
+    excerpt_cn: string;
     content_sk: string;
     content_en: string;
+    content_de: string;
+    content_cn: string;
     cover_image_url: string;
     is_published: boolean;
 }
@@ -51,16 +57,22 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [formData, setFormData] = useState<ArticleFormData>({
         title_sk: '',
         title_en: '',
+        title_de: '',
+        title_cn: '',
         slug: '',
         excerpt_sk: '',
         excerpt_en: '',
+        excerpt_de: '',
+        excerpt_cn: '',
         content_sk: '',
         content_en: '',
+        content_de: '',
+        content_cn: '',
         cover_image_url: '',
         is_published: false,
     });
     const [uploading, setUploading] = useState(false);
-    const [activeTab, setActiveTab] = useState<'sk' | 'en'>('sk');
+    const [activeTab, setActiveTab] = useState<'sk' | 'en' | 'de' | 'cn'>('sk');
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -84,11 +96,17 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             setFormData({
                 title_sk: article.title_sk || '',
                 title_en: article.title_en || '',
+                title_de: article.title_de || '',
+                title_cn: article.title_cn || '',
                 slug: article.slug || '',
                 excerpt_sk: article.excerpt_sk || '',
                 excerpt_en: article.excerpt_en || '',
+                excerpt_de: article.excerpt_de || '',
+                excerpt_cn: article.excerpt_cn || '',
                 content_sk: article.content_sk || '',
                 content_en: article.content_en || '',
+                content_de: article.content_de || '',
+                content_cn: article.content_cn || '',
                 cover_image_url: article.cover_image_url || '',
                 is_published: article.is_published || false,
             });
@@ -209,6 +227,45 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             </div>
         );
     }
+
+    const getCurrentTitle = () => {
+        switch (activeTab) {
+            case 'sk': return formData.title_sk;
+            case 'en': return formData.title_en;
+            case 'de': return formData.title_de;
+            case 'cn': return formData.title_cn;
+            default: return formData.title_sk;
+        }
+    };
+
+    const getCurrentExcerpt = () => {
+        switch (activeTab) {
+            case 'sk': return formData.excerpt_sk;
+            case 'en': return formData.excerpt_en;
+            case 'de': return formData.excerpt_de;
+            case 'cn': return formData.excerpt_cn;
+            default: return formData.excerpt_sk;
+        }
+    };
+
+    const getCurrentContent = () => {
+        switch (activeTab) {
+            case 'sk': return formData.content_sk;
+            case 'en': return formData.content_en;
+            case 'de': return formData.content_de;
+            case 'cn': return formData.content_cn;
+            default: return formData.content_sk;
+        }
+    };
+
+    const updateField = (field: 'title' | 'excerpt' | 'content', value: string) => {
+        const key = `${field}_${activeTab}` as keyof ArticleFormData;
+        setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const getLabel = (enLabel: string, skLabel: string) => {
+        return activeTab === 'sk' ? skLabel : enLabel + ` (${activeTab.toUpperCase()})`;
+    };
 
     return (
         <div className="space-y-6">
@@ -331,21 +388,34 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 >
                     🇬🇧 English
                 </button>
+                <button
+                    onClick={() => setActiveTab('de')}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'de'
+                        ? 'border-primary text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                        }`}
+                >
+                    🇩🇪 Deutsch
+                </button>
+                <button
+                    onClick={() => setActiveTab('cn')}
+                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'cn'
+                        ? 'border-primary text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                        }`}
+                >
+                    🇨🇳 Chinese
+                </button>
             </div>
 
             {/* Title & Excerpt */}
             <div className="space-y-4">
                 <div className="space-y-2">
-                    <Label>{activeTab === 'sk' ? 'Titulok' : 'Title'}</Label>
+                    <Label>{getLabel('Title', 'Titulok')}</Label>
                     <Input
-                        value={activeTab === 'sk' ? formData.title_sk : formData.title_en}
-                        onChange={(e) =>
-                            setFormData(prev => ({
-                                ...prev,
-                                [activeTab === 'sk' ? 'title_sk' : 'title_en']: e.target.value,
-                            }))
-                        }
-                        placeholder={activeTab === 'sk' ? 'Názov článku...' : 'Article title...'}
+                        value={getCurrentTitle()}
+                        onChange={(e) => updateField('title', e.target.value)}
+                        placeholder={getLabel('Article title...', 'Názov článku...')}
                     />
                 </div>
 
@@ -359,33 +429,23 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 </div>
 
                 <div className="space-y-2">
-                    <Label>{activeTab === 'sk' ? 'Krátky popis' : 'Excerpt'}</Label>
+                    <Label>{getLabel('Excerpt', 'Krátky popis')}</Label>
                     <Textarea
-                        value={activeTab === 'sk' ? formData.excerpt_sk : formData.excerpt_en}
-                        onChange={(e) =>
-                            setFormData(prev => ({
-                                ...prev,
-                                [activeTab === 'sk' ? 'excerpt_sk' : 'excerpt_en']: e.target.value,
-                            }))
-                        }
-                        placeholder={activeTab === 'sk' ? 'Krátky popis článku...' : 'Short article description...'}
+                        value={getCurrentExcerpt()}
+                        onChange={(e) => updateField('excerpt', e.target.value)}
+                        placeholder={getLabel('Short article description...', 'Krátky popis článku...')}
                         rows={3}
                     />
                 </div>
             </div>
 
-            {/* Content Editor (Simple Textarea for now - can be upgraded to rich text later) */}
+            {/* Content Editor */}
             <div className="space-y-2">
-                <Label>{activeTab === 'sk' ? 'Obsah' : 'Content'}</Label>
+                <Label>{getLabel('Content', 'Obsah')}</Label>
                 <Textarea
-                    value={activeTab === 'sk' ? formData.content_sk : formData.content_en}
-                    onChange={(e) =>
-                        setFormData(prev => ({
-                            ...prev,
-                            [activeTab === 'sk' ? 'content_sk' : 'content_en']: e.target.value,
-                        }))
-                    }
-                    placeholder={activeTab === 'sk' ? 'Začnite písať obsah článku...' : 'Start writing article content...'}
+                    value={getCurrentContent()}
+                    onChange={(e) => updateField('content', e.target.value)}
+                    placeholder={getLabel('Start writing article content...', 'Začnite písať obsah článku...')}
                     rows={12}
                     className="font-mono text-sm"
                 />
