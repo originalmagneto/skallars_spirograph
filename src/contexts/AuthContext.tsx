@@ -28,13 +28,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchRoles = useCallback(async (userId: string) => {
         try {
             const { data } = await supabase
-                .from('user_roles')
+                .from('profiles')
                 .select('role')
-                .eq('user_id', userId);
+                .eq('id', userId)
+                .single();
 
-            const roles = data?.map(r => r.role) || [];
-            setIsAdmin(roles.includes('admin'));
-            setIsEditor(roles.includes('editor') || roles.includes('admin'));
+            const role = data?.role;
+            setIsAdmin(role === 'admin');
+            setIsEditor(role === 'editor' || role === 'admin');
         } catch (error) {
             console.error('Error fetching roles:', error);
             setIsAdmin(false);
