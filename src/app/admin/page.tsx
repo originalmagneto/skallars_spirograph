@@ -17,24 +17,10 @@ import AISettings from "@/components/admin/AISettings";
 import ClientLogosManager from "@/components/admin/ClientLogosManager";
 
 export default function AdminPage() {
-    const { user, isAdmin, isEditor, loading } = useAuth();
-    const router = useRouter();
+    const { user, isAdmin } = useAuth();
 
-    useEffect(() => {
-        if (!loading && !user) {
-            router.push('/login');
-        }
-    }, [user, loading, router]);
-
-    if (loading) {
-        return (
-            <div className="flex h-screen items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-            </div>
-        );
-    }
-
-    if (!user) return null; // Will redirect via useEffect
+    // Layout handles redirect and loading, but we keep a safety check
+    if (!user) return null;
 
     return (
         <Tabs defaultValue="map" className="space-y-6">
