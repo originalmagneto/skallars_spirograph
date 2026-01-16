@@ -128,18 +128,63 @@ const MapCitiesManager = () => {
         });
     };
 
+    // Moved CityForm outside to prevent re-renders losing focus
     const CityForm = ({ values, onChange, onSave, onCancel, isNew }: any) => {
+        const [searching, setSearching] = useState(false);
+
+        const matchCoordinates = async () => {
+            if (!values.name) {
+                toast.error('Please enter a city name first');
+                return;
+            }
+
+            setSearching(true);
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(values.name)}`);
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    const result = data[0];
+                    onChange({
+                        ...values,
+                        latitude: parseFloat(result.lat),
+                        longitude: parseFloat(result.lon),
+                        country: values.country || result.display_name.split(',').pop()?.trim() || ''
+                    });
+                    toast.success(`Found coordinates for ${values.name}`);
+                } else {
+                    toast.error('City not found');
+                }
+            } catch (error) {
+                toast.error('Failed to fetch coordinates');
+            } finally {
+                setSearching(false);
+            }
+        };
+
         return (
             <div className="bg-muted/30 p-4 rounded-lg border mb-2">
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <div className="md:col-span-2">
                         <Label className="text-xs">City Name</Label>
-                        <Input
-                            value={values.name}
-                            onChange={(e) => onChange({ ...values, name: e.target.value })}
-                            placeholder="City name"
-                            className="mt-1"
-                        />
+                        <div className="flex gap-2">
+                            <Input
+                                value={values.name}
+                                onChange={(e) => onChange({ ...values, name: e.target.value })}
+                                placeholder="City name"
+                                className="mt-1"
+                            />
+                            <Button
+                                variant="secondary"
+                                size="icon"
+                                className="mt-1 shrink-0"
+                                onClick={matchCoordinates}
+                                disabled={searching}
+                                title="Find Coordinates"
+                            >
+                                {searching ? <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" /> : <Search01Icon size={14} />}
+                            </Button>
+                        </div>
                     </div>
                     <div className="md:col-span-1">
                         <Label className="text-xs">Country</Label>
