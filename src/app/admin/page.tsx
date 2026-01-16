@@ -2,13 +2,15 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon } from "hugeicons-react";
+import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon } from "hugeicons-react";
 
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
 import ContentManager from "@/components/admin/ContentManager";
 import UserManagement from "@/components/admin/UserManagement";
 import ArticlesManager from "@/components/admin/ArticlesManager";
+import AILab from "@/components/admin/AILab";
+import AISettings from "@/components/admin/AISettings";
 
 export default function AdminPage() {
     const { user, isAdmin, isEditor } = useAuth();
@@ -17,7 +19,7 @@ export default function AdminPage() {
 
     return (
         <Tabs defaultValue="map" className="space-y-6">
-            <TabsList>
+            <TabsList className="flex-wrap h-auto">
                 {isAdmin && (
                     <TabsTrigger value="map" className="gap-2">
                         <Location01Icon size={14} />
@@ -41,6 +43,18 @@ export default function AdminPage() {
                     Articles
                 </TabsTrigger>
                 {isAdmin && (
+                    <TabsTrigger value="ai-lab" className="gap-2">
+                        <AiMagicIcon size={14} />
+                        AI Lab
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
+                    <TabsTrigger value="settings" className="gap-2">
+                        <Settings01Icon size={14} />
+                        Settings
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
                     <TabsTrigger value="users" className="gap-2">
                         <UserMultipleIcon size={14} />
                         Users
@@ -62,6 +76,14 @@ export default function AdminPage() {
 
             <TabsContent value="articles">
                 <ArticlesManager />
+            </TabsContent>
+
+            <TabsContent value="ai-lab">
+                <AILab />
+            </TabsContent>
+
+            <TabsContent value="settings">
+                <AISettings />
             </TabsContent>
 
             <TabsContent value="users">
