@@ -34,9 +34,10 @@ export async function GET(req: NextRequest) {
     // Transform to match BlogCarousel expectation (if needed)
     const transformedPosts = posts?.map(post => ({
       id: post.id,
-      title: post.title_sk, // Default to SK for list view, or context aware?
+      // Smart fallback for title in list view
+      title: post.title_sk || post.title_en || post.title_de || post.title_cn || 'Untitled Article',
       slug: post.slug,
-      excerpt: post.excerpt_sk,
+      excerpt: post.excerpt_sk || post.excerpt_en || post.excerpt_de || post.excerpt_cn || '',
       feature_image: post.cover_image_url,
       published_at: post.published_at,
       reading_time: 5, // Placeholder or calculate

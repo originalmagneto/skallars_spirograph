@@ -354,10 +354,10 @@ export default function LawFirmHomepage() {
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center justify-between">
               <div className="md:w-1/2 mb-10 md:mb-0">
-                <h3 className="text-base font-semibold text-[var(--mint-400)] mb-2 uppercase tracking-wide">
+                <h3 className="text-sm font-medium text-[var(--mint-400)] mb-2 uppercase tracking-wide">
                   {t.clients.title}
                 </h3>
-                <h2 className="text-4xl md:text-5xl font-extrabold text-[#210059] mb-4 tracking-tight">
+                <h2 className="text-3xl font-medium text-[#210059] mb-4 tracking-tight">
                   {t.clients.subtitle}
                 </h2>
               </div>
