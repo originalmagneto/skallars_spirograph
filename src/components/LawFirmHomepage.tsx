@@ -16,7 +16,7 @@ import {
   AnimatePresence,
 } from "framer-motion";
 import dynamic from 'next/dynamic';
-import InteractiveMap from './InteractiveMap';
+import GlobalNetworkSection from './GlobalNetworkSection';
 import BlogCarousel from './BlogCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -30,9 +30,8 @@ export default function LawFirmHomepage() {
   const stickyRef = useRef<HTMLDivElement>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const serviceRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
-  const [activeCountry, setActiveCountry] = useState<keyof typeof officeInfo>('Slovakia');
   const [currentClientIndex, setCurrentClientIndex] = useState(0);
+
   const [activeSection, setActiveSection] = useState("");
   const { scrollYProgress } = useScroll();
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
@@ -118,32 +117,16 @@ export default function LawFirmHomepage() {
     description: member.description,
     phone: index === 0 ? "+421 949 110 446" : index === 1 ? "+421 123 456 789" : index === 2 ? "+421 917 580 442" : "0905 444 444",
     email: index === 0 ? "cuprik@skallars.sk" : index === 1 ? "zak@skallars.sk" : index === 2 ? "hudak@skallars.sk" : "ye@skallars.sk",
-    image: index === 0 
+    image: index === 0
       ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Maria%CC%81n%20C%CC%8Cupri%CC%81k-9zF7Dkbxqk0u4RVyBSMfbZZaXf4fXk.jpg"
-      : index === 1 
-      ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Martin%20Z%CC%8Ca%CC%81k-wuaynP4mw11iW5cYwB5nKEaJvFwBlh.jpg"
-      : index === 2 
-      ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/JH_dark-USHq2kdwHiMPCT2em1Zj2DZer2raMo.jpg"
-      : "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/img-dy-2-KgydSWygusjb6XI7tw5yi7Oif17dz1.png",
+      : index === 1
+        ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Martin%20Z%CC%8Ca%CC%81k-wuaynP4mw11iW5cYwB5nKEaJvFwBlh.jpg"
+        : index === 2
+          ? "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/JH_dark-USHq2kdwHiMPCT2em1Zj2DZer2raMo.jpg"
+          : "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/img-dy-2-KgydSWygusjb6XI7tw5yi7Oif17dz1.png",
   }));
 
-  const officeInfo = {
-    Slovakia: {
-      city: t.countries.officeInfo.Slovakia.city,
-      address: t.countries.officeInfo.Slovakia.address,
-      phone: t.countries.officeInfo.Slovakia.phone,
-    },
-    "Czech Republic": {
-      city: t.countries.officeInfo['Czech Republic'].city,
-      address: t.countries.officeInfo['Czech Republic'].address,
-      phone: t.countries.officeInfo['Czech Republic'].phone,
-    },
-    Austria: {
-      city: t.countries.officeInfo.Austria.city,
-      address: t.countries.officeInfo.Austria.address,
-      phone: t.countries.officeInfo.Austria.phone,
-    },
-  };
+
 
   const legalServices = [
     {
@@ -318,11 +301,10 @@ export default function LawFirmHomepage() {
                       key={src}
                       src={src}
                       alt={`Legal service image ${index + 1}`}
-                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-                        index === currentImageIndex
-                          ? "opacity-100"
-                          : "opacity-0"
-                      }`}
+                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${index === currentImageIndex
+                        ? "opacity-100"
+                        : "opacity-0"
+                        }`}
                     />
                   ))}
                 </div>
@@ -353,68 +335,7 @@ export default function LawFirmHomepage() {
           </div>
         </section>
 
-        <section id="countries" className="relative py-28 bg-white overflow-hidden reveal">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -top-40 right-[-10%] w-[60vw] h-[60vw] rounded-full blur-3xl opacity-20"
-            style={{ background: 'radial-gradient(600px circle at 30% 30%, rgba(33,0,89,0.18), transparent 60%)' }}
-          />
-          <div className="container mx-auto px-4">
-            <div className="grid lg:grid-cols-2 gap-12 items-center">
-              <div>
-                <motion.h2
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.6 }}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
-                  className="text-6xl font-extrabold mb-6 text-[#210059] tracking-tight"
-                >
-                  {t.countries.title}
-                </motion.h2>
-                <p className="text-xl text-gray-700 mb-8 max-w-xl">
-                  {t.countries.subtitle}
-                </p>
-                <div className="flex flex-wrap gap-3 mb-6">
-                  {(['Slovakia','Czech Republic','Austria'] as Array<keyof typeof officeInfo>).map((c) => (
-                    <motion.button
-                      key={c}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setActiveCountry(c)}
-                      className={`px-4 py-2 rounded-full border transition-colors ${
-                        activeCountry === c ? 'bg-[var(--indigo-900)] text-white border-[var(--indigo-900)]' : 'bg-white text-[var(--indigo-900)] border-[var(--indigo-900)]/30 hover:border-[var(--indigo-900)]'
-                      }`}
-                    >
-                      {c === 'Slovakia' ? 'Slovensko' : c === 'Czech Republic' ? 'Česko' : 'Rakúsko'}
-                    </motion.button>
-                  ))}
-                </div>
-                <motion.div
-                  key={activeCountry}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm max-w-md"
-                >
-                  <div className="text-sm text-[var(--mint-400)] font-semibold mb-1 uppercase tracking-wide">{t.countries.currentOffice}</div>
-                  <div className="text-2xl font-semibold text-[#210059] mb-1">{officeInfo[activeCountry].city}</div>
-                  <div className="text-gray-700">{officeInfo[activeCountry].address}</div>
-                  <div className="text-gray-700 mt-2">{officeInfo[activeCountry].phone}</div>
-                </motion.div>
-              </div>
-              <div>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.98, y: 10 }}
-                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.4 }}
-                  transition={{ duration: 0.5 }}
-                  className="rounded-2xl overflow-hidden shadow-2xl ring-1 ring-gray-200"
-                >
-                  <InteractiveMap />
-                </motion.div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <GlobalNetworkSection id="countries" />
 
         <section id="clients" className="py-20 bg-white reveal">
           <div className="container mx-auto px-4">
@@ -481,7 +402,7 @@ export default function LawFirmHomepage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
-                              <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
+              <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
               <p>Staré Grunty 18</p>
               <p>841 04 Bratislava</p>
               <a href="mailto:info@skallars.sk" className="hover:underline">
@@ -557,7 +478,7 @@ export default function LawFirmHomepage() {
           </div>
           <div className="mt-8 pt-8 border-t border-gray-800 text-center">
             <p>
-                            {t.footer.copyright}
+              {t.footer.copyright}
             </p>
           </div>
         </div>

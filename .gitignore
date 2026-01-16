@@ -34,3 +34,7 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Reference/Skills folders (not part of project)
+.SKILLS
+OMNI web
