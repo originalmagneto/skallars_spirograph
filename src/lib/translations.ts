@@ -145,7 +145,7 @@ export const translations: Record<Language, Translations> = {
     },
     countries: {
       title: 'Krajiny pôsobnosti',
-      subtitle: 'Pôsobíme v troch kľúčových krajinách regiónu. Naši advokáti poskytujú právne služby v slovenčine a češtine, so spoľahlivým zázemím v Rakúsku.',
+      subtitle: 'Medzinárodná sieť',
       currentOffice: 'Aktuálna kancelária',
       officeInfo: {
         Slovakia: {
@@ -261,7 +261,7 @@ export const translations: Record<Language, Translations> = {
     },
     countries: {
       title: 'Tätigkeitsländer',
-      subtitle: 'Wir sind in drei wichtigen Ländern der Region tätig. Unsere Anwälte bieten Rechtsdienstleistungen in Slowakisch und Tschechisch mit zuverlässiger Unterstützung in Österreich.',
+      subtitle: 'Internationales Netzwerk',
       currentOffice: 'Aktuelles Büro',
       officeInfo: {
         Slovakia: {
@@ -377,7 +377,7 @@ export const translations: Record<Language, Translations> = {
     },
     countries: {
       title: 'Countries of Operation',
-      subtitle: 'We operate in three key countries in the region. Our lawyers provide legal services in Slovak and Czech, with reliable support in Austria.',
+      subtitle: 'International Network',
       currentOffice: 'Current Office',
       officeInfo: {
         Slovakia: {

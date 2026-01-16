@@ -228,13 +228,14 @@
 
   .btn-accent {
     @apply inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-all duration-300;
-    background: linear-gradient(135deg, hsl(var(--brand-accent)) 0%, #10b981 100%);
+    background: hsl(var(--brand-accent));
     color: hsl(var(--brand-indigo));
-    box-shadow: 0 4px 14px rgba(56, 248, 184, 0.3);
+    box-shadow: 0 2px 8px rgba(56, 248, 184, 0.25);
   }
 
   .btn-accent:hover {
-    box-shadow: 0 6px 20px rgba(56, 248, 184, 0.45);
+    background: hsl(158 94% 45%);
+    box-shadow: 0 4px 16px rgba(56, 248, 184, 0.35);
     transform: translateY(-1px);
   }
 }
