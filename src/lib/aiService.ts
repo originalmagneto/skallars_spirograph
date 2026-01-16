@@ -125,12 +125,12 @@ ${selectedStyle}
 3. **Multilingual**: You must generate the article in the following languages: **${selectedLangNames}** simultaneously.
 4. **Formatting**: 
    - Use **HTML tags** for all content semantics.
-   - **Headings**: Use `<h2>` for main sections and `<h3>` for subsections.
-   - **Paragraphs**: Wrap all body text in `<p>` tags.
-   - **Lists**: Use `<ul>` with `<li>` for bullet points.
-   - **Emphasis**: Use `<strong>` for key terms.
+   - **Headings**: Use \`<h2>\` for main sections and \`<h3>\` for subsections.
+   - **Paragraphs**: Wrap all body text in \`<p>\` tags.
+   - **Lists**: Use \`<ul>\` with \`<li>\` for bullet points.
+   - **Emphasis**: Use \`<strong>\` for key terms.
    - **Structure**: Break long text into readable chunks with frequent subheadings.
-   - **Prohibited**: Do NOT use markdown characters like `#`, ` ** `, or ` - ` inside the JSON strings. Use HTML only.
+   - **Prohibited**: Do NOT use markdown characters like \`#\`, \`**\`, or \`- \` inside the JSON strings. Use HTML only.
 
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.

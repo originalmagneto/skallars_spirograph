@@ -174,7 +174,6 @@ const AILab = () => {
             const { data: article, error: articleError } = await supabase
                 .from('articles')
                 .insert({
-                .insert({
                     title_sk: generatedContent.title_sk || '',
                     title_en: generatedContent.title_en || '',
                     title_de: generatedContent.title_de || '',
@@ -203,386 +202,386 @@ const AILab = () => {
                     author_id: user.id,
                     is_published: false,
                 })
-                        .select()
-                        .single();
+                .select()
+                .single();
 
-                    if(articleError) throw articleError;
+            if (articleError) throw articleError;
 
-                    // 3. Handle Tags
-                    if(generatedContent.tags && generatedContent.tags.length > 0) {
-                        for (const tagName of generatedContent.tags) {
-                            const tagSlug = tagName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            // 3. Handle Tags
+            if (generatedContent.tags && generatedContent.tags.length > 0) {
+                for (const tagName of generatedContent.tags) {
+                    const tagSlug = tagName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-                            // Upsert tag
-                            let { data: tag } = await supabase
-                                .from('tags')
-                                .select('id')
-                                .eq('slug', tagSlug)
-                                .maybeSingle();
+                    // Upsert tag
+                    let { data: tag } = await supabase
+                        .from('tags')
+                        .select('id')
+                        .eq('slug', tagSlug)
+                        .maybeSingle();
 
-                            if (!tag) {
-                                const { data: newTag, error: tagError } = await supabase
-                                    .from('tags')
-                                    .insert({ name_sk: tagName, name_en: tagName, slug: tagSlug })
-                                    .select()
-                                    .single();
-                                if (tagError) continue;
-                                tag = newTag;
-                            }
+                    if (!tag) {
+                        const { data: newTag, error: tagError } = await supabase
+                            .from('tags')
+                            .insert({ name_sk: tagName, name_en: tagName, slug: tagSlug })
+                            .select()
+                            .single();
+                        if (tagError) continue;
+                        tag = newTag;
+                    }
 
-                            // Link tag to article
-                            if (tag) {
-                                await supabase.from('article_tags').insert({
-                                    article_id: article.id,
-                                    tag_id: tag.id
-                                });
-                            }
-                        }
-        }
+                    // Link tag to article
+                    if (tag) {
+                        await supabase.from('article_tags').insert({
+                            article_id: article.id,
+                            tag_id: tag.id
+                        });
+                    }
+                }
+            }
 
             toast.success('Article saved as draft!');
-        router.push(`/admin/articles/edit/${article.id}`); // Adjusted route to match current project
-    } catch (error: any) {
-        toast.error(error.message || 'Failed to save article');
-    }
-};
+            router.push(`/admin/articles/edit/${article.id}`); // Adjusted route to match current project
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to save article');
+        }
+    };
 
-return (
-    <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Input Pane */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <AiMagicIcon size={24} className="text-primary" />
-                        <CardTitle>AI Article Generator</CardTitle>
-                    </div>
-                    <CardDescription>
-                        Provide a topic and research links to generate a complete, bilingual article.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Target Languages</Label>
-                        <div className="flex flex-wrap gap-2">
-                            {['sk', 'en', 'de', 'cn'].map((lang) => (
-                                <div
-                                    key={lang}
-                                    onClick={() => toggleLanguage(lang)}
-                                    className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all border ${targetLanguages.includes(lang)
-                                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                        : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-1.5">
-                                        {targetLanguages.includes(lang) && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                        {lang === 'sk' && 'Slovak (SK)'}
-                                        {lang === 'en' && 'English (EN)'}
-                                        {lang === 'de' && 'German (DE)'}
-                                        {lang === 'cn' && 'Chinese (CN)'}
-                                    </div>
-                                </div>
-                            ))}
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Input Pane */}
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <AiMagicIcon size={24} className="text-primary" />
+                            <CardTitle>AI Article Generator</CardTitle>
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                        <CardDescription>
+                            Provide a topic and research links to generate a complete, bilingual article.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Article Type</Label>
-                            <Select value={articleType} onValueChange={setArticleType}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Deep Dive">Deep Dive</SelectItem>
-                                    <SelectItem value="News">News</SelectItem>
-                                    <SelectItem value="Trends">Trends</SelectItem>
-                                    <SelectItem value="Law">Law</SelectItem>
-                                    <SelectItem value="Accounting">Accounting</SelectItem>
-                                    <SelectItem value="Tax">Tax</SelectItem>
-                                    <SelectItem value="Regulatory">Regulatory</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Length</Label>
-                            <Select value={articleLength} onValueChange={setArticleLength}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select length" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Short">Short (300-500w)</SelectItem>
-                                    <SelectItem value="Medium">Medium (700-900w)</SelectItem>
-                                    <SelectItem value="Large">Large (1200w+)</SelectItem>
-                                    <SelectItem value="Comprehensive">Comprehensive (1500-2000w)</SelectItem>
-                                    <SelectItem value="Report">Deep Report (2500w+)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-medium flex items-center gap-2">
-                                <GlobalSearchIcon size={16} className="text-primary" />
-                                Deep Research (Search Grounding)
-                            </Label>
-                            <p className="text-xs text-muted-foreground">
-                                Use Google Search to find latest information.
-                                {currentModel && (
-                                    <span className="block text-[10px] text-primary mt-1">
-                                        Current Model: {currentModel}
-                                    </span>
-                                )}
-                            </p>
-                        </div>
-                        <Switch
-                            checked={useGrounding}
-                            onCheckedChange={setUseGrounding}
-                        />
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
-                        <div className="space-y-0.5">
-                            <Label className="text-sm font-medium flex items-center gap-2">
-                                <PlusSignIcon size={16} className="text-primary" rotate={showPromptEditor ? 45 : 0} />
-                                Customize System Prompt
-                            </Label>
-                            <p className="text-xs text-muted-foreground">
-                                View and edit the exact instructions sent to AI.
-                            </p>
-                        </div>
-                        <Switch
-                            checked={showPromptEditor}
-                            onCheckedChange={(val) => {
-                                if (val && !customPrompt) handlePreparePrompt();
-                                setShowPromptEditor(val);
-                            }}
-                        />
-                    </div>
-
-                    {showPromptEditor && (
-                        <div className="space-y-2 pt-2">
-                            <div className="flex items-center justify-between">
-                                <Label className="text-xs uppercase text-muted-foreground">System Prompt Editor</Label>
-                                <Button variant="ghost" size="sm" onClick={handleResetPrompt} className="text-xs h-7">
-                                    Reset to Default
-                                </Button>
-                            </div>
-                            <Textarea
-                                value={customPrompt}
-                                onChange={(e) => setCustomPrompt(e.target.value)}
-                                rows={10}
-                                className="font-mono text-xs bg-muted/50"
-                                placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings..."
-                            />
-                            <p className="text-[10px] text-orange-500 font-medium">
-                                ⚠️ Caution: Manually changing the JSON structure instructions might break generation.
-                            </p>
-                        </div>
-                    )}
-
-                    {!showPromptEditor && (
-                        <div className="space-y-2">
-                            <Label htmlFor="prompt">Topic / Content Description</Label>
-                            <Textarea
-                                id="prompt"
-                                placeholder="e.g., New trademark regulations in the EU for 2026 and their impact on SMEs..."
-                                value={prompt}
-                                onChange={(e) => setPrompt(e.target.value)}
-                                rows={4}
-                            />
-                        </div>
-                    )}
-
-                    {!showPromptEditor && (
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <Label className="flex items-center gap-2">
-                                    <Link01Icon size={16} />
-                                    Research Links (News, Sources)
-                                </Label>
-                                <Button variant="ghost" size="sm" onClick={addLink} className="h-8 px-2">
-                                    <PlusSignIcon size={14} className="mr-1" /> Add
-                                </Button>
-                            </div>
-                            <div className="space-y-2">
-                                {links.map((link, index) => (
-                                    <div key={index} className="flex gap-2">
-                                        <Input
-                                            placeholder="https://..."
-                                            value={link}
-                                            onChange={(e) => updateLink(index, e.target.value)}
-                                        />
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => removeLink(index)}
-                                            disabled={links.length === 1}
-                                        >
-                                            <Cancel01Icon size={16} />
-                                        </Button>
+                            <Label>Target Languages</Label>
+                            <div className="flex flex-wrap gap-2">
+                                {['sk', 'en', 'de', 'cn'].map((lang) => (
+                                    <div
+                                        key={lang}
+                                        onClick={() => toggleLanguage(lang)}
+                                        className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all border ${targetLanguages.includes(lang)
+                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                            : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            {targetLanguages.includes(lang) && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                            {lang === 'sk' && 'Slovak (SK)'}
+                                            {lang === 'en' && 'English (EN)'}
+                                            {lang === 'de' && 'German (DE)'}
+                                            {lang === 'cn' && 'Chinese (CN)'}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                    )}
-                </CardContent>
-                <CardFooter>
-                    <Button
-                        onClick={handleGenerate}
-                        disabled={generating}
-                        className="w-full bg-primary hover:bg-primary/90"
-                    >
-                        {generating ? (
-                            <>Generating...</>
-                        ) : (
-                            <>
-                                <Search01Icon size={18} className="mr-2" />
-                                Research & Generate Article
-                            </>
-                        )}
-                    </Button>
-                </CardFooter>
-            </Card>
 
-            {/* Preview Pane */}
-            <Card className="flex flex-col">
-                <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <ViewIcon size={24} className="text-muted-foreground" />
-                            <CardTitle>Article Preview</CardTitle>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Article Type</Label>
+                                <Select value={articleType} onValueChange={setArticleType}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Deep Dive">Deep Dive</SelectItem>
+                                        <SelectItem value="News">News</SelectItem>
+                                        <SelectItem value="Trends">Trends</SelectItem>
+                                        <SelectItem value="Law">Law</SelectItem>
+                                        <SelectItem value="Accounting">Accounting</SelectItem>
+                                        <SelectItem value="Tax">Tax</SelectItem>
+                                        <SelectItem value="Regulatory">Regulatory</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Length</Label>
+                                <Select value={articleLength} onValueChange={setArticleLength}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select length" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Short">Short (300-500w)</SelectItem>
+                                        <SelectItem value="Medium">Medium (700-900w)</SelectItem>
+                                        <SelectItem value="Large">Large (1200w+)</SelectItem>
+                                        <SelectItem value="Comprehensive">Comprehensive (1500-2000w)</SelectItem>
+                                        <SelectItem value="Report">Deep Report (2500w+)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        {generatedContent && (
-                            <div className="flex bg-muted rounded-md p-1 gap-1">
-                                <Button
-                                    variant={activeTab === 'sk' ? 'secondary' : 'ghost'}
-                                    size="sm"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() => setActiveTab('sk')}
-                                    disabled={!generatedContent.title_sk && !generatedContent.content_sk}
-                                >
-                                    SK
-                                </Button>
-                                <Button
-                                    variant={activeTab === 'en' ? 'secondary' : 'ghost'}
-                                    size="sm"
-                                    className="h-7 px-3 text-xs"
-                                    onClick={() => setActiveTab('en')}
-                                    disabled={!generatedContent.title_en && !generatedContent.content_en}
-                                >
-                                    EN
-                                </Button>
-                                {/* Additional languages dynamically shown if they exist */}
-                                {(generatedContent.title_de || generatedContent.content_de) && (
-                                    <Button
-                                        variant={activeTab === 'de' as any ? 'secondary' : 'ghost'}
-                                        size="sm"
-                                        className="h-7 px-3 text-xs"
-                                        onClick={() => setActiveTab('de' as any)}
-                                    >
-                                        DE
+
+                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                    <GlobalSearchIcon size={16} className="text-primary" />
+                                    Deep Research (Search Grounding)
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Use Google Search to find latest information.
+                                    {currentModel && (
+                                        <span className="block text-[10px] text-primary mt-1">
+                                            Current Model: {currentModel}
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                            <Switch
+                                checked={useGrounding}
+                                onCheckedChange={setUseGrounding}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                    <PlusSignIcon size={16} className="text-primary" rotate={showPromptEditor ? 45 : 0} />
+                                    Customize System Prompt
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    View and edit the exact instructions sent to AI.
+                                </p>
+                            </div>
+                            <Switch
+                                checked={showPromptEditor}
+                                onCheckedChange={(val) => {
+                                    if (val && !customPrompt) handlePreparePrompt();
+                                    setShowPromptEditor(val);
+                                }}
+                            />
+                        </div>
+
+                        {showPromptEditor && (
+                            <div className="space-y-2 pt-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs uppercase text-muted-foreground">System Prompt Editor</Label>
+                                    <Button variant="ghost" size="sm" onClick={handleResetPrompt} className="text-xs h-7">
+                                        Reset to Default
                                     </Button>
-                                )}
-                                {(generatedContent.title_cn || generatedContent.content_cn) && (
-                                    <Button
-                                        variant={activeTab === 'cn' as any ? 'secondary' : 'ghost'}
-                                        size="sm"
-                                        className="h-7 px-3 text-xs"
-                                        onClick={() => setActiveTab('cn' as any)}
-                                    >
-                                        CN
-                                    </Button>
-                                )}
+                                </div>
+                                <Textarea
+                                    value={customPrompt}
+                                    onChange={(e) => setCustomPrompt(e.target.value)}
+                                    rows={10}
+                                    className="font-mono text-xs bg-muted/50"
+                                    placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings..."
+                                />
+                                <p className="text-[10px] text-orange-500 font-medium">
+                                    ⚠️ Caution: Manually changing the JSON structure instructions might break generation.
+                                </p>
                             </div>
                         )}
-                    </div>
-                </CardHeader>
-                <CardContent className="flex-1 min-h-[400px]">
-                    {generatedContent ? (
-                        <ScrollArea className="h-[500px] pr-4">
-                            <div className="space-y-6">
-                                <div>
-                                    <h1 className="text-2xl font-bold mb-2">
-                                        {(generatedContent as any)[`title_${activeTab}`]}
-                                    </h1>
-                                    <p className="text-muted-foreground italic border-l-2 pl-4 py-1">
-                                        {(generatedContent as any)[`excerpt_${activeTab}`]}
-                                    </p>
-                                </div>
 
-                                <div
-                                    className="prose prose-sm dark:prose-invert max-w-none"
-                                    dangerouslySetInnerHTML={{
-                                        __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
-                                    }}
+                        {!showPromptEditor && (
+                            <div className="space-y-2">
+                                <Label htmlFor="prompt">Topic / Content Description</Label>
+                                <Textarea
+                                    id="prompt"
+                                    placeholder="e.g., New trademark regulations in the EU for 2026 and their impact on SMEs..."
+                                    value={prompt}
+                                    onChange={(e) => setPrompt(e.target.value)}
+                                    rows={4}
                                 />
+                            </div>
+                        )}
 
-                                <div className="pt-6 border-t flex flex-wrap gap-2">
-                                    {generatedContent.tags.map(tag => (
-                                        <Badge key={tag} variant="outline">{tag}</Badge>
+                        {!showPromptEditor && (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label className="flex items-center gap-2">
+                                        <Link01Icon size={16} />
+                                        Research Links (News, Sources)
+                                    </Label>
+                                    <Button variant="ghost" size="sm" onClick={addLink} className="h-8 px-2">
+                                        <PlusSignIcon size={14} className="mr-1" /> Add
+                                    </Button>
+                                </div>
+                                <div className="space-y-2">
+                                    {links.map((link, index) => (
+                                        <div key={index} className="flex gap-2">
+                                            <Input
+                                                placeholder="https://..."
+                                                value={link}
+                                                onChange={(e) => updateLink(index, e.target.value)}
+                                            />
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeLink(index)}
+                                                disabled={links.length === 1}
+                                            >
+                                                <Cancel01Icon size={16} />
+                                            </Button>
+                                        </div>
                                     ))}
                                 </div>
-
-                                <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                                        <CheckmarkCircle01Icon size={14} className="text-green-500" />
-                                        Generated SEO Data
-                                    </h3>
-                                    <div className="text-xs space-y-1">
-                                        <p><strong>Meta Title:</strong> {(generatedContent as any)[`meta_title_${activeTab}`]}</p>
-                                        <p><strong>Meta Desc:</strong> {(generatedContent as any)[`meta_description_${activeTab}`]}</p>
-                                        <p><strong>Keywords:</strong> {(generatedContent as any)[`meta_keywords_${activeTab}`]}</p>
-                                    </div>
-                                </div>
-
-                                {generatedContent.usage && (
-                                    <div className="bg-muted/30 p-4 rounded-lg space-y-3">
-                                        <h3 className="text-sm font-semibold flex items-center gap-2">
-                                            <AiMagicIcon size={14} className="text-blue-500" />
-                                            Token Usage Stats
-                                        </h3>
-                                        <div className="grid grid-cols-3 gap-2 text-xs text-center">
-                                            <div className="bg-background rounded p-2 border">
-                                                <p className="text-muted-foreground text-[10px] uppercase">Input</p>
-                                                <p className="font-mono font-medium">{generatedContent.usage.promptTokens}</p>
-                                            </div>
-                                            <div className="bg-background rounded p-2 border">
-                                                <p className="text-muted-foreground text-[10px] uppercase">Output</p>
-                                                <p className="font-mono font-medium">{generatedContent.usage.completionTokens}</p>
-                                            </div>
-                                            <div className="bg-background rounded p-2 border">
-                                                <p className="text-muted-foreground text-[10px] uppercase">Total</p>
-                                                <p className="font-mono font-medium">{generatedContent.usage.totalTokens}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
-                        </ScrollArea>
-                    ) : (
-                        <div className="h-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground text-center p-8">
-                            <div>
-                                <News01Icon size={48} className="mx-auto mb-4 opacity-20" />
-                                <p>Generated content will appear here.</p>
-                                <p className="text-xs">Select your parameters and click Generate.</p>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-                {generatedContent && (
-                    <CardFooter className="pt-4 border-t">
-                        <Button onClick={handleSave} className="w-full">
-                            <FloppyDiskIcon size={18} className="mr-2" />
-                            Save as Draft and Edit
+                        )}
+                    </CardContent>
+                    <CardFooter>
+                        <Button
+                            onClick={handleGenerate}
+                            disabled={generating}
+                            className="w-full bg-primary hover:bg-primary/90"
+                        >
+                            {generating ? (
+                                <>Generating...</>
+                            ) : (
+                                <>
+                                    <Search01Icon size={18} className="mr-2" />
+                                    Research & Generate Article
+                                </>
+                            )}
                         </Button>
                     </CardFooter>
-                )}
-            </Card>
+                </Card>
+
+                {/* Preview Pane */}
+                <Card className="flex flex-col">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <ViewIcon size={24} className="text-muted-foreground" />
+                                <CardTitle>Article Preview</CardTitle>
+                            </div>
+                            {generatedContent && (
+                                <div className="flex bg-muted rounded-md p-1 gap-1">
+                                    <Button
+                                        variant={activeTab === 'sk' ? 'secondary' : 'ghost'}
+                                        size="sm"
+                                        className="h-7 px-3 text-xs"
+                                        onClick={() => setActiveTab('sk')}
+                                        disabled={!generatedContent.title_sk && !generatedContent.content_sk}
+                                    >
+                                        SK
+                                    </Button>
+                                    <Button
+                                        variant={activeTab === 'en' ? 'secondary' : 'ghost'}
+                                        size="sm"
+                                        className="h-7 px-3 text-xs"
+                                        onClick={() => setActiveTab('en')}
+                                        disabled={!generatedContent.title_en && !generatedContent.content_en}
+                                    >
+                                        EN
+                                    </Button>
+                                    {/* Additional languages dynamically shown if they exist */}
+                                    {(generatedContent.title_de || generatedContent.content_de) && (
+                                        <Button
+                                            variant={activeTab === 'de' as any ? 'secondary' : 'ghost'}
+                                            size="sm"
+                                            className="h-7 px-3 text-xs"
+                                            onClick={() => setActiveTab('de' as any)}
+                                        >
+                                            DE
+                                        </Button>
+                                    )}
+                                    {(generatedContent.title_cn || generatedContent.content_cn) && (
+                                        <Button
+                                            variant={activeTab === 'cn' as any ? 'secondary' : 'ghost'}
+                                            size="sm"
+                                            className="h-7 px-3 text-xs"
+                                            onClick={() => setActiveTab('cn' as any)}
+                                        >
+                                            CN
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-[400px]">
+                        {generatedContent ? (
+                            <ScrollArea className="h-[500px] pr-4">
+                                <div className="space-y-6">
+                                    <div>
+                                        <h1 className="text-2xl font-bold mb-2">
+                                            {(generatedContent as any)[`title_${activeTab}`]}
+                                        </h1>
+                                        <p className="text-muted-foreground italic border-l-2 pl-4 py-1">
+                                            {(generatedContent as any)[`excerpt_${activeTab}`]}
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        className="prose prose-sm dark:prose-invert max-w-none"
+                                        dangerouslySetInnerHTML={{
+                                            __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
+                                        }}
+                                    />
+
+                                    <div className="pt-6 border-t flex flex-wrap gap-2">
+                                        {generatedContent.tags.map(tag => (
+                                            <Badge key={tag} variant="outline">{tag}</Badge>
+                                        ))}
+                                    </div>
+
+                                    <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+                                        <h3 className="text-sm font-semibold flex items-center gap-2">
+                                            <CheckmarkCircle01Icon size={14} className="text-green-500" />
+                                            Generated SEO Data
+                                        </h3>
+                                        <div className="text-xs space-y-1">
+                                            <p><strong>Meta Title:</strong> {(generatedContent as any)[`meta_title_${activeTab}`]}</p>
+                                            <p><strong>Meta Desc:</strong> {(generatedContent as any)[`meta_description_${activeTab}`]}</p>
+                                            <p><strong>Keywords:</strong> {(generatedContent as any)[`meta_keywords_${activeTab}`]}</p>
+                                        </div>
+                                    </div>
+
+                                    {generatedContent.usage && (
+                                        <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+                                            <h3 className="text-sm font-semibold flex items-center gap-2">
+                                                <AiMagicIcon size={14} className="text-blue-500" />
+                                                Token Usage Stats
+                                            </h3>
+                                            <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                                                <div className="bg-background rounded p-2 border">
+                                                    <p className="text-muted-foreground text-[10px] uppercase">Input</p>
+                                                    <p className="font-mono font-medium">{generatedContent.usage.promptTokens}</p>
+                                                </div>
+                                                <div className="bg-background rounded p-2 border">
+                                                    <p className="text-muted-foreground text-[10px] uppercase">Output</p>
+                                                    <p className="font-mono font-medium">{generatedContent.usage.completionTokens}</p>
+                                                </div>
+                                                <div className="bg-background rounded p-2 border">
+                                                    <p className="text-muted-foreground text-[10px] uppercase">Total</p>
+                                                    <p className="font-mono font-medium">{generatedContent.usage.totalTokens}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </ScrollArea>
+                        ) : (
+                            <div className="h-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground text-center p-8">
+                                <div>
+                                    <News01Icon size={48} className="mx-auto mb-4 opacity-20" />
+                                    <p>Generated content will appear here.</p>
+                                    <p className="text-xs">Select your parameters and click Generate.</p>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                    {generatedContent && (
+                        <CardFooter className="pt-4 border-t">
+                            <Button onClick={handleSave} className="w-full">
+                                <FloppyDiskIcon size={18} className="mr-2" />
+                                Save as Draft and Edit
+                            </Button>
+                        </CardFooter>
+                    )}
+                </Card>
+            </div>
         </div>
-    </div>
-);
+    );
 };
 
 export default AILab;
