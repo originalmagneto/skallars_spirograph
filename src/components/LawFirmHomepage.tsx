@@ -230,8 +230,8 @@ export default function LawFirmHomepage() {
                   key={member.id}
                   className="bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group"
                 >
-                  <div className="w-32 h-32 mx-auto mb-6 relative">
-                    <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-md">
+                  <div className="w-64 h-64 mx-auto mb-6 relative">
+                    <div className="w-full h-full rounded-lg overflow-hidden border-4 border-white shadow-md">
                       <img
                         src={member.photo_url || "/placeholder-avatar.jpg"}
                         alt={member.name}
@@ -243,9 +243,9 @@ export default function LawFirmHomepage() {
                         href={member.linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="absolute bottom-0 right-0 bg-[#0077b5] text-white p-1.5 rounded-full shadow-sm hover:scale-110 transition-transform"
+                        className="absolute bottom-2 right-2 bg-[#0077b5] text-white p-2 rounded-lg shadow-sm hover:scale-110 transition-transform"
                       >
-                        <Linkedin01Icon size={16} />
+                        <Linkedin01Icon size={20} />
                       </a>
                     )}
                   </div>
