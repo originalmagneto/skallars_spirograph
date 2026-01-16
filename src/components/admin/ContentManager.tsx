@@ -8,13 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
-import { PencilEdit01Icon, Cancel01Icon, Tick01Icon, Search01Icon, TextIcon } from 'hugeicons-react';
+import { PencilEdit01Icon, Cancel01Icon, Tick01Icon, Search01Icon, TextIcon, AiMagicIcon } from 'hugeicons-react';
+import { generateContentTranslation } from '@/lib/aiService';
 
 interface SiteContent {
     id: string;
     key: string;
     value_sk: string;
     value_en: string;
+    value_de: string;
+    value_cn: string;
     content_type: string;
     section: string;
     description: string | null;
@@ -34,8 +37,9 @@ const SECTION_LABELS: Record<string, { sk: string; en: string }> = {
 const ContentManager = () => {
     const queryClient = useQueryClient();
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState({ value_sk: '', value_en: '' });
+    const [editForm, setEditForm] = useState({ value_sk: '', value_en: '', value_de: '', value_cn: '' });
     const [searchQuery, setSearchQuery] = useState('');
+    const [isTranslating, setIsTranslating] = useState(false);
 
     const { data: content, isLoading } = useQuery({
         queryKey: ['site-content-admin'],
@@ -55,10 +59,10 @@ const ContentManager = () => {
     });
 
     const updateMutation = useMutation({
-        mutationFn: async ({ id, value_sk, value_en }: { id: string; value_sk: string; value_en: string }) => {
+        mutationFn: async ({ id, ...values }: { id: string; value_sk: string; value_en: string; value_de: string; value_cn: string }) => {
             const { error } = await supabase
                 .from('site_content')
-                .update({ value_sk, value_en })
+                .update(values)
                 .eq('id', id);
             if (error) throw error;
         },
@@ -73,14 +77,42 @@ const ContentManager = () => {
 
     const startEdit = (item: SiteContent) => {
         setEditingId(item.id);
-        setEditForm({ value_sk: item.value_sk, value_en: item.value_en });
+        setEditForm({
+            value_sk: item.value_sk || '',
+            value_en: item.value_en || '',
+            value_de: item.value_de || '',
+            value_cn: item.value_cn || ''
+        });
+    };
+
+    const handleAutoTranslate = async () => {
+        if (!editForm.value_sk) {
+            toast.error('Please enter Slovak text first');
+            return;
+        }
+
+        setIsTranslating(true);
+        try {
+            const translations = await generateContentTranslation(editForm.value_sk);
+            setEditForm(prev => ({
+                ...prev,
+                value_en: translations.en,
+                value_de: translations.de,
+                value_cn: translations.cn
+            }));
+            toast.success('Auto-translation completed!');
+        } catch (error: any) {
+            toast.error('Translation failed: ' + error.message);
+        } finally {
+            setIsTranslating(false);
+        }
     };
 
     const filteredContent = content?.filter(
         (item) =>
             item.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.value_sk.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            item.value_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.value_sk?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.value_en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (item.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
     );
 
@@ -91,7 +123,7 @@ const ContentManager = () => {
         return acc;
     }, {} as Record<string, SiteContent[]>);
 
-    const isLongText = (text: string) => text.length > 80;
+    const isLongText = (text: string) => text && text.length > 80;
 
     if (isLoading) return <div className="p-4 text-muted-foreground">Loading content...</div>;
 
@@ -104,7 +136,7 @@ const ContentManager = () => {
             </div>
 
             <p className="text-sm text-muted-foreground">
-                Edit text content across your website. Changes are saved to the database and reflected immediately.
+                Edit text content across your website. Use the "Magic Wand" to automatically translate Slovak text to English, German, and Chinese.
             </p>
 
             <div className="relative">
@@ -152,34 +184,84 @@ const ContentManager = () => {
                                                     </Button>
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                                            {/* Slovak (Source) */}
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label className="text-xs font-semibold text-blue-600">Slovak (Source)</Label>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-6 text-xs gap-1 bg-white"
+                                                        onClick={handleAutoTranslate}
+                                                        disabled={isTranslating}
+                                                    >
+                                                        <AiMagicIcon size={12} className={isTranslating ? "animate-pulse" : ""} />
+                                                        {isTranslating ? "Translating..." : "Auto-Translate All"}
+                                                    </Button>
+                                                </div>
+                                                {isLongText(item.value_sk) || item.content_type === 'textarea' ? (
+                                                    <Textarea
+                                                        value={editForm.value_sk}
+                                                        onChange={(e) => setEditForm((f) => ({ ...f, value_sk: e.target.value }))}
+                                                        rows={3}
+                                                    />
+                                                ) : (
+                                                    <Input
+                                                        value={editForm.value_sk}
+                                                        onChange={(e) => setEditForm((f) => ({ ...f, value_sk: e.target.value }))}
+                                                    />
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {/* English */}
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs">Slovak (SK)</Label>
-                                                    {isLongText(item.value_sk) ? (
+                                                    <Label className="text-xs">English</Label>
+                                                    {isLongText(item.value_en) || item.content_type === 'textarea' ? (
                                                         <Textarea
-                                                            value={editForm.value_sk}
-                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_sk: e.target.value }))}
+                                                            value={editForm.value_en}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
                                                             rows={3}
                                                         />
                                                     ) : (
                                                         <Input
-                                                            value={editForm.value_sk}
-                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_sk: e.target.value }))}
+                                                            value={editForm.value_en}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
                                                         />
                                                     )}
                                                 </div>
+
+                                                {/* German */}
                                                 <div className="space-y-2">
-                                                    <Label className="text-xs">English (EN)</Label>
-                                                    {isLongText(item.value_en) ? (
+                                                    <Label className="text-xs">German</Label>
+                                                    {isLongText(item.value_de) || item.content_type === 'textarea' ? (
                                                         <Textarea
-                                                            value={editForm.value_en}
-                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
+                                                            value={editForm.value_de}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_de: e.target.value }))}
                                                             rows={3}
                                                         />
                                                     ) : (
                                                         <Input
-                                                            value={editForm.value_en}
-                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
+                                                            value={editForm.value_de}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_de: e.target.value }))}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                {/* Chinese */}
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs">Chinese</Label>
+                                                    {isLongText(item.value_cn) || item.content_type === 'textarea' ? (
+                                                        <Textarea
+                                                            value={editForm.value_cn}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_cn: e.target.value }))}
+                                                            rows={3}
+                                                        />
+                                                    ) : (
+                                                        <Input
+                                                            value={editForm.value_cn}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_cn: e.target.value }))}
                                                         />
                                                     )}
                                                 </div>
@@ -201,11 +283,14 @@ const ContentManager = () => {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                                                     <div>
                                                         <span className="text-xs text-muted-foreground">SK: </span>
-                                                        <span className="text-foreground">{item.value_sk.length > 60 ? `${item.value_sk.slice(0, 60)}...` : item.value_sk}</span>
+                                                        <span className="text-foreground">
+                                                            {item.value_sk?.length > 40 ? `${item.value_sk.slice(0, 40)}...` : item.value_sk}
+                                                        </span>
                                                     </div>
-                                                    <div>
-                                                        <span className="text-xs text-muted-foreground">EN: </span>
-                                                        <span className="text-foreground">{item.value_en.length > 60 ? `${item.value_en.slice(0, 60)}...` : item.value_en}</span>
+                                                    <div className="flex gap-2 text-xs text-muted-foreground">
+                                                        <span>EN: {item.value_en ? '✅' : '❌'}</span>
+                                                        <span>DE: {item.value_de ? '✅' : '❌'}</span>
+                                                        <span>CN: {item.value_cn ? '✅' : '❌'}</span>
                                                     </div>
                                                 </div>
                                             </div>
