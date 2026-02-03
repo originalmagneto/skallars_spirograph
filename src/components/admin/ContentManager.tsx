@@ -10,6 +10,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { toast } from 'sonner';
 import { PencilEdit01Icon, Cancel01Icon, Tick01Icon, Search01Icon, TextIcon, AiMagicIcon } from 'hugeicons-react';
 import { generateContentTranslation } from '@/lib/aiService';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface SiteContent {
     id?: string;
@@ -66,6 +67,8 @@ const ContentManager = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isTranslating, setIsTranslating] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [showPreviews, setShowPreviews] = useState(true);
+    const { language } = useLanguage();
 
     const { data: content, isLoading } = useQuery({
         queryKey: ['site-content-admin'],
@@ -311,12 +314,274 @@ const ContentManager = () => {
 
     if (isLoading || registryLoading) return <div className="p-4 text-muted-foreground">Loading content...</div>;
 
+    const getValue = (map: Map<string, ContentItem>, key: string) => {
+        const item = map.get(key);
+        if (!item) return '';
+        const valueKey = `value_${language}` as const;
+        return (item as any)[valueKey] || '';
+    };
+
+    const getDraftValue = (map: Map<string, ContentItem>, key: string) => {
+        const item = map.get(key);
+        if (!item) return '';
+        const draftKey = `draft_value_${language}` as const;
+        const valueKey = `value_${language}` as const;
+        return (item as any)[draftKey] || (item as any)[valueKey] || '';
+    };
+
+    const renderSectionPreview = (section: string, items: ContentItem[]) => {
+        if (!showPreviews) return null;
+        const map = new Map(items.map(item => [item.key, item]));
+        const hasDraft = items.some(item => item.draft_value_sk || item.draft_value_en || item.draft_value_de || item.draft_value_cn);
+
+        const SectionWrapper = ({ title, children }: { title: string; children: React.ReactNode }) => (
+            <div className="rounded-lg border bg-white p-4 space-y-2">
+                <div className="text-xs uppercase text-muted-foreground">{title}</div>
+                {children}
+            </div>
+        );
+
+        const Title = ({ text }: { text: string }) => (
+            <div className="text-lg font-semibold text-foreground">{text}</div>
+        );
+
+        const Subtitle = ({ text }: { text: string }) => (
+            <div className="text-sm text-muted-foreground">{text}</div>
+        );
+
+        const previewContent = (
+            <div className="grid grid-cols-1 gap-3">
+                {section === 'navigation' && (
+                    <SectionWrapper title="Navigation">
+                        <div className="flex flex-wrap gap-2 text-sm">
+                            {['navigation.home', 'navigation.services', 'navigation.countries', 'navigation.team', 'navigation.news', 'navigation.blog', 'navigation.contact'].map((key) => (
+                                <Badge key={key} variant="secondary">{getValue(map, key)}</Badge>
+                            ))}
+                        </div>
+                    </SectionWrapper>
+                )}
+                {section === 'hero' && (
+                    <SectionWrapper title="Hero">
+                        <Title text={getValue(map, 'hero.title')} />
+                        <Subtitle text={getValue(map, 'hero.subtitle')} />
+                        <p className="text-sm text-muted-foreground">{getValue(map, 'hero.description')}</p>
+                        <div className="flex gap-2">
+                            <Badge>{getValue(map, 'hero.cta')}</Badge>
+                        </div>
+                    </SectionWrapper>
+                )}
+                {section === 'services' && (
+                    <SectionWrapper title="Services">
+                        <Title text={getValue(map, 'services.title')} />
+                        <Subtitle text={getValue(map, 'services.subtitle')} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                            {['corporate', 'contracts', 'litigation', 'employment', 'realEstate'].map((key) => (
+                                <div key={key} className="rounded-md border p-3">
+                                    <div className="text-sm font-medium">{getValue(map, `services.items.${key}.title`)}</div>
+                                    <div className="text-xs text-muted-foreground">{getValue(map, `services.items.${key}.description`)}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </SectionWrapper>
+                )}
+                {section === 'countries' && (
+                    <SectionWrapper title="Countries">
+                        <Title text={getValue(map, 'countries.title')} />
+                        <Subtitle text={getValue(map, 'countries.subtitle')} />
+                        <p className="text-sm text-muted-foreground">{getValue(map, 'countries.description')}</p>
+                        <div className="pt-2 text-xs text-muted-foreground">
+                            {getValue(map, 'countries.connectionsTitle')} • {getValue(map, 'countries.currentOffice')}
+                        </div>
+                    </SectionWrapper>
+                )}
+                {section === 'team' && (
+                    <SectionWrapper title="Team">
+                        <Title text={getValue(map, 'team.title')} />
+                        <Subtitle text={getValue(map, 'team.subtitle')} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                            {[0, 1, 2, 3].map((idx) => (
+                                <div key={idx} className="rounded-md border p-3">
+                                    <div className="text-sm font-medium">{getValue(map, `team.members.${idx}.name`)}</div>
+                                    <div className="text-xs text-muted-foreground">{getValue(map, `team.members.${idx}.position`)}</div>
+                                    <div className="text-xs text-muted-foreground">{getValue(map, `team.members.${idx}.description`)}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </SectionWrapper>
+                )}
+                {section === 'news' && (
+                    <SectionWrapper title="News">
+                        <Title text={getValue(map, 'news.title')} />
+                        <Subtitle text={getValue(map, 'news.subtitle')} />
+                        <div className="pt-2">
+                            <Badge variant="outline">{getValue(map, 'news.viewAll')}</Badge>
+                        </div>
+                    </SectionWrapper>
+                )}
+                {section === 'clients' && (
+                    <SectionWrapper title="Clients">
+                        <Title text={getValue(map, 'clients.title')} />
+                        <Subtitle text={getValue(map, 'clients.subtitle')} />
+                    </SectionWrapper>
+                )}
+                {section === 'contact' && (
+                    <SectionWrapper title="Contact">
+                        <Title text={getValue(map, 'contact.title')} />
+                        <Subtitle text={getValue(map, 'contact.subtitle')} />
+                        <div className="text-sm text-muted-foreground">
+                            {getValue(map, 'contact.address')} • {getValue(map, 'contact.phone')}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{getValue(map, 'contact.email')}</div>
+                        <div className="text-xs text-muted-foreground">{getValue(map, 'contact.workingHours')}</div>
+                    </SectionWrapper>
+                )}
+                {section === 'footer' && (
+                    <SectionWrapper title="Footer">
+                        <div className="text-xs text-muted-foreground">{getValue(map, 'footer.copyright')}</div>
+                    </SectionWrapper>
+                )}
+                {section === 'map' && (
+                    <SectionWrapper title="Map Labels">
+                        <div className="flex gap-2 text-sm">
+                            <Badge variant="secondary">{getValue(map, 'map.slovakia')}</Badge>
+                            <Badge variant="secondary">{getValue(map, 'map.czechRepublic')}</Badge>
+                        </div>
+                    </SectionWrapper>
+                )}
+            </div>
+        );
+
+        if (!hasDraft) return previewContent;
+
+        const draftMap = new Map(items.map(item => ({
+            ...item,
+            value_sk: item.draft_value_sk ?? item.value_sk,
+            value_en: item.draft_value_en ?? item.value_en,
+            value_de: item.draft_value_de ?? item.value_de,
+            value_cn: item.draft_value_cn ?? item.value_cn,
+        }) as ContentItem).map(item => [item.key, item]));
+
+        return (
+            <div className="space-y-3">
+                <div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-2">Published Preview</div>
+                    {previewContent}
+                </div>
+                <div>
+                    <div className="text-[10px] uppercase text-muted-foreground mb-2">Draft Preview</div>
+                    <div className="grid grid-cols-1 gap-3">
+                        {section === 'navigation' && (
+                            <SectionWrapper title="Navigation">
+                                <div className="flex flex-wrap gap-2 text-sm">
+                                    {['navigation.home', 'navigation.services', 'navigation.countries', 'navigation.team', 'navigation.news', 'navigation.blog', 'navigation.contact'].map((key) => (
+                                        <Badge key={key} variant="secondary">{getValue(draftMap, key)}</Badge>
+                                    ))}
+                                </div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'hero' && (
+                            <SectionWrapper title="Hero">
+                                <Title text={getValue(draftMap, 'hero.title')} />
+                                <Subtitle text={getValue(draftMap, 'hero.subtitle')} />
+                                <p className="text-sm text-muted-foreground">{getValue(draftMap, 'hero.description')}</p>
+                                <div className="flex gap-2">
+                                    <Badge>{getValue(draftMap, 'hero.cta')}</Badge>
+                                </div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'services' && (
+                            <SectionWrapper title="Services">
+                                <Title text={getValue(draftMap, 'services.title')} />
+                                <Subtitle text={getValue(draftMap, 'services.subtitle')} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                                    {['corporate', 'contracts', 'litigation', 'employment', 'realEstate'].map((key) => (
+                                        <div key={key} className="rounded-md border p-3">
+                                            <div className="text-sm font-medium">{getValue(draftMap, `services.items.${key}.title`)}</div>
+                                            <div className="text-xs text-muted-foreground">{getValue(draftMap, `services.items.${key}.description`)}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'countries' && (
+                            <SectionWrapper title="Countries">
+                                <Title text={getValue(draftMap, 'countries.title')} />
+                                <Subtitle text={getValue(draftMap, 'countries.subtitle')} />
+                                <p className="text-sm text-muted-foreground">{getValue(draftMap, 'countries.description')}</p>
+                                <div className="pt-2 text-xs text-muted-foreground">
+                                    {getValue(draftMap, 'countries.connectionsTitle')} • {getValue(draftMap, 'countries.currentOffice')}
+                                </div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'team' && (
+                            <SectionWrapper title="Team">
+                                <Title text={getValue(draftMap, 'team.title')} />
+                                <Subtitle text={getValue(draftMap, 'team.subtitle')} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                                    {[0, 1, 2, 3].map((idx) => (
+                                        <div key={idx} className="rounded-md border p-3">
+                                            <div className="text-sm font-medium">{getValue(draftMap, `team.members.${idx}.name`)}</div>
+                                            <div className="text-xs text-muted-foreground">{getValue(draftMap, `team.members.${idx}.position`)}</div>
+                                            <div className="text-xs text-muted-foreground">{getValue(draftMap, `team.members.${idx}.description`)}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'news' && (
+                            <SectionWrapper title="News">
+                                <Title text={getValue(draftMap, 'news.title')} />
+                                <Subtitle text={getValue(draftMap, 'news.subtitle')} />
+                                <div className="pt-2">
+                                    <Badge variant="outline">{getValue(draftMap, 'news.viewAll')}</Badge>
+                                </div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'clients' && (
+                            <SectionWrapper title="Clients">
+                                <Title text={getValue(draftMap, 'clients.title')} />
+                                <Subtitle text={getValue(draftMap, 'clients.subtitle')} />
+                            </SectionWrapper>
+                        )}
+                        {section === 'contact' && (
+                            <SectionWrapper title="Contact">
+                                <Title text={getValue(draftMap, 'contact.title')} />
+                                <Subtitle text={getValue(draftMap, 'contact.subtitle')} />
+                                <div className="text-sm text-muted-foreground">
+                                    {getValue(draftMap, 'contact.address')} • {getValue(draftMap, 'contact.phone')}
+                                </div>
+                                <div className="text-xs text-muted-foreground">{getValue(draftMap, 'contact.email')}</div>
+                                <div className="text-xs text-muted-foreground">{getValue(draftMap, 'contact.workingHours')}</div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'footer' && (
+                            <SectionWrapper title="Footer">
+                                <div className="text-xs text-muted-foreground">{getValue(draftMap, 'footer.copyright')}</div>
+                            </SectionWrapper>
+                        )}
+                        {section === 'map' && (
+                            <SectionWrapper title="Map Labels">
+                                <div className="flex gap-2 text-sm">
+                                    <Badge variant="secondary">{getValue(draftMap, 'map.slovakia')}</Badge>
+                                    <Badge variant="secondary">{getValue(draftMap, 'map.czechRepublic')}</Badge>
+                                </div>
+                            </SectionWrapper>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-2">
                 <TextIcon size={20} className="text-primary" />
                 <h2 className="text-lg font-semibold">Site Content</h2>
                 <Badge variant="secondary">{filteredContent?.length || 0}</Badge>
+                <Button size="sm" variant="outline" onClick={() => setShowPreviews((v) => !v)}>
+                    {showPreviews ? 'Hide Previews' : 'Show Previews'}
+                </Button>
             </div>
 
             <p className="text-sm text-muted-foreground">
@@ -346,6 +611,7 @@ const ContentManager = () => {
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
+                            {renderSectionPreview(section, items)}
                             <div className="space-y-3 pb-2">
                                 {items.map((item) =>
                                     editingKey === item.key ? (
