@@ -223,6 +223,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
     };
 
+    useEffect(() => {
+        if (!user?.id) return;
+        if (isAdmin || isEditor || accessOverride === true) return;
+        if (autoDiagnosticsRanRef.current) return;
+        autoDiagnosticsRanRef.current = true;
+        void runDiagnostics();
+    }, [user?.id, isAdmin, isEditor, accessOverride]);
+
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
@@ -230,14 +238,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!user) return null;
 
     const canManage = isAdmin || isEditor || accessOverride === true;
-
-    useEffect(() => {
-        if (!user?.id) return;
-        if (canManage) return;
-        if (autoDiagnosticsRanRef.current) return;
-        autoDiagnosticsRanRef.current = true;
-        void runDiagnostics();
-    }, [user?.id, canManage]);
 
     if (!canManage) {
         return (
