@@ -283,12 +283,22 @@ export default function LawFirmHomepage() {
                   </div>
 
                   <div className="text-center">
+                    {member.icon && (
+                      <div className="text-2xl mb-2" aria-hidden="true">
+                        {member.icon}
+                      </div>
+                    )}
                     <h4 className="text-xl font-semibold mb-1 text-foreground group-hover:text-accent transition-colors">
                       {member.name}
                     </h4>
                     <p className="text-muted-foreground mb-4 font-medium text-sm">
                       {language === 'sk' ? member.role_sk : member.role_en}
                     </p>
+                    {(language === 'sk' ? member.bio_sk : member.bio_en) && (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {language === 'sk' ? member.bio_sk : member.bio_en}
+                      </p>
+                    )}
                   </div>
 
                   {/* Contact info logic simplified as DB doesn't have phone/email yet? 

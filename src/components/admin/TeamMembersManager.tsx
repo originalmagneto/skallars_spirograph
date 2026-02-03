@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,9 @@ interface TeamMember {
     name: string;
     role_sk: string;
     role_en: string;
+    bio_sk?: string | null;
+    bio_en?: string | null;
+    icon?: string | null;
     company: string | null;
     photo_url: string | null;
     linkedin_url: string | null;
@@ -37,6 +41,9 @@ const emptyMember: Omit<TeamMember, 'id'> = {
     name: '',
     role_sk: '',
     role_en: '',
+    bio_sk: '',
+    bio_en: '',
+    icon: '',
     company: '',
     photo_url: '',
     linkedin_url: '',
@@ -144,6 +151,9 @@ const TeamMembersManager = () => {
             name: member.name,
             role_sk: member.role_sk,
             role_en: member.role_en,
+            bio_sk: member.bio_sk || '',
+            bio_en: member.bio_en || '',
+            icon: member.icon || '',
             company: member.company || '',
             photo_url: member.photo_url || '',
             linkedin_url: member.linkedin_url || '',
@@ -246,6 +256,17 @@ const TeamMembersManager = () => {
                         )}
                     </div>
 
+                    {/* Icon */}
+                    <div>
+                        <Label className="text-xs">Icon (Emoji or Short Label)</Label>
+                        <Input
+                            value={values.icon || ''}
+                            onChange={(e) => onChange({ ...values, icon: e.target.value })}
+                            placeholder="⚖️"
+                            className="mt-1"
+                        />
+                    </div>
+
                     {/* Name */}
                     <div>
                         <Label className="text-xs">Full Name</Label>
@@ -286,6 +307,30 @@ const TeamMembersManager = () => {
                             value={values.role_en}
                             onChange={(e) => onChange({ ...values, role_en: e.target.value })}
                             placeholder="Attorney"
+                            className="mt-1"
+                        />
+                    </div>
+
+                    {/* Bio SK */}
+                    <div className="md:col-span-2">
+                        <Label className="text-xs">Bio (Slovak)</Label>
+                        <Textarea
+                            value={values.bio_sk || ''}
+                            onChange={(e) => onChange({ ...values, bio_sk: e.target.value })}
+                            placeholder="Krátky popis alebo zameranie."
+                            rows={3}
+                            className="mt-1"
+                        />
+                    </div>
+
+                    {/* Bio EN */}
+                    <div className="md:col-span-2">
+                        <Label className="text-xs">Bio (English)</Label>
+                        <Textarea
+                            value={values.bio_en || ''}
+                            onChange={(e) => onChange({ ...values, bio_en: e.target.value })}
+                            placeholder="Short bio or focus area."
+                            rows={3}
                             className="mt-1"
                         />
                     </div>

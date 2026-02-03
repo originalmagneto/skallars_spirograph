@@ -18,6 +18,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Provide **preview modes** for each section and a full-page preview in admin.
 - Add **content history** (versioning, compare/restore) and **draft vs published** state.
 - Add **role-aware editing**: editors can propose changes, admins publish.
+- Extend **Team Members** with bio + icon fields for richer text-only profiles.
 
 ## Phase 2: Full-Fidelity Page Editing
 - Implement a **page/section editor** (block-based) to edit homepage and key pages without code.

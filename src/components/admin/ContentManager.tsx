@@ -69,6 +69,7 @@ const ContentManager = () => {
     const [isTranslating, setIsTranslating] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showPreviews, setShowPreviews] = useState(true);
+    const [previewMode, setPreviewMode] = useState<'published' | 'draft'>('published');
     const { language } = useLanguage();
     const searchParams = useSearchParams();
     const initialOpen = useMemo(() => {
@@ -404,12 +405,29 @@ const ContentManager = () => {
             </div>
         );
 
-        const Title = ({ text }: { text: string }) => (
-            <div className="text-lg font-semibold text-foreground">{text}</div>
+        const EditableText = ({ text, keyPath }: { text: string; keyPath: string }) => (
+            <button
+                type="button"
+                onClick={() => {
+                    const item = map.get(keyPath);
+                    if (item) startEdit(item);
+                }}
+                className="text-left hover:underline"
+            >
+                {text || '—'}
+            </button>
         );
 
-        const Subtitle = ({ text }: { text: string }) => (
-            <div className="text-sm text-muted-foreground">{text}</div>
+        const Title = ({ text, keyPath }: { text: string; keyPath: string }) => (
+            <div className="text-lg font-semibold text-foreground">
+                <EditableText text={text} keyPath={keyPath} />
+            </div>
+        );
+
+        const Subtitle = ({ text, keyPath }: { text: string; keyPath: string }) => (
+            <div className="text-sm text-muted-foreground">
+                <EditableText text={text} keyPath={keyPath} />
+            </div>
         );
 
         const previewContent = (
@@ -418,30 +436,44 @@ const ContentManager = () => {
                     <SectionWrapper title="Navigation">
                         <div className="flex flex-wrap gap-2 text-sm">
                             {['navigation.home', 'navigation.services', 'navigation.countries', 'navigation.team', 'navigation.news', 'navigation.blog', 'navigation.contact'].map((key) => (
-                                <Badge key={key} variant="secondary">{getValue(map, key)}</Badge>
+                                <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
+                                    const item = map.get(key);
+                                    if (item) startEdit(item);
+                                }}>
+                                    {getValue(map, key)}
+                                </Badge>
                             ))}
                         </div>
                     </SectionWrapper>
                 )}
                 {section === 'hero' && (
                     <SectionWrapper title="Hero">
-                        <Title text={getValue(map, 'hero.title')} />
-                        <Subtitle text={getValue(map, 'hero.subtitle')} />
-                        <p className="text-sm text-muted-foreground">{getValue(map, 'hero.description')}</p>
+                        <Title text={getValue(map, 'hero.title')} keyPath="hero.title" />
+                        <Subtitle text={getValue(map, 'hero.subtitle')} keyPath="hero.subtitle" />
+                        <p className="text-sm text-muted-foreground">
+                            <EditableText text={getValue(map, 'hero.description')} keyPath="hero.description" />
+                        </p>
                         <div className="flex gap-2">
-                            <Badge>{getValue(map, 'hero.cta')}</Badge>
+                            <Badge className="cursor-pointer" onClick={() => {
+                                const item = map.get('hero.cta');
+                                if (item) startEdit(item);
+                            }}>{getValue(map, 'hero.cta')}</Badge>
                         </div>
                     </SectionWrapper>
                 )}
                 {section === 'services' && (
                     <SectionWrapper title="Services">
-                        <Title text={getValue(map, 'services.title')} />
-                        <Subtitle text={getValue(map, 'services.subtitle')} />
+                        <Title text={getValue(map, 'services.title')} keyPath="services.title" />
+                        <Subtitle text={getValue(map, 'services.subtitle')} keyPath="services.subtitle" />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                             {['corporate', 'contracts', 'litigation', 'employment', 'realEstate'].map((key) => (
                                 <div key={key} className="rounded-md border p-3">
-                                    <div className="text-sm font-medium">{getValue(map, `services.items.${key}.title`)}</div>
-                                    <div className="text-xs text-muted-foreground">{getValue(map, `services.items.${key}.description`)}</div>
+                                    <div className="text-sm font-medium">
+                                        <EditableText text={getValue(map, `services.items.${key}.title`)} keyPath={`services.items.${key}.title`} />
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        <EditableText text={getValue(map, `services.items.${key}.description`)} keyPath={`services.items.${key}.description`} />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -449,24 +481,34 @@ const ContentManager = () => {
                 )}
                 {section === 'countries' && (
                     <SectionWrapper title="Countries">
-                        <Title text={getValue(map, 'countries.title')} />
-                        <Subtitle text={getValue(map, 'countries.subtitle')} />
-                        <p className="text-sm text-muted-foreground">{getValue(map, 'countries.description')}</p>
+                        <Title text={getValue(map, 'countries.title')} keyPath="countries.title" />
+                        <Subtitle text={getValue(map, 'countries.subtitle')} keyPath="countries.subtitle" />
+                        <p className="text-sm text-muted-foreground">
+                            <EditableText text={getValue(map, 'countries.description')} keyPath="countries.description" />
+                        </p>
                         <div className="pt-2 text-xs text-muted-foreground">
-                            {getValue(map, 'countries.connectionsTitle')} • {getValue(map, 'countries.currentOffice')}
+                            <EditableText text={getValue(map, 'countries.connectionsTitle')} keyPath="countries.connectionsTitle" />
+                            {' • '}
+                            <EditableText text={getValue(map, 'countries.currentOffice')} keyPath="countries.currentOffice" />
                         </div>
                     </SectionWrapper>
                 )}
                 {section === 'team' && (
                     <SectionWrapper title="Team">
-                        <Title text={getValue(map, 'team.title')} />
-                        <Subtitle text={getValue(map, 'team.subtitle')} />
+                        <Title text={getValue(map, 'team.title')} keyPath="team.title" />
+                        <Subtitle text={getValue(map, 'team.subtitle')} keyPath="team.subtitle" />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                             {[0, 1, 2, 3].map((idx) => (
                                 <div key={idx} className="rounded-md border p-3">
-                                    <div className="text-sm font-medium">{getValue(map, `team.members.${idx}.name`)}</div>
-                                    <div className="text-xs text-muted-foreground">{getValue(map, `team.members.${idx}.position`)}</div>
-                                    <div className="text-xs text-muted-foreground">{getValue(map, `team.members.${idx}.description`)}</div>
+                                    <div className="text-sm font-medium">
+                                        <EditableText text={getValue(map, `team.members.${idx}.name`)} keyPath={`team.members.${idx}.name`} />
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        <EditableText text={getValue(map, `team.members.${idx}.position`)} keyPath={`team.members.${idx}.position`} />
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        <EditableText text={getValue(map, `team.members.${idx}.description`)} keyPath={`team.members.${idx}.description`} />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -474,58 +516,83 @@ const ContentManager = () => {
                 )}
                 {section === 'news' && (
                     <SectionWrapper title="News">
-                        <Title text={getValue(map, 'news.title')} />
-                        <Subtitle text={getValue(map, 'news.subtitle')} />
+                        <Title text={getValue(map, 'news.title')} keyPath="news.title" />
+                        <Subtitle text={getValue(map, 'news.subtitle')} keyPath="news.subtitle" />
                         <div className="pt-2">
-                            <Badge variant="outline">{getValue(map, 'news.viewAll')}</Badge>
+                            <Badge variant="outline" className="cursor-pointer" onClick={() => {
+                                const item = map.get('news.viewAll');
+                                if (item) startEdit(item);
+                            }}>
+                                {getValue(map, 'news.viewAll')}
+                            </Badge>
                         </div>
                     </SectionWrapper>
                 )}
                 {section === 'clients' && (
                     <SectionWrapper title="Clients">
-                        <Title text={getValue(map, 'clients.title')} />
-                        <Subtitle text={getValue(map, 'clients.subtitle')} />
+                        <Title text={getValue(map, 'clients.title')} keyPath="clients.title" />
+                        <Subtitle text={getValue(map, 'clients.subtitle')} keyPath="clients.subtitle" />
                     </SectionWrapper>
                 )}
                 {section === 'contact' && (
                     <SectionWrapper title="Contact">
-                        <Title text={getValue(map, 'contact.title')} />
-                        <Subtitle text={getValue(map, 'contact.subtitle')} />
+                        <Title text={getValue(map, 'contact.title')} keyPath="contact.title" />
+                        <Subtitle text={getValue(map, 'contact.subtitle')} keyPath="contact.subtitle" />
                         <div className="text-sm text-muted-foreground">
-                            {getValue(map, 'contact.address')} • {getValue(map, 'contact.phone')}
+                            <EditableText text={getValue(map, 'contact.address')} keyPath="contact.address" />
+                            {' • '}
+                            <EditableText text={getValue(map, 'contact.phone')} keyPath="contact.phone" />
                         </div>
-                        <div className="text-xs text-muted-foreground">{getValue(map, 'contact.email')}</div>
-                        <div className="text-xs text-muted-foreground">{getValue(map, 'contact.workingHours')}</div>
+                        <div className="text-xs text-muted-foreground">
+                            <EditableText text={getValue(map, 'contact.email')} keyPath="contact.email" />
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            <EditableText text={getValue(map, 'contact.workingHours')} keyPath="contact.workingHours" />
+                        </div>
                     </SectionWrapper>
                 )}
                 {section === 'footer' && (
                     <SectionWrapper title="Footer">
-                        <div className="text-xs text-muted-foreground">{getValue(map, 'footer.copyright')}</div>
+                        <div className="text-xs text-muted-foreground">
+                            <EditableText text={getValue(map, 'footer.copyright')} keyPath="footer.copyright" />
+                        </div>
                         <div className="pt-2">
-                            <div className="text-sm font-medium">{getValue(map, 'footer.solutionsTitle')}</div>
+                            <div className="text-sm font-medium">
+                                <EditableText text={getValue(map, 'footer.solutionsTitle')} keyPath="footer.solutionsTitle" />
+                            </div>
                             <ul className="text-xs text-muted-foreground list-disc list-inside">
                                 {[0, 1, 2, 3].map((idx) => (
-                                    <li key={idx}>{getValue(map, `footer.solutionsItems.${idx}`)}</li>
+                                    <li key={idx}>
+                                        <EditableText text={getValue(map, `footer.solutionsItems.${idx}`)} keyPath={`footer.solutionsItems.${idx}`} />
+                                    </li>
                                 ))}
                             </ul>
                         </div>
                         <div className="pt-2 text-xs text-muted-foreground">
-                            {getValue(map, 'footer.newsletterPlaceholder')} • {getValue(map, 'footer.newsletterCta')}
+                            <EditableText text={getValue(map, 'footer.newsletterPlaceholder')} keyPath="footer.newsletterPlaceholder" />
+                            {' • '}
+                            <EditableText text={getValue(map, 'footer.newsletterCta')} keyPath="footer.newsletterCta" />
                         </div>
                     </SectionWrapper>
                 )}
                 {section === 'map' && (
                     <SectionWrapper title="Map Labels">
                         <div className="flex gap-2 text-sm">
-                            <Badge variant="secondary">{getValue(map, 'map.slovakia')}</Badge>
-                            <Badge variant="secondary">{getValue(map, 'map.czechRepublic')}</Badge>
+                            {['map.slovakia', 'map.czechRepublic'].map((key) => (
+                                <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
+                                    const item = map.get(key);
+                                    if (item) startEdit(item);
+                                }}>
+                                    {getValue(map, key)}
+                                </Badge>
+                            ))}
                         </div>
                     </SectionWrapper>
                 )}
             </div>
         );
 
-        if (!hasDraft) return previewContent;
+        if (!hasDraft || previewMode === 'published') return previewContent;
 
         const draftMap = new Map(items.map(item => ({
             ...item,
@@ -538,40 +605,50 @@ const ContentManager = () => {
         return (
             <div className="space-y-3">
                 <div>
-                    <div className="text-[10px] uppercase text-muted-foreground mb-2">Published Preview</div>
-                    {previewContent}
-                </div>
-                <div>
                     <div className="text-[10px] uppercase text-muted-foreground mb-2">Draft Preview</div>
                     <div className="grid grid-cols-1 gap-3">
                         {section === 'navigation' && (
                             <SectionWrapper title="Navigation">
                                 <div className="flex flex-wrap gap-2 text-sm">
                                     {['navigation.home', 'navigation.services', 'navigation.countries', 'navigation.team', 'navigation.news', 'navigation.blog', 'navigation.contact'].map((key) => (
-                                        <Badge key={key} variant="secondary">{getValue(draftMap, key)}</Badge>
+                                        <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
+                                            const item = map.get(key);
+                                            if (item) startEdit(item);
+                                        }}>
+                                            {getValue(draftMap, key)}
+                                        </Badge>
                                     ))}
                                 </div>
                             </SectionWrapper>
                         )}
                         {section === 'hero' && (
                             <SectionWrapper title="Hero">
-                                <Title text={getValue(draftMap, 'hero.title')} />
-                                <Subtitle text={getValue(draftMap, 'hero.subtitle')} />
-                                <p className="text-sm text-muted-foreground">{getValue(draftMap, 'hero.description')}</p>
+                                <Title text={getValue(draftMap, 'hero.title')} keyPath="hero.title" />
+                                <Subtitle text={getValue(draftMap, 'hero.subtitle')} keyPath="hero.subtitle" />
+                                <p className="text-sm text-muted-foreground">
+                                    <EditableText text={getValue(draftMap, 'hero.description')} keyPath="hero.description" />
+                                </p>
                                 <div className="flex gap-2">
-                                    <Badge>{getValue(draftMap, 'hero.cta')}</Badge>
+                                    <Badge className="cursor-pointer" onClick={() => {
+                                        const item = map.get('hero.cta');
+                                        if (item) startEdit(item);
+                                    }}>{getValue(draftMap, 'hero.cta')}</Badge>
                                 </div>
                             </SectionWrapper>
                         )}
                         {section === 'services' && (
                             <SectionWrapper title="Services">
-                                <Title text={getValue(draftMap, 'services.title')} />
-                                <Subtitle text={getValue(draftMap, 'services.subtitle')} />
+                                <Title text={getValue(draftMap, 'services.title')} keyPath="services.title" />
+                                <Subtitle text={getValue(draftMap, 'services.subtitle')} keyPath="services.subtitle" />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                                     {['corporate', 'contracts', 'litigation', 'employment', 'realEstate'].map((key) => (
                                         <div key={key} className="rounded-md border p-3">
-                                            <div className="text-sm font-medium">{getValue(draftMap, `services.items.${key}.title`)}</div>
-                                            <div className="text-xs text-muted-foreground">{getValue(draftMap, `services.items.${key}.description`)}</div>
+                                            <div className="text-sm font-medium">
+                                                <EditableText text={getValue(draftMap, `services.items.${key}.title`)} keyPath={`services.items.${key}.title`} />
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                <EditableText text={getValue(draftMap, `services.items.${key}.description`)} keyPath={`services.items.${key}.description`} />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -579,24 +656,34 @@ const ContentManager = () => {
                         )}
                         {section === 'countries' && (
                             <SectionWrapper title="Countries">
-                                <Title text={getValue(draftMap, 'countries.title')} />
-                                <Subtitle text={getValue(draftMap, 'countries.subtitle')} />
-                                <p className="text-sm text-muted-foreground">{getValue(draftMap, 'countries.description')}</p>
+                                <Title text={getValue(draftMap, 'countries.title')} keyPath="countries.title" />
+                                <Subtitle text={getValue(draftMap, 'countries.subtitle')} keyPath="countries.subtitle" />
+                                <p className="text-sm text-muted-foreground">
+                                    <EditableText text={getValue(draftMap, 'countries.description')} keyPath="countries.description" />
+                                </p>
                                 <div className="pt-2 text-xs text-muted-foreground">
-                                    {getValue(draftMap, 'countries.connectionsTitle')} • {getValue(draftMap, 'countries.currentOffice')}
+                                    <EditableText text={getValue(draftMap, 'countries.connectionsTitle')} keyPath="countries.connectionsTitle" />
+                                    {' • '}
+                                    <EditableText text={getValue(draftMap, 'countries.currentOffice')} keyPath="countries.currentOffice" />
                                 </div>
                             </SectionWrapper>
                         )}
                         {section === 'team' && (
                             <SectionWrapper title="Team">
-                                <Title text={getValue(draftMap, 'team.title')} />
-                                <Subtitle text={getValue(draftMap, 'team.subtitle')} />
+                                <Title text={getValue(draftMap, 'team.title')} keyPath="team.title" />
+                                <Subtitle text={getValue(draftMap, 'team.subtitle')} keyPath="team.subtitle" />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                                     {[0, 1, 2, 3].map((idx) => (
                                         <div key={idx} className="rounded-md border p-3">
-                                            <div className="text-sm font-medium">{getValue(draftMap, `team.members.${idx}.name`)}</div>
-                                            <div className="text-xs text-muted-foreground">{getValue(draftMap, `team.members.${idx}.position`)}</div>
-                                            <div className="text-xs text-muted-foreground">{getValue(draftMap, `team.members.${idx}.description`)}</div>
+                                            <div className="text-sm font-medium">
+                                                <EditableText text={getValue(draftMap, `team.members.${idx}.name`)} keyPath={`team.members.${idx}.name`} />
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                <EditableText text={getValue(draftMap, `team.members.${idx}.position`)} keyPath={`team.members.${idx}.position`} />
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                <EditableText text={getValue(draftMap, `team.members.${idx}.description`)} keyPath={`team.members.${idx}.description`} />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -604,51 +691,76 @@ const ContentManager = () => {
                         )}
                         {section === 'news' && (
                             <SectionWrapper title="News">
-                                <Title text={getValue(draftMap, 'news.title')} />
-                                <Subtitle text={getValue(draftMap, 'news.subtitle')} />
+                                <Title text={getValue(draftMap, 'news.title')} keyPath="news.title" />
+                                <Subtitle text={getValue(draftMap, 'news.subtitle')} keyPath="news.subtitle" />
                                 <div className="pt-2">
-                                    <Badge variant="outline">{getValue(draftMap, 'news.viewAll')}</Badge>
+                                    <Badge variant="outline" className="cursor-pointer" onClick={() => {
+                                        const item = map.get('news.viewAll');
+                                        if (item) startEdit(item);
+                                    }}>
+                                        {getValue(draftMap, 'news.viewAll')}
+                                    </Badge>
                                 </div>
                             </SectionWrapper>
                         )}
                         {section === 'clients' && (
                             <SectionWrapper title="Clients">
-                                <Title text={getValue(draftMap, 'clients.title')} />
-                                <Subtitle text={getValue(draftMap, 'clients.subtitle')} />
+                                <Title text={getValue(draftMap, 'clients.title')} keyPath="clients.title" />
+                                <Subtitle text={getValue(draftMap, 'clients.subtitle')} keyPath="clients.subtitle" />
                             </SectionWrapper>
                         )}
                         {section === 'contact' && (
                             <SectionWrapper title="Contact">
-                                <Title text={getValue(draftMap, 'contact.title')} />
-                                <Subtitle text={getValue(draftMap, 'contact.subtitle')} />
+                                <Title text={getValue(draftMap, 'contact.title')} keyPath="contact.title" />
+                                <Subtitle text={getValue(draftMap, 'contact.subtitle')} keyPath="contact.subtitle" />
                                 <div className="text-sm text-muted-foreground">
-                                    {getValue(draftMap, 'contact.address')} • {getValue(draftMap, 'contact.phone')}
+                                    <EditableText text={getValue(draftMap, 'contact.address')} keyPath="contact.address" />
+                                    {' • '}
+                                    <EditableText text={getValue(draftMap, 'contact.phone')} keyPath="contact.phone" />
                                 </div>
-                                <div className="text-xs text-muted-foreground">{getValue(draftMap, 'contact.email')}</div>
-                                <div className="text-xs text-muted-foreground">{getValue(draftMap, 'contact.workingHours')}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    <EditableText text={getValue(draftMap, 'contact.email')} keyPath="contact.email" />
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    <EditableText text={getValue(draftMap, 'contact.workingHours')} keyPath="contact.workingHours" />
+                                </div>
                             </SectionWrapper>
                         )}
                         {section === 'footer' && (
                             <SectionWrapper title="Footer">
-                                <div className="text-xs text-muted-foreground">{getValue(draftMap, 'footer.copyright')}</div>
+                                <div className="text-xs text-muted-foreground">
+                                    <EditableText text={getValue(draftMap, 'footer.copyright')} keyPath="footer.copyright" />
+                                </div>
                                 <div className="pt-2">
-                                    <div className="text-sm font-medium">{getValue(draftMap, 'footer.solutionsTitle')}</div>
+                                    <div className="text-sm font-medium">
+                                        <EditableText text={getValue(draftMap, 'footer.solutionsTitle')} keyPath="footer.solutionsTitle" />
+                                    </div>
                                     <ul className="text-xs text-muted-foreground list-disc list-inside">
                                         {[0, 1, 2, 3].map((idx) => (
-                                            <li key={idx}>{getValue(draftMap, `footer.solutionsItems.${idx}`)}</li>
+                                            <li key={idx}>
+                                                <EditableText text={getValue(draftMap, `footer.solutionsItems.${idx}`)} keyPath={`footer.solutionsItems.${idx}`} />
+                                            </li>
                                         ))}
                                     </ul>
                                 </div>
                                 <div className="pt-2 text-xs text-muted-foreground">
-                                    {getValue(draftMap, 'footer.newsletterPlaceholder')} • {getValue(draftMap, 'footer.newsletterCta')}
+                                    <EditableText text={getValue(draftMap, 'footer.newsletterPlaceholder')} keyPath="footer.newsletterPlaceholder" />
+                                    {' • '}
+                                    <EditableText text={getValue(draftMap, 'footer.newsletterCta')} keyPath="footer.newsletterCta" />
                                 </div>
                             </SectionWrapper>
                         )}
                         {section === 'map' && (
                             <SectionWrapper title="Map Labels">
                                 <div className="flex gap-2 text-sm">
-                                    <Badge variant="secondary">{getValue(draftMap, 'map.slovakia')}</Badge>
-                                    <Badge variant="secondary">{getValue(draftMap, 'map.czechRepublic')}</Badge>
+                                    {['map.slovakia', 'map.czechRepublic'].map((key) => (
+                                        <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
+                                            const item = map.get(key);
+                                            if (item) startEdit(item);
+                                        }}>
+                                            {getValue(draftMap, key)}
+                                        </Badge>
+                                    ))}
                                 </div>
                             </SectionWrapper>
                         )}
@@ -667,6 +779,24 @@ const ContentManager = () => {
                 <Button size="sm" variant="outline" onClick={() => setShowPreviews((v) => !v)}>
                     {showPreviews ? 'Hide Previews' : 'Show Previews'}
                 </Button>
+                <div className="flex items-center gap-1 border rounded-full px-1 py-0.5 text-xs">
+                    <Button
+                        size="sm"
+                        variant={previewMode === 'published' ? 'secondary' : 'ghost'}
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => setPreviewMode('published')}
+                    >
+                        Published
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant={previewMode === 'draft' ? 'secondary' : 'ghost'}
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => setPreviewMode('draft')}
+                    >
+                        Draft
+                    </Button>
+                </div>
             </div>
 
             <p className="text-sm text-muted-foreground">
