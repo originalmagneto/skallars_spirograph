@@ -2,23 +2,27 @@
 
 This roadmap is based on the current codebase, the UI vs functionality audit, and your stated priorities.
 
-## Phase 0: Fix UI vs Functionality Mismatches (Immediate)
-- Wire **admin content edits to the actual frontend** (replace or augment `translations.ts` with Supabase content for public pages).
-- Fix **Article Editor copy** (“Markdown” vs HTML) or implement a true rich editor that matches output.
-- Persist **Map Display Settings** (store in Supabase or localStorage) so “saved automatically” is true.
-- Preserve **Team Member photo positioning** when editing.
-- Implement **image batch generation** honoring `image_count` or remove the setting.
-- Update **AI Usage cost estimates** to reflect selected model or remove the estimate if unknown.
+**Status (Feb 3, 2026)**
+- Phase 0 complete.
+- Phase 1 (text-first editing) complete.
+- Phase 1 media tools moved to Phase 2 (you said no image fields right now).
 
-## Phase 1: Content System Foundation (Core Admin UX)
-- Create a **content model registry** to define editable sections, fields, and field types (text, rich text, image, list, link, CTA).
-- Connect this registry to **public pages** and migrate existing `translations.ts` strings into Supabase content.
-- Introduce **media library** with folders, tags, and search for all images (client logos, team photos, article covers).
-- Add **image upload + crop** tools for `site_content` graphics and section assets.
-- Provide **preview modes** for each section and a full-page preview in admin.
-- Add **content history** (versioning, compare/restore) and **draft vs published** state.
-- Add **role-aware editing**: editors can propose changes, admins publish.
-- Extend **Team Members** with bio + icon fields for richer text-only profiles.
+## Phase 0: Fix UI vs Functionality Mismatches (Immediate)
+- Wire **admin content edits to the actual frontend** (replace or augment `translations.ts` with Supabase content for public pages). ✅
+- Fix **Article Editor copy** (“Markdown” vs HTML) or implement a true rich editor that matches output. ✅
+- Persist **Map Display Settings** (store in Supabase or localStorage) so “saved automatically” is true. ✅
+- Preserve **Team Member photo positioning** when editing. ✅
+- Implement **image batch generation** honoring `image_count` or remove the setting. ✅
+- Update **AI Usage cost estimates** to reflect selected model or remove the estimate if unknown. ✅
+
+## Phase 1: Content System Foundation (Text-First, Core Admin UX)
+- Create a **content model registry** to define editable sections, fields, and field types. ✅
+- Connect this registry to **public pages** and migrate existing `translations.ts` strings into Supabase content. ✅
+- Provide **preview modes** for each section and a full-page preview in admin. ✅
+- Add **draft vs published** state with per-item and per-section publish actions. ✅
+- Add **role-aware editing**: editors can propose changes, admins publish. ✅
+- Extend **Team Members** with bio + icon fields for richer text-only profiles. ✅
+- Add **admin preview bar** with section highlights and deep links into Content Manager. ✅
 
 ## Phase 2: Full-Fidelity Page Editing
 - Implement a **page/section editor** (block-based) to edit homepage and key pages without code.
@@ -26,6 +30,11 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
 - Add **live preview** with “before/after” diff for reviewers.
 - Add **SEO editor** (meta title/desc, OpenGraph, structured data) per page.
+
+## Phase 2.1: Media + History (Moved from Phase 1)
+- Introduce **media library** with folders, tags, and search for all images.
+- Add **image upload + crop** tools for `site_content` graphics and section assets.
+- Add **content history** (versioning, compare/restore) and **restore**.
 
 ## Phase 3: AI Article Studio (Targeted Adjustments)
 - Add **research mode** controls: Quick vs Deep with clear time/quality tradeoff.

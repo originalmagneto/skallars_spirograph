@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 export default function AuthPage() {
     const { signIn, signUp } = useAuth();
@@ -21,12 +22,18 @@ export default function AuthPage() {
         e.preventDefault();
         setIsLoading(true);
         try {
+            console.info('[auth] login submit', { email });
             const { error } = await signIn(email, password);
             if (error) throw error;
+            const { data } = await supabase.auth.getUser();
+            if (!data?.user) {
+                throw new Error('Login succeeded but session is not available yet. Please try again.');
+            }
             toast.success('Logged in successfully');
             router.push('/admin');
         } catch (error: any) {
             toast.error(error.message || 'Failed to login');
+            console.error('[auth] login failed', error);
         } finally {
             setIsLoading(false);
         }

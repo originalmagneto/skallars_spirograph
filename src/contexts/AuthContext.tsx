@@ -137,8 +137,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [user?.id, isAdmin, isEditor, fetchRoles]);
 
     const signIn = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        return { error: error as Error | null };
+        try {
+            const timeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Login timed out. Please try again.')), 12000)
+            );
+            const result = await Promise.race([
+                supabase.auth.signInWithPassword({ email, password }),
+                timeout,
+            ]) as { error?: Error | null };
+            const error = result?.error ?? null;
+            return { error: error as Error | null };
+        } catch (error: any) {
+            return { error: error as Error };
+        }
     };
 
     const signUp = async (email: string, password: string) => {
