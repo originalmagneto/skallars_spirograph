@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     console.error("Failed to fetch articles from Supabase:", error);
     // Fallback to MOCK_POSTS only on error, or return empty?
     // Better to return empty real data than confusing mock data now that we have a real DB.
-    return NextResponse.json({ posts: [], meta: { pagination: { page: 1, limit, pages: 0, total: 0 } } });
+    const fallbackLimit = 6;
+    return NextResponse.json({ posts: [], settings: { limit_count: fallbackLimit, show_view_all: true, autoplay: true, autoplay_interval_ms: 50, scroll_step: 1 }, meta: { pagination: { page: 1, limit: fallbackLimit, pages: 0, total: 0 } } });
   }
 }
-
