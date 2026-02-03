@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,7 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { generateAIArticle, generateAIOutline, GeneratedArticle, getAIArticlePrompt } from '@/lib/aiService';
+import { generateAIArticle, generateAIOutline, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -66,6 +66,15 @@ const AILab = () => {
     const [priceOutputPerM, setPriceOutputPerM] = useState<number | null>(null);
     const [generationTimeMs, setGenerationTimeMs] = useState<number | null>(null);
     const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
+    const [generationStatus, setGenerationStatus] = useState<string>('');
+    const [generationElapsedMs, setGenerationElapsedMs] = useState<number>(0);
+    const [lastRequestId, setLastRequestId] = useState<string | null>(null);
+    const [testRunning, setTestRunning] = useState(false);
+
+    const generationControllerRef = useRef<AbortController | null>(null);
+    const generationTimeoutRef = useRef<number | null>(null);
+    const generationTimerRef = useRef<number | null>(null);
+    const generationStartRef = useRef<number | null>(null);
 
     const lengthDefaults: Record<string, number> = {
         Short: 400,
@@ -186,6 +195,71 @@ const AILab = () => {
         cn: 'Chinese (CN)',
     };
 
+    const formatDuration = (ms: number) => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const clearGenerationTimers = () => {
+        if (generationTimeoutRef.current) {
+            window.clearTimeout(generationTimeoutRef.current);
+            generationTimeoutRef.current = null;
+        }
+        if (generationTimerRef.current) {
+            window.clearInterval(generationTimerRef.current);
+            generationTimerRef.current = null;
+        }
+        generationStartRef.current = null;
+    };
+
+    const cancelGeneration = (message?: string) => {
+        if (generationControllerRef.current) {
+            setGenerationStatus(message || 'Cancelling request...');
+            generationControllerRef.current.abort();
+        }
+    };
+
+    const logGenerationEvent = async (payload: {
+        request_id: string;
+        status: 'started' | 'succeeded' | 'failed' | 'aborted';
+        duration_ms?: number;
+        error_message?: string;
+    }) => {
+        if (!user) return;
+        try {
+            const validLinks = links.filter(l => l.trim() !== '');
+            const promptValue = showPromptEditor ? customPrompt : prompt;
+            await supabase.from('ai_generation_logs').insert({
+                user_id: user.id,
+                request_id: payload.request_id,
+                action: 'generate_article',
+                status: payload.status,
+                model: currentModel || 'gemini-2.0-flash',
+                duration_ms: payload.duration_ms ?? null,
+                error_message: payload.error_message ?? null,
+                details: {
+                    promptLength: promptValue.length,
+                    linkCount: validLinks.length,
+                    useGrounding: researchDepth === 'Deep',
+                    researchDepth,
+                    targetWordCount,
+                    targetLanguages,
+                    articleType,
+                    articleLength,
+                    toneStyle,
+                    toneCustom,
+                    outlineEnabled: useOutlineWorkflow,
+                    outlineProvided: Boolean(outlineText.trim()),
+                    customPrompt: showPromptEditor
+                }
+            });
+        } catch (err) {
+            console.error('Failed to log AI generation:', err);
+        }
+    };
+
     const handleGenerate = async () => {
         if (!prompt && !customPrompt) {
             toast.error('Please enter a topic or prompt');
@@ -200,14 +274,44 @@ const AILab = () => {
         setGenerating(true);
         setGenerationTimeMs(null);
         setEstimatedCost(null);
+        setGenerationStatus('Starting request...');
+        setGenerationElapsedMs(0);
+        const requestId = (globalThis.crypto && 'randomUUID' in globalThis.crypto)
+            ? globalThis.crypto.randomUUID()
+            : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        setLastRequestId(requestId);
+
+        if (generationControllerRef.current) {
+            generationControllerRef.current.abort();
+        }
+        const controller = new AbortController();
+        generationControllerRef.current = controller;
+        generationStartRef.current = Date.now();
+        generationTimerRef.current = window.setInterval(() => {
+            if (generationStartRef.current) {
+                setGenerationElapsedMs(Date.now() - generationStartRef.current);
+            }
+        }, 1000);
+        generationTimeoutRef.current = window.setTimeout(() => {
+            setGenerationStatus('Request timed out. Cancelling...');
+            controller.abort();
+        }, 120000);
+
+        await logGenerationEvent({ request_id: requestId, status: 'started' });
         const startTime = Date.now();
         try {
             const validLinks = links.filter(l => l.trim() !== '');
             if (useOutlineWorkflow && !outlineText && !showPromptEditor) {
                 await handleGenerateOutline();
                 setGenerating(false);
+                clearGenerationTimers();
                 return;
             }
+            setGenerationStatus('Waiting for Gemini response...');
             const content = await generateAIArticle(prompt, validLinks, {
                 type: articleType,
                 length: articleLength,
@@ -218,8 +322,10 @@ const AILab = () => {
                 targetWordCount,
                 tone: toneStyle,
                 toneInstructions,
-                outline: useOutlineWorkflow && outlineText && !showPromptEditor ? outlineText : undefined
+                outline: useOutlineWorkflow && outlineText && !showPromptEditor ? outlineText : undefined,
+                signal: controller.signal
             });
+            setGenerationStatus('Finalizing...');
             setGeneratedContent(content);
             const durationMs = Date.now() - startTime;
             setGenerationTimeMs(durationMs);
@@ -249,10 +355,20 @@ const AILab = () => {
             }
 
             toast.success('Article generated successfully!');
+            await logGenerationEvent({ request_id: requestId, status: 'succeeded', duration_ms: Date.now() - startTime });
         } catch (error: any) {
-            toast.error(error.message || 'Generation failed');
+            const isAbort = error?.name === 'AbortError' || String(error?.message || '').toLowerCase().includes('aborted');
+            if (isAbort) {
+                toast.error('Generation request was cancelled or timed out.');
+                await logGenerationEvent({ request_id: requestId, status: 'aborted', duration_ms: Date.now() - startTime, error_message: error?.message });
+            } else {
+                toast.error(error.message || 'Generation failed');
+                await logGenerationEvent({ request_id: requestId, status: 'failed', duration_ms: Date.now() - startTime, error_message: error?.message || 'Unknown error' });
+            }
         } finally {
+            clearGenerationTimers();
             setGenerating(false);
+            setGenerationStatus('');
         }
     };
 
@@ -266,6 +382,10 @@ const AILab = () => {
             return;
         }
         setOutlineGenerating(true);
+        const outlineController = new AbortController();
+        const outlineTimeout = window.setTimeout(() => {
+            outlineController.abort();
+        }, 60000);
         try {
             const validLinks = links.filter(l => l.trim() !== '');
             const primaryLang = targetLanguages[0] || 'en';
@@ -278,17 +398,46 @@ const AILab = () => {
                 toneInstructions,
                 languageLabel: languageLabels[primaryLang] || primaryLang,
                 useGrounding: researchDepth === 'Deep',
+                signal: outlineController.signal
             });
             setOutlineText(outlineResult.outline.join('\n'));
             setOutlineNotes(outlineResult.notes || '');
             setOutlineSources(outlineResult.sources || []);
             toast.success('Outline generated');
         } catch (error: any) {
-            toast.error(error.message || 'Outline generation failed');
+            const isAbort = error?.name === 'AbortError' || String(error?.message || '').toLowerCase().includes('aborted');
+            toast.error(isAbort ? 'Outline generation timed out.' : (error.message || 'Outline generation failed'));
         } finally {
+            window.clearTimeout(outlineTimeout);
             setOutlineGenerating(false);
         }
     };
+
+    const handleTestConnection = async () => {
+        if (testRunning) return;
+        setTestRunning(true);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 15000);
+        try {
+            const reply = await testGeminiConnection(controller.signal);
+            toast.success(`Connection OK: ${reply}`);
+        } catch (error: any) {
+            const isAbort = error?.name === 'AbortError' || String(error?.message || '').toLowerCase().includes('aborted');
+            toast.error(isAbort ? 'Connection test timed out.' : (error.message || 'Connection test failed'));
+        } finally {
+            window.clearTimeout(timeout);
+            setTestRunning(false);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            clearGenerationTimers();
+            if (generationControllerRef.current) {
+                generationControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     const handleSave = async () => {
         if (!generatedContent || !user) return;
@@ -712,21 +861,53 @@ const AILab = () => {
                             </div>
                         )}
                     </CardContent>
-                    <CardFooter>
-                        <Button
-                            onClick={handleGenerate}
-                            disabled={generating}
-                            className="w-full bg-primary hover:bg-primary/90"
-                        >
-                            {generating ? (
-                                <>Generating...</>
-                            ) : (
-                                <>
-                                    <Search01Icon size={18} className="mr-2" />
-                                    {useOutlineWorkflow && !outlineText && !showPromptEditor ? 'Generate Outline' : 'Research & Generate Article'}
-                                </>
+                    <CardFooter className="flex flex-col gap-2">
+                        <div className="flex w-full gap-2">
+                            <Button
+                                onClick={handleGenerate}
+                                disabled={generating}
+                                className="flex-1 bg-primary hover:bg-primary/90"
+                            >
+                                {generating ? (
+                                    <>Generating...</>
+                                ) : (
+                                    <>
+                                        <Search01Icon size={18} className="mr-2" />
+                                        {useOutlineWorkflow && !outlineText && !showPromptEditor ? 'Generate Outline' : 'Research & Generate Article'}
+                                    </>
+                                )}
+                            </Button>
+                            {generating && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => cancelGeneration('Cancelling request...')}
+                                    className="shrink-0"
+                                >
+                                    Cancel
+                                </Button>
                             )}
-                        </Button>
+                        </div>
+                        <div className="flex items-center justify-between w-full text-xs text-muted-foreground">
+                            <div className="flex flex-col">
+                                <span>
+                                    {generationStatus
+                                        ? `${generationStatus}${generationElapsedMs ? ` • ${formatDuration(generationElapsedMs)}` : ''}`
+                                        : 'Ready'}
+                                </span>
+                                {lastRequestId && generating && (
+                                    <span className="text-[10px]">Request ID: {lastRequestId}</span>
+                                )}
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={handleTestConnection}
+                                disabled={testRunning || generating}
+                            >
+                                {testRunning ? 'Testing...' : 'Test Connection'}
+                            </Button>
+                        </div>
                     </CardFooter>
                 </Card>
 

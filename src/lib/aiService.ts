@@ -252,7 +252,7 @@ Return ONLY raw JSON. No markdown.
 export async function generateAIArticle(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string, signal?: AbortSignal } = {}
 ): Promise<GeneratedArticle> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
@@ -261,7 +261,7 @@ export async function generateAIArticle(
     const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
     console.log('[AI] Using Gemini model:', selectedModel);
 
-    const { useGrounding = false, customPrompt } = options;
+    const { useGrounding = false, customPrompt, signal } = options;
 
     const finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
 
@@ -281,7 +281,8 @@ export async function generateAIArticle(
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal
     });
 
     if (!response.ok) {
@@ -351,7 +352,7 @@ export async function generateAIArticle(
 
 export async function generateAIEdit(
     text: string,
-    options: { mode: 'rewrite' | 'expand' | 'shorten' | 'simplify'; customInstruction?: string; tone?: string; toneInstructions?: string; languageLabel?: string } = {
+    options: { mode: 'rewrite' | 'expand' | 'shorten' | 'simplify'; customInstruction?: string; tone?: string; toneInstructions?: string; languageLabel?: string; signal?: AbortSignal } = {
         mode: 'rewrite'
     }
 ): Promise<string> {
@@ -364,7 +365,8 @@ export async function generateAIEdit(
         customInstruction = '',
         tone = 'Client-Friendly',
         toneInstructions = '',
-        languageLabel = 'English (EN)'
+        languageLabel = 'English (EN)',
+        signal
     } = options;
 
     const modeGuides: Record<string, string> = {
@@ -410,7 +412,8 @@ Return ONLY the edited HTML string.`;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal
     });
 
     if (!response.ok) {
@@ -429,13 +432,13 @@ Return ONLY the edited HTML string.`;
 export async function generateAIOutline(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string, signal?: AbortSignal } = {}
 ): Promise<{ outline: string[]; notes?: string; sources?: Array<{ title?: string; url?: string }>; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
 
     const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
-    const { useGrounding = false } = options;
+    const { useGrounding = false, signal } = options;
     const promptText = getAIOutlinePrompt(prompt, links, options);
 
     const body: any = {
@@ -452,7 +455,8 @@ export async function generateAIOutline(
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal
     });
 
     if (!response.ok) {
@@ -523,6 +527,38 @@ export async function generateAIOutline(
     } catch (e) {
         return fallbackParse(content);
     }
+}
+
+export async function testGeminiConnection(signal?: AbortSignal): Promise<string> {
+    const apiKey = await getSetting('gemini_api_key');
+    if (!apiKey) throw new Error('Gemini API Key not found in settings.');
+
+    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const body: any = {
+        contents: [{ parts: [{ text: 'Reply with OK in plain text.' }] }],
+        generationConfig: {
+            responseMimeType: "text/plain",
+            maxOutputTokens: 16,
+            temperature: 0
+        }
+    };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Gemini API Error: ${response.statusText} - ${errorBody}`);
+    }
+
+    const result = await response.json();
+    const content = result.candidates[0]?.content?.parts[0]?.text;
+    if (!content) throw new Error('No response returned by Gemini.');
+    return content.trim();
 }
 
 export async function generateAIMeta(title: string, content: string): Promise<any> {
