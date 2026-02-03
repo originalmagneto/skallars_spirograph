@@ -48,8 +48,13 @@ async function getSetting(key: string): Promise<string | null> {
 const formatGeminiError = (result: any) => {
     const blockReason = result?.promptFeedback?.blockReason;
     const safetyRatings = result?.promptFeedback?.safetyRatings;
+    const finishReason = result?.candidates?.[0]?.finishReason;
+    const modelVersion = result?.modelVersion;
     if (blockReason) {
         return `Blocked by safety filters: ${blockReason}${safetyRatings ? ` (${JSON.stringify(safetyRatings)})` : ''}`;
+    }
+    if (finishReason) {
+        return `No content returned (finishReason: ${finishReason}${modelVersion ? `, model: ${modelVersion}` : ''}). Try increasing maxOutputTokens or changing the model in AI Settings.`;
     }
     try {
         return `No candidates returned. Raw response: ${JSON.stringify(result).slice(0, 800)}`;
@@ -551,8 +556,10 @@ export async function testGeminiConnection(signal?: AbortSignal): Promise<string
         contents: [{ parts: [{ text: 'Reply with OK in plain text.' }] }],
         generationConfig: {
             responseMimeType: "text/plain",
-            maxOutputTokens: 16,
-            temperature: 0
+            maxOutputTokens: 64,
+            temperature: 0,
+            topP: 1,
+            topK: 1
         }
     };
 
