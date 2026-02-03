@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UserMultipleIcon, AiMagicIcon, Logout01Icon } from "hugeicons-react";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
@@ -16,6 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [accessCheckMessage, setAccessCheckMessage] = useState<string>('');
     const [diagnostics, setDiagnostics] = useState<string>('');
     const [isDiagnosticsRunning, setIsDiagnosticsRunning] = useState(false);
+    const autoDiagnosticsRanRef = useRef(false);
 
     const handleSignOut = async () => {
         await signOut();
@@ -49,10 +50,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 setAccessCheckMessage('Editor access confirmed.');
                 return;
             }
-            if (adminError || editorError) {
+
+            // Fallback: direct profile role check (in case RPC isn't available)
+            const profileRes = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', targetId)
+                .maybeSingle();
+
+            if (!profileRes.error && profileRes.data?.role) {
+                const role = profileRes.data.role;
+                if (role === 'admin' || role === 'editor') {
+                    setAccessOverride(true);
+                    setAccessCheckMessage(`Profile role confirmed (${role}).`);
+                    return;
+                }
+            }
+
+            // Fallback: user_roles table
+            const rolesRes = await supabase
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', targetId);
+
+            if (!rolesRes.error && rolesRes.data && rolesRes.data.length > 0) {
+                const roles = rolesRes.data.map((r: any) => r.role);
+                if (roles.includes('admin') || roles.includes('editor')) {
+                    setAccessOverride(true);
+                    setAccessCheckMessage('User roles confirmed.');
+                    return;
+                }
+            }
+
+            if (adminError || editorError || profileRes.error || rolesRes.error) {
                 const adminMsg = adminError?.message ? `Admin check error: ${adminError.message}` : '';
                 const editorMsg = editorError?.message ? `Editor check error: ${editorError.message}` : '';
-                setAccessCheckMessage([adminMsg, editorMsg].filter(Boolean).join(' | ') || 'Access check failed. Please re-login.');
+                const profileMsg = profileRes.error?.message ? `Profile check error: ${profileRes.error.message}` : '';
+                const rolesMsg = rolesRes.error?.message ? `Roles check error: ${rolesRes.error.message}` : '';
+                setAccessCheckMessage([adminMsg, editorMsg, profileMsg, rolesMsg].filter(Boolean).join(' | ') || 'Access check failed. Please re-login.');
             } else {
                 setAccessOverride(false);
                 setAccessCheckMessage('No admin/editor role detected.');
@@ -195,6 +230,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (!user) return null;
 
     const canManage = isAdmin || isEditor || accessOverride === true;
+
+    useEffect(() => {
+        if (!user?.id) return;
+        if (canManage) return;
+        if (autoDiagnosticsRanRef.current) return;
+        autoDiagnosticsRanRef.current = true;
+        void runDiagnostics();
+    }, [user?.id, canManage]);
 
     if (!canManage) {
         return (
