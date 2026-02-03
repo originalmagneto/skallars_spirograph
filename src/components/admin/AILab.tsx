@@ -509,6 +509,8 @@ const AILab = () => {
     const handleSave = async () => {
         if (!generatedContent || !user) return;
 
+        const modelForLog = currentModel || 'gemini-2.0-flash';
+
         try {
             setIsSavingDraft(true);
             const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number, label: string) => {
@@ -529,7 +531,6 @@ const AILab = () => {
                 });
             };
 
-            const modelForLog = currentModel || 'gemini-2.0-flash';
             const logSaveEvent = async (status: string, payload?: Record<string, any>) => {
                 try {
                     await supabase.from('ai_generation_logs').insert({
