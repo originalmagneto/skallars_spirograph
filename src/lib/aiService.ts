@@ -897,9 +897,23 @@ Format the output as a JSON object:
 
 export async function generateAIImage(
     prompt: string,
-    options: { turbo?: boolean; width?: number; height?: number; model?: string } = {}
+    options: {
+        turbo?: boolean;
+        width?: number;
+        height?: number;
+        aspectRatio?: string;
+        imageSize?: string;
+        model?: string;
+    } = {}
 ): Promise<string> {
-    const { turbo: forceTurbo, width = 1024, height = 1024, model } = options;
+    const {
+        turbo: forceTurbo,
+        width = 1024,
+        height = 1024,
+        aspectRatio,
+        imageSize,
+        model
+    } = options;
 
     // Check global settings if turbo is not forced
     // Default to 'turbo' if not set or if forceTurbo is true
@@ -927,85 +941,120 @@ export async function generateAIImage(
     }
 
     try {
-        // Get selected image model, fallback to imagen-3.0-generate-001 (standard Gemini Image Gen)
+        // Get selected image model, fallback to Imagen default
         const imageModel = model || await getSetting('gemini_image_model') || 'imagen-3.0-generate-001';
         console.log('[AI] Generating image with Gemini model:', imageModel);
 
-        // Use Gemini's image generation model
-        // Note: Some models use :predict, others :generateContent. 
-        // Generative Language API usually uses :generateContent for Imagen via Gemini 2.0 or specific endpoints.
-        // We'll try the standard :generateContent endpoint which works for most new models including Gemini 2.0 Flash Exp (if supported) and Imagen 3 via API
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`,
-            {
-                method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `Generate a professional, high-quality image for an article. The image should be: ${prompt}`
-                        }]
-                    }],
-                    // Only some models support responseModalities, but it's good practice for 2.0
-                    // If using Imagen 3 specifically, the body might differ, but via Generative Language API it's continuously unified.
-                    generationConfig: {
-                        responseModalities: ["IMAGE"]
-                    }
-                })
-            }
-        );
+        const normalizedAspectRatio = aspectRatio || (() => {
+            const ratioMap: Record<string, string> = {
+                '1024x1024': '1:1',
+                '1280x720': '16:9',
+                '720x1280': '9:16',
+                '1024x768': '4:3',
+                '768x1024': '3:4',
+            };
+            const key = `${width}x${height}`;
+            return ratioMap[key];
+        })();
 
-        if (!response.ok) {
-            if (response.status === 404 && imageModel !== 'imagen-3.0-generate-001') {
-                console.warn(`[AI] Model ${imageModel} not found (404). retrying with fallback: imagen-3.0-generate-001`);
-                return await fetch(
-                    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:generateContent?key=${apiKey}`,
-                    {
-                        method: 'POST',
+        const imageConfig: Record<string, string> = {};
+        if (normalizedAspectRatio) imageConfig.aspectRatio = normalizedAspectRatio;
+        if (imageSize) imageConfig.imageSize = imageSize;
+
+        const makeGenerateContentRequest = async () => {
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: `Generate a professional, high-quality image for an article. The image should be: ${prompt}` }] }],
-                            generationConfig: { responseModalities: ["IMAGE"] }
-                        })
-                    }
-                ).then(async (res) => {
-                    if (!res.ok) {
-                        const err = await res.text();
-                        console.warn('Gemini Imagen Fallback (Imagen 3) also returned 404/Error. This is expected if the model is unavailable. Switching to Turbo...', err);
-                        throw new Error('Gemini image generation failed (Fallback)');
-                    }
-                    const result = await res.json();
-                    const parts = result.candidates?.[0]?.content?.parts || [];
-                    const imagePart = parts.find((p: any) => p.inlineData);
-                    if (imagePart?.inlineData?.data) {
-                        return `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}`;
-                    }
-                    throw new Error('No image detected in fallback response');
-                });
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [
+                                    {
+                                        text: `Generate a professional, high-quality image for an article. The image should be: ${prompt}`
+                                    }
+                                ]
+                            }
+                        ],
+                        generationConfig: {
+                            responseModalities: ["IMAGE"],
+                            ...(Object.keys(imageConfig).length > 0 ? { imageConfig } : {})
+                        }
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`generateContent failed: ${response.status} ${response.statusText} - ${errorBody}`);
             }
 
-            const errorData = await response.text();
-            console.error('Gemini Imagen error:', errorData);
-            throw new Error('Gemini image generation failed');
+            const result = await response.json();
+            const parts = result.candidates?.[0]?.content?.parts || [];
+            const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+            if (imagePart?.inlineData?.data) {
+                const mimeType = imagePart.inlineData.mimeType || 'image/png';
+                return `data:${mimeType};base64,${imagePart.inlineData.data}`;
+            }
+            throw new Error(formatGeminiError(result));
+        };
+
+        const makePredictRequest = async () => {
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:predict?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                    body: JSON.stringify({
+                        instances: [{ prompt }],
+                        parameters: {
+                            sampleCount: 1,
+                            ...(normalizedAspectRatio ? { aspectRatio: normalizedAspectRatio } : {}),
+                            ...(imageSize ? { imageSize } : {})
+                        }
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`predict failed: ${response.status} ${response.statusText} - ${errorBody}`);
+            }
+
+            const result = await response.json();
+            const predictions = Array.isArray(result?.predictions) ? result.predictions : [];
+            for (const prediction of predictions) {
+                const bytes =
+                    prediction?.bytesBase64Encoded ||
+                    prediction?.imageBytes ||
+                    prediction?.image?.bytesBase64Encoded ||
+                    prediction?.image?.imageBytes ||
+                    prediction?.generatedImages?.[0]?.bytesBase64Encoded;
+                if (bytes) {
+                    const mimeType = prediction?.image?.mimeType || prediction?.mimeType || 'image/png';
+                    return `data:${mimeType};base64,${bytes}`;
+                }
+            }
+            throw new Error('No image data returned from predict.');
+        };
+
+        const looksLikeImagen = imageModel.toLowerCase().includes('imagen');
+        try {
+            if (looksLikeImagen) {
+                return await makePredictRequest();
+            }
+            return await makeGenerateContentRequest();
+        } catch (primaryError) {
+            console.warn('[AI] Primary image generation failed, retrying with alternate endpoint...', primaryError);
+            if (looksLikeImagen) {
+                return await makeGenerateContentRequest();
+            }
+            return await makePredictRequest();
         }
-
-        const result = await response.json();
-
-        // Extract the image data from the response
-        const parts = result.candidates?.[0]?.content?.parts || [];
-        const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-
-        if (imagePart?.inlineData?.data) {
-            // Return as base64 data URL
-            const mimeType = imagePart.inlineData.mimeType || 'image/png';
-            return `data:${mimeType};base64,${imagePart.inlineData.data}`;
-        }
-
-        throw new Error('No image data in Gemini response');
-        // ... existing code ...
     } catch (err) {
-        console.warn('Gemini Imagen failed (Handled), falling back to Turbo mode:', err);
-        return generateAIImage(prompt, { turbo: true });
+        console.warn('Gemini image generation failed (Handled), falling back to Turbo mode:', err);
+        return generateAIImage(prompt, { turbo: true, width, height });
     }
 }
 

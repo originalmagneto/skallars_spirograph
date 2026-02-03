@@ -305,7 +305,7 @@ const AISettings = () => {
                             </div>
 
                             {/* Image Model Selection */}
-                            {availableImageModels.length > 0 && (
+                            {(availableImageModels.length > 0) && (
                                 <div className="space-y-2 pt-3 border-t">
                                     <Label className="text-sm">Select Image Generation Model</Label>
                                     <Select
@@ -336,6 +336,18 @@ const AISettings = () => {
                                     </p>
                                 </div>
                             )}
+
+                            <div className="space-y-2 pt-3 border-t">
+                                <Label className="text-sm">Custom Image Model Name (Optional)</Label>
+                                <Input
+                                    value={settings.find(s => s.key === 'gemini_image_model')?.value || ''}
+                                    onChange={(e) => handleUpdate('gemini_image_model', e.target.value)}
+                                    placeholder="imagen-3.0-generate-001 or gemini-2.5-flash-image"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Paste any valid Gemini/Imagen model name to override the dropdown.
+                                </p>
+                            </div>
                         </div>
 
                         {/* Image Preferences */}

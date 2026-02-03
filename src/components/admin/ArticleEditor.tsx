@@ -370,6 +370,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     turbo: imageProvider === 'turbo',
                     width,
                     height,
+                    aspectRatio: imageAspect,
                     model: imageProvider === 'gemini' && imageModel ? imageModel : undefined,
                 });
                 results.push({ url, provider: imageProvider });

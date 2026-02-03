@@ -87,7 +87,8 @@ Storage buckets referenced:
 - Grounding uses `googleSearch` tool; JSON response mode is avoided when grounding is enabled.
 - Image generation uses a two-tier system:
   - Turbo: Pollinations (Flux) for fast, no-key images.
-  - Pro: Gemini Imagen via Generative Language API (fallback to Turbo on failure).
+  - Pro: Gemini native image models use `generateContent` with `responseModalities` + `imageConfig`, Imagen models use `predict`; fallback to Turbo on failure.
+  - Custom image model names can be set in AI Settings (`gemini_image_model`).
 
 ## Auth and Roles
 - Supabase Auth handles sessions; role is fetched from `profiles.role`.
