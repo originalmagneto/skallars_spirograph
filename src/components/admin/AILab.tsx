@@ -591,7 +591,7 @@ const AILab = () => {
                         is_published: false,
                     })
                     .select('id')
-                    .single();
+                    .single() as Promise<{ data: { id: string } | null; error: any }>;
 
                 const { data: article, error: articleError } = await withTimeout(insertPromise, 20000, 'Saving draft');
                 if (articleError) throw articleError;
