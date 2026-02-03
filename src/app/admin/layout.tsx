@@ -17,6 +17,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [diagnostics, setDiagnostics] = useState<string>('');
     const [isDiagnosticsRunning, setIsDiagnosticsRunning] = useState(false);
     const autoDiagnosticsRanRef = useRef(false);
+    const diagnosticsTimeoutRef = useRef<number | null>(null);
+    const refreshTimeoutRef = useRef<number | null>(null);
 
     const handleSignOut = async () => {
         await signOut();
@@ -130,6 +132,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const handleRefresh = async () => {
         setIsRefreshing(true);
         setAccessCheckMessage('Checking permissions...');
+        if (refreshTimeoutRef.current) {
+            window.clearTimeout(refreshTimeoutRef.current);
+            refreshTimeoutRef.current = null;
+        }
+        refreshTimeoutRef.current = window.setTimeout(() => {
+            setIsRefreshing(false);
+            setAccessCheckMessage('Permission refresh timed out. Please try again.');
+        }, 12000);
         try {
             try {
                 await withTimeout(supabase.auth.refreshSession(), 8000, 'Session refresh');
@@ -141,6 +151,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         } catch (error: any) {
             setAccessCheckMessage(error?.message || 'Refresh failed.');
         } finally {
+            if (refreshTimeoutRef.current) {
+                window.clearTimeout(refreshTimeoutRef.current);
+                refreshTimeoutRef.current = null;
+            }
             setIsRefreshing(false);
         }
     };
@@ -148,9 +162,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const runDiagnostics = async () => {
         setIsDiagnosticsRunning(true);
         setDiagnostics('');
+        if (diagnosticsTimeoutRef.current) {
+            window.clearTimeout(diagnosticsTimeoutRef.current);
+            diagnosticsTimeoutRef.current = null;
+        }
+        diagnosticsTimeoutRef.current = window.setTimeout(() => {
+            setDiagnostics('Diagnostics timed out. Please reload the page and try again.');
+            setIsDiagnosticsRunning(false);
+        }, 12000);
         try {
             const result: Record<string, any> = {
                 timestamp: new Date().toISOString(),
+                supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || null,
                 authContext: {
                     userId: user?.id || null,
                     email: user?.email || null,
@@ -266,6 +289,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             setDiagnostics(`Diagnostics failed: ${message}`);
             console.error('[admin-diagnostics] failed', error);
         } finally {
+            if (diagnosticsTimeoutRef.current) {
+                window.clearTimeout(diagnosticsTimeoutRef.current);
+                diagnosticsTimeoutRef.current = null;
+            }
             setIsDiagnosticsRunning(false);
         }
     };
