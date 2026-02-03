@@ -18,6 +18,10 @@ interface SiteContent {
     value_en: string;
     value_de: string;
     value_cn: string;
+    draft_value_sk?: string | null;
+    draft_value_en?: string | null;
+    draft_value_de?: string | null;
+    draft_value_cn?: string | null;
     content_type: string;
     section: string;
     description: string | null;
@@ -61,6 +65,7 @@ const ContentManager = () => {
     const [editForm, setEditForm] = useState({ value_sk: '', value_en: '', value_de: '', value_cn: '' });
     const [searchQuery, setSearchQuery] = useState('');
     const [isTranslating, setIsTranslating] = useState(false);
+    const [uploading, setUploading] = useState(false);
 
     const { data: content, isLoading } = useQuery({
         queryKey: ['site-content-admin'],
@@ -106,6 +111,11 @@ const ContentManager = () => {
             content_type: string;
             section: string;
             description: string | null;
+            draft_value_sk?: string | null;
+            draft_value_en?: string | null;
+            draft_value_de?: string | null;
+            draft_value_cn?: string | null;
+            draft_updated_at?: string | null;
         }) => {
             const { error } = await supabase
                 .from('site_content')
@@ -113,11 +123,9 @@ const ContentManager = () => {
             if (error) throw error;
         },
         onSuccess: () => {
-            toast.success('Content updated');
+            toast.success('Draft saved');
             queryClient.invalidateQueries({ queryKey: ['site-content-admin'] });
             queryClient.invalidateQueries({ queryKey: ['site-content'] });
-            setEditingKey(null);
-            setEditingMeta(null);
         },
         onError: (error: Error) => toast.error(error.message),
     });
@@ -130,11 +138,91 @@ const ContentManager = () => {
             description: item.description || null,
         });
         setEditForm({
+            value_sk: item.draft_value_sk ?? item.value_sk ?? '',
+            value_en: item.draft_value_en ?? item.value_en ?? '',
+            value_de: item.draft_value_de ?? item.value_de ?? '',
+            value_cn: item.draft_value_cn ?? item.value_cn ?? ''
+        });
+    };
+
+    const saveDraft = async (item: ContentItem) => {
+        await updateMutation.mutateAsync({
+            key: item.key,
             value_sk: item.value_sk || '',
             value_en: item.value_en || '',
             value_de: item.value_de || '',
-            value_cn: item.value_cn || ''
-        });
+            value_cn: item.value_cn || '',
+            content_type: item.content_type || editingMeta?.content_type || 'text',
+            section: item.section || editingMeta?.section || 'general',
+            description: item.description || editingMeta?.description || null,
+            draft_value_sk: editForm.value_sk,
+            draft_value_en: editForm.value_en,
+            draft_value_de: editForm.value_de,
+            draft_value_cn: editForm.value_cn,
+            draft_updated_at: new Date().toISOString()
+        } as any);
+    };
+
+    const publishDraft = async (item: ContentItem) => {
+        try {
+            const { error } = await supabase
+                .from('site_content')
+                .upsert({
+                    key: item.key,
+                    value_sk: editForm.value_sk,
+                    value_en: editForm.value_en,
+                    value_de: editForm.value_de,
+                    value_cn: editForm.value_cn,
+                    content_type: item.content_type || editingMeta?.content_type || 'text',
+                    section: item.section || editingMeta?.section || 'general',
+                    description: item.description || editingMeta?.description || null,
+                    draft_value_sk: null,
+                    draft_value_en: null,
+                    draft_value_de: null,
+                    draft_value_cn: null,
+                    draft_updated_at: null
+                }, { onConflict: 'key' });
+            if (error) throw error;
+            toast.success('Content published');
+            queryClient.invalidateQueries({ queryKey: ['site-content-admin'] });
+            queryClient.invalidateQueries({ queryKey: ['site-content'] });
+            setEditingKey(null);
+            setEditingMeta(null);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to publish');
+        }
+    };
+
+    const uploadImage = async (file: File, item: ContentItem) => {
+        setUploading(true);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const safeKey = item.key.replace(/[^a-z0-9-_]+/gi, '-');
+            const fileName = `${safeKey}-${Date.now()}.${fileExt}`;
+            const filePath = `content/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('images')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage
+                .from('images')
+                .getPublicUrl(filePath);
+
+            const url = urlData.publicUrl;
+            setEditForm({
+                value_sk: url,
+                value_en: url,
+                value_de: url,
+                value_cn: url,
+            });
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to upload image');
+        } finally {
+            setUploading(false);
+        }
     };
 
     const handleAutoTranslate = async () => {
@@ -172,6 +260,10 @@ const ContentManager = () => {
             value_en: existing?.value_en || '',
             value_de: existing?.value_de || '',
             value_cn: existing?.value_cn || '',
+            draft_value_sk: existing?.draft_value_sk,
+            draft_value_en: existing?.draft_value_en,
+            draft_value_de: existing?.draft_value_de,
+            draft_value_cn: existing?.draft_value_cn,
             content_type: existing?.content_type || item.content_type || 'text',
             section: item.section || existing?.section || 'general',
             description: item.description || existing?.description || null,
@@ -265,21 +357,21 @@ const ContentManager = () => {
                                                     {item.description && (
                                                         <p className="text-sm text-muted-foreground">{item.description}</p>
                                                     )}
+                                                    {(item.draft_value_sk || item.draft_value_en || item.draft_value_de || item.draft_value_cn) && (
+                                                        <Badge variant="secondary" className="mt-2 text-[10px]">Has Draft</Badge>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <Button
                                                         size="sm"
-                                                        onClick={() => updateMutation.mutate({
-                                                            key: item.key,
-                                                            ...editForm,
-                                                            content_type: item.content_type || editingMeta?.content_type || 'text',
-                                                            section: item.section || editingMeta?.section || 'general',
-                                                            description: item.description || editingMeta?.description || null,
-                                                        })}
                                                         disabled={updateMutation.isPending}
+                                                        onClick={() => saveDraft(item)}
                                                     >
                                                         <Tick01Icon size={14} className="mr-1" />
-                                                        Save
+                                                        Save Draft
+                                                    </Button>
+                                                    <Button size="sm" variant="secondary" onClick={() => publishDraft(item)}>
+                                                        Publish
                                                     </Button>
                                                     <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)}>
                                                         <Cancel01Icon size={14} />
@@ -291,18 +383,41 @@ const ContentManager = () => {
                                             <div className="space-y-2">
                                                 <div className="flex items-center justify-between">
                                                     <Label className="text-xs font-semibold text-blue-600">Slovak (Source)</Label>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-6 text-xs gap-1 bg-white"
-                                                        onClick={handleAutoTranslate}
-                                                        disabled={isTranslating}
-                                                    >
-                                                        <AiMagicIcon size={12} className={isTranslating ? "animate-pulse" : ""} />
-                                                        {isTranslating ? "Translating..." : "Auto-Translate All"}
-                                                    </Button>
+                                                    {item.content_type !== 'image' && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-6 text-xs gap-1 bg-white"
+                                                            onClick={handleAutoTranslate}
+                                                            disabled={isTranslating}
+                                                        >
+                                                            <AiMagicIcon size={12} className={isTranslating ? "animate-pulse" : ""} />
+                                                            {isTranslating ? "Translating..." : "Auto-Translate All"}
+                                                        </Button>
+                                                    )}
                                                 </div>
-                                                {isLongText(item.value_sk) || item.content_type === 'textarea' ? (
+                                                {item.content_type === 'image' ? (
+                                                    <div className="space-y-2">
+                                                        {editForm.value_sk && (
+                                                            <img src={editForm.value_sk} alt="" className="w-full max-w-sm rounded border" />
+                                                        )}
+                                                        <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                                                            <Input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) uploadImage(file, item);
+                                                                }}
+                                                            />
+                                                            <Button size="sm" variant="outline" disabled={uploading}>
+                                                                {uploading ? 'Uploading...' : 'Upload Image'}
+                                                            </Button>
+                                                        </label>
+                                                        <p className="text-[10px] text-muted-foreground">Image URL will be used for all languages.</p>
+                                                    </div>
+                                                ) : isLongText(item.value_sk) || item.content_type === 'textarea' ? (
                                                     <Textarea
                                                         value={editForm.value_sk}
                                                         onChange={(e) => setEditForm((f) => ({ ...f, value_sk: e.target.value }))}
@@ -320,13 +435,18 @@ const ContentManager = () => {
                                                 {/* English */}
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">English</Label>
-                                                {isLongText(item.value_en) || item.content_type === 'textarea' ? (
-                                                    <Textarea
-                                                        value={editForm.value_en}
-                                                        onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
-                                                        rows={3}
-                                                    />
-                                                ) : (
+                                                    {item.content_type === 'image' ? (
+                                                        <Input
+                                                            value={editForm.value_en}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
+                                                        />
+                                                    ) : isLongText(item.value_en) || item.content_type === 'textarea' ? (
+                                                        <Textarea
+                                                            value={editForm.value_en}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
+                                                            rows={3}
+                                                        />
+                                                    ) : (
                                                         <Input
                                                             value={editForm.value_en}
                                                             onChange={(e) => setEditForm((f) => ({ ...f, value_en: e.target.value }))}
@@ -337,13 +457,18 @@ const ContentManager = () => {
                                                 {/* German */}
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">German</Label>
-                                                {isLongText(item.value_de) || item.content_type === 'textarea' ? (
-                                                    <Textarea
-                                                        value={editForm.value_de}
-                                                        onChange={(e) => setEditForm((f) => ({ ...f, value_de: e.target.value }))}
-                                                        rows={3}
-                                                    />
-                                                ) : (
+                                                    {item.content_type === 'image' ? (
+                                                        <Input
+                                                            value={editForm.value_de}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_de: e.target.value }))}
+                                                        />
+                                                    ) : isLongText(item.value_de) || item.content_type === 'textarea' ? (
+                                                        <Textarea
+                                                            value={editForm.value_de}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_de: e.target.value }))}
+                                                            rows={3}
+                                                        />
+                                                    ) : (
                                                         <Input
                                                             value={editForm.value_de}
                                                             onChange={(e) => setEditForm((f) => ({ ...f, value_de: e.target.value }))}
@@ -354,13 +479,18 @@ const ContentManager = () => {
                                                 {/* Chinese */}
                                                 <div className="space-y-2">
                                                     <Label className="text-xs">Chinese</Label>
-                                                {isLongText(item.value_cn) || item.content_type === 'textarea' ? (
-                                                    <Textarea
-                                                        value={editForm.value_cn}
-                                                        onChange={(e) => setEditForm((f) => ({ ...f, value_cn: e.target.value }))}
-                                                        rows={3}
-                                                    />
-                                                ) : (
+                                                    {item.content_type === 'image' ? (
+                                                        <Input
+                                                            value={editForm.value_cn}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_cn: e.target.value }))}
+                                                        />
+                                                    ) : isLongText(item.value_cn) || item.content_type === 'textarea' ? (
+                                                        <Textarea
+                                                            value={editForm.value_cn}
+                                                            onChange={(e) => setEditForm((f) => ({ ...f, value_cn: e.target.value }))}
+                                                            rows={3}
+                                                        />
+                                                    ) : (
                                                         <Input
                                                             value={editForm.value_cn}
                                                             onChange={(e) => setEditForm((f) => ({ ...f, value_cn: e.target.value }))}
@@ -378,6 +508,9 @@ const ContentManager = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className="text-sm font-medium">{item.label || item.key}</span>
+                                                    {(item.draft_value_sk || item.draft_value_en || item.draft_value_de || item.draft_value_cn) && (
+                                                        <Badge variant="secondary" className="text-[10px]">Draft</Badge>
+                                                    )}
                                                     {!item.registered && (
                                                         <Badge variant="outline" className="text-[10px]">Unregistered</Badge>
                                                     )}

@@ -88,6 +88,8 @@ Storage buckets referenced:
 - Outputs:
   - `supabase/seed_site_content_overrides.sql`
   - `supabase/seed_content_registry.sql`
+## Content Drafts
+- Schema update: `supabase/site_content_drafts.sql`
 
 ## Current Gaps (Known)
 - Content editing is field-based, not a full CMS or page builder.
