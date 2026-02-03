@@ -6,16 +6,41 @@ import { useEffect, useState } from "react";
 import { UserMultipleIcon, AiMagicIcon, Logout01Icon } from "hugeicons-react";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
+import { supabase } from "@/lib/supabase";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { user, loading, isAdmin, isEditor, signOut, refreshRoles } = useAuth();
     const router = useRouter();
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [accessOverride, setAccessOverride] = useState<boolean | null>(null);
 
     const handleSignOut = async () => {
         await signOut();
         router.push("/auth");
         router.refresh();
+    };
+
+    const checkAccessViaRpc = async () => {
+        if (!user?.id) return;
+        try {
+            const { data: isAdminRpc, error: adminError } = await supabase
+                .rpc('is_profile_admin', { _user_id: user.id });
+
+            if (!adminError && isAdminRpc === true) {
+                setAccessOverride(true);
+                return;
+            }
+
+            const { data: isEditorRpc, error: editorError } = await supabase
+                .rpc('is_profile_editor', { _user_id: user.id });
+
+            if (!editorError && isEditorRpc === true) {
+                setAccessOverride(true);
+                return;
+            }
+        } catch {
+            // Ignore RPC errors; fallback to context state.
+        }
     };
 
     useEffect(() => {
@@ -24,9 +49,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
     }, [loading, user, router]);
 
+    useEffect(() => {
+        if (!user?.id) return;
+        checkAccessViaRpc();
+    }, [user?.id]);
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
         await refreshRoles();
+        await checkAccessViaRpc();
         setIsRefreshing(false);
     };
 
@@ -36,7 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (!user) return null;
 
-    const canManage = isAdmin || isEditor;
+    const canManage = isAdmin || isEditor || accessOverride === true;
 
     if (!canManage) {
         return (
