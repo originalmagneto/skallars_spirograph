@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isEditor, setIsEditor] = useState(false);
+    const roleRetryRef = useRef(0);
 
     const fetchRoles = useCallback(async (userId: string) => {
         try {
@@ -38,6 +39,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setIsAdmin(role === 'admin');
                 setIsEditor(role === 'editor' || role === 'admin');
                 return;
+            }
+
+            // Fallback: role check via security-definer RPC (if available)
+            try {
+                const { data: isAdminRpc, error: adminRpcError } = await supabase
+                    .rpc('is_profile_admin', { _user_id: userId });
+
+                if (!adminRpcError && typeof isAdminRpc === 'boolean') {
+                    const { data: isEditorRpc } = await supabase
+                        .rpc('is_profile_editor', { _user_id: userId });
+
+                    setIsAdmin(isAdminRpc);
+                    setIsEditor(Boolean(isEditorRpc || isAdminRpc));
+                    return;
+                }
+            } catch {
+                // Ignore RPC failures and continue fallback.
             }
 
             // Fallback to user_roles table (if profiles.role is not available)
@@ -104,6 +122,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return () => subscription.unsubscribe();
     }, [fetchRoles]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        if (isAdmin || isEditor) return;
+        if (roleRetryRef.current >= 3) return;
+
+        const timeout = setTimeout(() => {
+            roleRetryRef.current += 1;
+            fetchRoles(user.id);
+        }, 1200);
+
+        return () => clearTimeout(timeout);
+    }, [user?.id, isAdmin, isEditor, fetchRoles]);
 
     const signIn = async (email: string, password: string) => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
