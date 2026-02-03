@@ -64,7 +64,7 @@ export default function AdminInlinePreviewBar() {
     window.dispatchEvent(new CustomEvent("admin:focus-section", { detail: section }));
   };
 
-  const adminHrefForSection = (section: string) => `/admin?section=${section}`;
+  const adminHrefForSection = (section: string) => `/admin?tab=content&section=${section}`;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 w-[320px] rounded-xl border bg-white/95 shadow-lg backdrop-blur">

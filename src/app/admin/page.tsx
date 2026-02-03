@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,12 +18,22 @@ import ClientLogosManager from "@/components/admin/ClientLogosManager";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
+    const searchParams = useSearchParams();
+    const paramTab = searchParams.get("tab");
+    const paramSection = searchParams.get("section");
+    const initialTab = paramTab ?? (paramSection ? "content" : "map");
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    useEffect(() => {
+        const nextTab = paramTab ?? (paramSection ? "content" : "map");
+        setActiveTab(nextTab);
+    }, [paramTab, paramSection]);
 
     // Layout handles redirect and loading, but we keep a safety check
     if (!user) return null;
 
     return (
-        <Tabs defaultValue="map" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="flex-wrap h-auto">
                 {isAdmin && (
                     <TabsTrigger value="map" className="gap-2">
