@@ -39,7 +39,7 @@ Tables referenced in app code:
 - `site_content` (key, value_sk/en/de/cn, content_type, section, description). Used by `ContentManager`.
 - `content_registry` (sections + field metadata for content editor).
 - `site_content_drafts` (draft values + published state).
-- `articles` (title_*, excerpt_*, content_*, slug, cover_image_url, is_published, published_at, author_id).
+- `articles` (title_*, excerpt_*, content_*, slug, cover_image_url, tags, is_published, published_at, author_id).
 - `tags`, `article_tags` (tagging for articles).
 - `settings` (gemini_api_key, gemini_model, gemini_image_model, image_model, image_count).
 - `ai_usage_logs` (token tracking and usage records).

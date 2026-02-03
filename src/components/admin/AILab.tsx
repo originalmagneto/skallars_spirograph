@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import {
@@ -32,7 +31,7 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { generateAIArticle, generateAIImage, generateAIOutline, generateAIResearchPack, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
+import { generateAIArticle, generateAIOutline, generateAIResearchPack, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -73,14 +72,7 @@ const AILab = () => {
     const [researchSources, setResearchSources] = useState<Array<{ title?: string; url?: string }>>([]);
     const [researchSummary, setResearchSummary] = useState<string>('');
 
-    const [imagePrompt, setImagePrompt] = useState('');
-    const [imageStyle, setImageStyle] = useState('Editorial Photo');
-    const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
-    const [imageCount, setImageCount] = useState(2);
-    const [imageProvider, setImageProvider] = useState<'gemini' | 'turbo'>('gemini');
-    const [imageGenerating, setImageGenerating] = useState(false);
-    const [generatedImages, setGeneratedImages] = useState<Array<{ url: string; provider: 'gemini' | 'turbo' }>>([]);
-    const [coverImageUrl, setCoverImageUrl] = useState<string>('');
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
 
     const generationControllerRef = useRef<AbortController | null>(null);
     const generationTimeoutRef = useRef<number | null>(null);
@@ -233,101 +225,6 @@ const AILab = () => {
         return sections.join('\n\n');
     };
 
-    const buildImagePromptFromArticle = () => {
-        if (!generatedContent) {
-            toast.error('Generate an article first.');
-            return;
-        }
-        const title = (generatedContent as any)[`title_${activeTab}`] || generatedContent.title_en || generatedContent.title_sk || '';
-        const excerpt = (generatedContent as any)[`excerpt_${activeTab}`] || generatedContent.excerpt_en || generatedContent.excerpt_sk || '';
-        const basePrompt = title
-            ? `Create an editorial cover image for an article titled: "${title}".`
-            : 'Create an editorial cover image for a legal/business article.';
-        const detailPrompt = excerpt ? `Key theme: ${excerpt}` : '';
-        const stylePrompt = `Style: ${imageStyle}. Aspect ratio: ${imageAspect}. Professional, high-quality, no text overlay.`;
-        setImagePrompt([basePrompt, detailPrompt, stylePrompt].filter(Boolean).join('\n'));
-    };
-
-    const aspectSizes: Record<string, { width: number; height: number }> = {
-        '1:1': { width: 1024, height: 1024 },
-        '16:9': { width: 1280, height: 720 },
-        '4:3': { width: 1024, height: 768 },
-        '3:4': { width: 768, height: 1024 },
-    };
-
-    const handleGenerateImages = async () => {
-        if (!imagePrompt.trim()) {
-            toast.error('Enter an image prompt.');
-            return;
-        }
-        setImageGenerating(true);
-        setGeneratedImages([]);
-        try {
-            const { width, height } = aspectSizes[imageAspect];
-            const finalPrompt = `${imagePrompt}\nStyle: ${imageStyle}. Aspect ratio: ${imageAspect}.`;
-            const results: Array<{ url: string; provider: 'gemini' | 'turbo' }> = [];
-            for (let i = 0; i < imageCount; i += 1) {
-                const url = await generateAIImage(finalPrompt, {
-                    turbo: imageProvider === 'turbo',
-                    width,
-                    height,
-                });
-                results.push({ url, provider: imageProvider });
-            }
-            setGeneratedImages(results);
-            toast.success('Images generated');
-        } catch (error: any) {
-            toast.error(error.message || 'Image generation failed');
-        } finally {
-            setImageGenerating(false);
-        }
-    };
-
-    const uploadImageToLibrary = async (imageUrl: string, title: string) => {
-        const response = await fetch(imageUrl);
-        if (!response.ok) throw new Error('Failed to fetch image data.');
-        const blob = await response.blob();
-        const ext = blob.type.split('/')[1] || 'png';
-        const filePath = `ai/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-            .from('images')
-            .upload(filePath, blob, { contentType: blob.type });
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
-        const publicUrl = urlData.publicUrl;
-
-        await supabase.from('media_library').insert({
-            title,
-            file_path: filePath,
-            public_url: publicUrl,
-            bucket: 'images',
-            tags: ['ai', 'article', 'generated'],
-        });
-
-        return publicUrl;
-    };
-
-    const handleSaveImage = async (imageUrl: string) => {
-        try {
-            const title = imagePrompt ? imagePrompt.split('\n')[0].slice(0, 80) : 'AI generated image';
-            const publicUrl = await uploadImageToLibrary(imageUrl, title);
-            toast.success('Saved to media library');
-            return publicUrl;
-        } catch (error: any) {
-            toast.error(error.message || 'Failed to save image');
-            return null;
-        }
-    };
-
-    const handleUseAsCover = async (imageUrl: string) => {
-        const savedUrl = await handleSaveImage(imageUrl);
-        if (savedUrl) {
-            setCoverImageUrl(savedUrl);
-            toast.success('Cover image set');
-        }
-    };
 
     const clearGenerationTimers = () => {
         if (generationTimeoutRef.current) {
@@ -405,7 +302,6 @@ const AILab = () => {
         setGenerationElapsedMs(0);
         setResearchSources([]);
         setResearchSummary('');
-        setCoverImageUrl('');
         const requestId = (globalThis.crypto && 'randomUUID' in globalThis.crypto)
             ? globalThis.crypto.randomUUID()
             : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -614,6 +510,7 @@ const AILab = () => {
         if (!generatedContent || !user) return;
 
         try {
+            setIsSavingDraft(true);
             // 1. Generate slug from the first available title
             const titleForSlug = generatedContent.title_sk || generatedContent.title_en || generatedContent.title_de || generatedContent.title_cn || 'untitled-article';
             const slug = titleForSlug
@@ -653,9 +550,9 @@ const AILab = () => {
                     meta_keywords_en: generatedContent.meta_keywords_en || '',
                     meta_keywords_de: generatedContent.meta_keywords_de || '',
                     meta_keywords_cn: generatedContent.meta_keywords_cn || '',
+                    tags: generatedContent.tags || [],
                     author_id: user.id,
                     is_published: false,
-                    cover_image_url: coverImageUrl || null,
                 })
                 .select()
                 .single();
@@ -695,9 +592,17 @@ const AILab = () => {
             }
 
             toast.success('Article saved as draft!');
-            router.push(`/admin?tab=articles&edit=${article.id}`);
+            const targetUrl = `/admin?tab=articles&edit=${article.id}`;
+            router.push(targetUrl);
+            setTimeout(() => {
+                if (window.location.pathname !== '/admin' || !window.location.search.includes('edit=')) {
+                    window.location.assign(targetUrl);
+                }
+            }, 600);
         } catch (error: any) {
             toast.error(error.message || 'Failed to save article');
+        } finally {
+            setIsSavingDraft(false);
         }
     };
 
@@ -1155,7 +1060,7 @@ const AILab = () => {
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0 pb-6">
                         {generatedContent ? (
-                            <ScrollArea className="h-[calc(100vh-280px)] pr-4 pb-12">
+                            <div className="h-[calc(100vh-260px)] overflow-y-auto pr-4 pb-16">
                                 <div className="space-y-6">
                                     <div>
                                         <h1 className="text-2xl font-bold mb-2">
@@ -1167,7 +1072,10 @@ const AILab = () => {
                                     </div>
 
                                     <div
-                                        className="prose prose-sm dark:prose-invert max-w-none"
+                                        className="prose prose-sm dark:prose-invert max-w-none
+                                        prose-headings:mt-6 prose-headings:mb-3
+                                        prose-p:mt-3 prose-p:leading-relaxed
+                                        prose-ul:mt-3 prose-li:mt-1"
                                         dangerouslySetInnerHTML={{
                                             __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
                                         }}
@@ -1197,7 +1105,7 @@ const AILab = () => {
                                     )}
 
                                     <div className="pt-6 border-t flex flex-wrap gap-2">
-                                        {generatedContent.tags.map(tag => (
+                                        {(generatedContent.tags || []).map(tag => (
                                             <Badge key={tag} variant="outline">{tag}</Badge>
                                         ))}
                                     </div>
@@ -1249,7 +1157,7 @@ const AILab = () => {
                                         </div>
                                     )}
                                 </div>
-                            </ScrollArea>
+                            </div>
                         ) : (
                             <div className="h-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground text-center p-8">
                                 <div>
@@ -1262,169 +1170,15 @@ const AILab = () => {
                     </CardContent>
                     {generatedContent && (
                         <CardFooter className="pt-4 border-t">
-                            <Button onClick={handleSave} className="w-full">
+                            <Button onClick={handleSave} className="w-full" disabled={isSavingDraft}>
                                 <FloppyDiskIcon size={18} className="mr-2" />
-                                Save as Draft and Edit
+                                {isSavingDraft ? 'Saving draft...' : 'Save as Draft and Edit'}
                             </Button>
                         </CardFooter>
                     )}
                 </Card>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <AiMagicIcon size={22} className="text-primary" />
-                        <CardTitle>AI Image Generator</CardTitle>
-                    </div>
-                    <CardDescription>
-                        Generate article cover images with Gemini (or Turbo for fast drafts). Save to the media library or set as the article cover.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-[1.2fr,1fr] gap-6">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Image Prompt</Label>
-                                <Textarea
-                                    value={imagePrompt}
-                                    onChange={(e) => setImagePrompt(e.target.value)}
-                                    rows={5}
-                                    placeholder="Describe the desired image..."
-                                />
-                                <div className="flex flex-wrap gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={buildImagePromptFromArticle}
-                                        disabled={!generatedContent}
-                                    >
-                                        Use Article Content
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => setImagePrompt('')}
-                                    >
-                                        Clear
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Style</Label>
-                                    <Select value={imageStyle} onValueChange={setImageStyle}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select style" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Editorial Photo">Editorial Photo</SelectItem>
-                                            <SelectItem value="Corporate Illustration">Corporate Illustration</SelectItem>
-                                            <SelectItem value="Minimal Abstract">Minimal Abstract</SelectItem>
-                                            <SelectItem value="Professional 3D">Professional 3D</SelectItem>
-                                            <SelectItem value="Watercolor Illustration">Watercolor Illustration</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Aspect Ratio</Label>
-                                    <Select value={imageAspect} onValueChange={(value) => setImageAspect(value as typeof imageAspect)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select ratio" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="16:9">16:9 (Hero)</SelectItem>
-                                            <SelectItem value="4:3">4:3 (Blog)</SelectItem>
-                                            <SelectItem value="1:1">1:1 (Square)</SelectItem>
-                                            <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Provider</Label>
-                                    <Select value={imageProvider} onValueChange={(value) => setImageProvider(value as 'gemini' | 'turbo')}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select provider" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="gemini">Gemini (Pro)</SelectItem>
-                                            <SelectItem value="turbo">Turbo (Fast)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <p className="text-[10px] text-muted-foreground">
-                                        Gemini uses your API key. Turbo is fast and free, good for drafts.
-                                    </p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Image Variations</Label>
-                                    <Input
-                                        type="number"
-                                        min={1}
-                                        max={4}
-                                        value={imageCount}
-                                        onChange={(e) => setImageCount(Math.max(1, Math.min(4, parseInt(e.target.value) || 1)))}
-                                    />
-                                </div>
-                            </div>
-
-                            {coverImageUrl && (
-                                <div className="text-xs text-muted-foreground">
-                                    <strong>Selected cover:</strong> {coverImageUrl}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-3">
-                            <Label>Generated Images</Label>
-                            {generatedImages.length === 0 ? (
-                                <div className="h-full min-h-[240px] flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground text-center p-6">
-                                    <div>
-                                        <AiMagicIcon size={36} className="mx-auto mb-2 opacity-20" />
-                                        <p className="text-sm">No images yet</p>
-                                        <p className="text-xs">Generate to preview image options.</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {generatedImages.map((img, idx) => (
-                                        <div key={`${img.url}-${idx}`} className="border rounded-lg overflow-hidden bg-white">
-                                            <div className="aspect-video bg-muted">
-                                                <img
-                                                    src={img.url}
-                                                    alt={`Generated ${idx + 1}`}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
-                                            <div className="p-3 space-y-2">
-                                                <div className="text-[11px] text-muted-foreground">
-                                                    Provider: {img.provider === 'gemini' ? 'Gemini' : 'Turbo'}
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button size="sm" variant="outline" onClick={() => handleSaveImage(img.url)}>
-                                                        Save
-                                                    </Button>
-                                                    <Button size="sm" onClick={() => handleUseAsCover(img.url)}>
-                                                        Use as Cover
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={handleGenerateImages} disabled={imageGenerating} className="w-full">
-                        {imageGenerating ? 'Generating images...' : 'Generate Images'}
-                    </Button>
-                </CardFooter>
-            </Card>
         </div>
     );
 };

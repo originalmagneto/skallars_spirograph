@@ -59,7 +59,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **outline-first workflow**: generate outline, approve, then generate full draft. ✅
 - Add **editorial tools**: rewrite sections, expand/shorten, simplify. ✅
 - Add **fact-check checklist** and **legal compliance disclaimer** blocks. ✅
-- Add **AI Image Generator in AI Lab** (Gemini/Turbo, aspect ratios, save to media library, set cover). ✅
+- Add **AI Image Generator in Article Editor** (Gemini/Turbo, aspect ratios, save to media library, set cover). ✅
 
 ## Phase 4: AI Image Studio (Only After Content Editing Is Strong)
 - Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets.

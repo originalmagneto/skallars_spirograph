@@ -15,6 +15,7 @@ type PostPreview = {
   published_at?: string;
   reading_time?: number;
   badge?: 'News' | 'Komentár' | 'Analýza';
+  tags?: string[];
 };
 
 export default function BlogCarousel() {
@@ -187,12 +188,20 @@ export default function BlogCarousel() {
             key={post.id}
             className="min-w-[300px] max-w-[300px] bg-white rounded-xl overflow-hidden shadow-lg snap-start transition-transform duration-300 ease-out hover:-translate-y-1 hover:shadow-2xl"
           >
-            <Link href={`/blog/${post.slug}`}>
+            <Link href={`/blog/${post.slug}`} className="block relative">
               <img
                 src={post.feature_image || '/images/legal-consultation.jpg'}
                 alt={post.feature_image_alt || post.title}
                 className="w-full h-40 object-cover transform transition-transform duration-300 hover:scale-[1.03]"
               />
+              {post.tags?.length ? (
+                <span
+                  className="absolute top-3 left-3 text-[10px] uppercase tracking-wide px-2 py-1 rounded-full shadow-md"
+                  style={{ backgroundColor: '#210059', color: '#FFFFFF', textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}
+                >
+                  {post.tags[0]}
+                </span>
+              ) : null}
             </Link>
             <div className="p-4">
               {post.badge && (
@@ -235,4 +244,3 @@ export default function BlogCarousel() {
     </div>
   );
 }
-

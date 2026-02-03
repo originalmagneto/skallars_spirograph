@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
       feature_image: post.cover_image_url,
       published_at: post.published_at,
       reading_time: 5, // Placeholder or calculate
+      tags: Array.isArray(post.tags) ? post.tags : [],
       // Multi-language support for frontend will need to send all titles
       title_sk: post.title_sk,
       title_en: post.title_en,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Upload, X, Eye, EyeOff, Trash2, Sparkles } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -48,6 +48,7 @@ interface ArticleFormData {
     compliance_disclaimer_de: string;
     compliance_disclaimer_cn: string;
     fact_checklist: Record<string, boolean>;
+    tags: string[];
 }
 
 interface ArticleEditorProps {
@@ -101,6 +102,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             acc[item.key] = false;
             return acc;
         }, {} as Record<string, boolean>),
+        tags: [],
     });
     const [uploading, setUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<'sk' | 'en' | 'de' | 'cn'>('sk');
@@ -109,6 +111,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [editInstruction, setEditInstruction] = useState('');
     const [editOutput, setEditOutput] = useState('');
     const [editLoading, setEditLoading] = useState(false);
+    const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
+    const [tagsInput, setTagsInput] = useState('');
+    const editorRef = useRef<HTMLDivElement | null>(null);
     const [imagePrompt, setImagePrompt] = useState('');
     const [imageStyle, setImageStyle] = useState('Editorial Photo');
     const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
@@ -157,11 +162,13 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 compliance_disclaimer_en: article.compliance_disclaimer_en || '',
                 compliance_disclaimer_de: article.compliance_disclaimer_de || '',
                 compliance_disclaimer_cn: article.compliance_disclaimer_cn || '',
+                tags: Array.isArray(article.tags) ? article.tags : [],
                 fact_checklist: article.fact_checklist || factChecklistDefaults.reduce((acc, item) => {
                     acc[item.key] = false;
                     return acc;
                 }, {} as Record<string, boolean>),
             });
+            setTagsInput(Array.isArray(article.tags) ? article.tags.join(', ') : '');
         }
     }, [article]);
 
@@ -195,6 +202,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             setFormData(prev => ({ ...prev, slug }));
         }
     }, [formData.title_sk, isNew]);
+
+    useEffect(() => {
+        if (editorMode !== 'visual') return;
+        if (!editorRef.current) return;
+        const nextHtml = getCurrentContent() || '';
+        if (editorRef.current.innerHTML !== nextHtml) {
+            editorRef.current.innerHTML = nextHtml;
+        }
+    }, [activeTab, editorMode, formData.content_sk, formData.content_en, formData.content_de, formData.content_cn]);
 
     // Save mutation
     const saveMutation = useMutation({
@@ -435,6 +451,20 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const updateField = (field: 'title' | 'excerpt' | 'content', value: string) => {
         const key = `${field}_${activeTab}` as keyof ArticleFormData;
         setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const parseTagsInput = (value: string) => {
+        return value
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
+    };
+
+    const applyEditorCommand = (command: string, value?: string) => {
+        if (!editorRef.current) return;
+        editorRef.current.focus();
+        document.execCommand(command, false, value);
+        updateField('content', editorRef.current.innerHTML);
     };
 
     const updateDisclaimer = (value: string) => {
@@ -771,6 +801,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         placeholder="article-url-slug"
                     />
                 </div>
+                <div className="space-y-2">
+                    <Label>Tags (comma separated)</Label>
+                    <Input
+                        value={tagsInput}
+                        onChange={(e) => {
+                            const next = e.target.value;
+                            setTagsInput(next);
+                            setFormData(prev => ({ ...prev, tags: parseTagsInput(next) }));
+                        }}
+                        placeholder="ai, regulation, compliance"
+                    />
+                </div>
 
                 <div className="space-y-2">
                     <Label>{getLabel('Excerpt', 'Krátky popis')}</Label>
@@ -785,17 +827,93 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
             {/* Content Editor */}
             <div className="space-y-2">
-                <Label>{getLabel('Content', 'Obsah')}</Label>
-                <Textarea
-                    value={getCurrentContent()}
-                    onChange={(e) => updateField('content', e.target.value)}
-                    placeholder={getLabel('Start writing article content...', 'Začnite písať obsah článku...')}
-                    rows={12}
-                    className="font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                    Content is rendered as HTML on the blog. Use valid HTML tags. For rich text editing, consider integrating a WYSIWYG editor.
-                </p>
+                <div className="flex items-center justify-between">
+                    <Label>{getLabel('Content', 'Obsah')}</Label>
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={editorMode === 'visual' ? 'default' : 'outline'}
+                            onClick={() => setEditorMode('visual')}
+                        >
+                            Visual
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={editorMode === 'html' ? 'default' : 'outline'}
+                            onClick={() => setEditorMode('html')}
+                        >
+                            HTML
+                        </Button>
+                    </div>
+                </div>
+
+                {editorMode === 'visual' ? (
+                    <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('bold')}>
+                                Bold
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('italic')}>
+                                Italic
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('underline')}>
+                                Underline
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'H2')}>
+                                H2
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'H3')}>
+                                H3
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'P')}>
+                                Paragraph
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('insertUnorderedList')}>
+                                Bullets
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('insertOrderedList')}>
+                                Numbered
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    const url = window.prompt('Enter link URL');
+                                    if (url) applyEditorCommand('createLink', url);
+                                }}
+                            >
+                                Link
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('unlink')}>
+                                Unlink
+                            </Button>
+                        </div>
+                        <div
+                            ref={editorRef}
+                            className="min-h-[260px] rounded-lg border border-input bg-background p-4 text-sm prose max-w-none focus:outline-none"
+                            contentEditable
+                            onInput={(e) => {
+                                const html = (e.target as HTMLDivElement).innerHTML;
+                                updateField('content', html);
+                            }}
+                            suppressContentEditableWarning
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                            Tip: Use headings and short paragraphs for best readability.
+                        </p>
+                    </div>
+                ) : (
+                    <Textarea
+                        value={getCurrentContent()}
+                        onChange={(e) => updateField('content', e.target.value)}
+                        placeholder={getLabel('Start writing article content...', 'Začnite písať obsah článku...')}
+                        rows={12}
+                        className="font-mono text-sm"
+                    />
+                )}
             </div>
 
             {/* Editorial Tools */}

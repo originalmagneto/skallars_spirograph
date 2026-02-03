@@ -36,6 +36,7 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
     const content = getField('content');
     const featureImage = post.cover_image_url || post.feature_image;
     const disclaimer = getField('disclaimer');
+    const tags: string[] = Array.isArray(post.tags) ? post.tags : [];
 
     return (
         <div className="min-h-screen bg-white">
@@ -62,9 +63,21 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
                         </div>
                     )}
 
-                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#210059] mb-6 tracking-tight leading-tight">
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#210059] mb-4 tracking-tight leading-tight">
                         {title}
                     </h1>
+                    {tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-6">
+                            {tags.map((tag) => (
+                                <span
+                                    key={tag}
+                                    className="inline-flex items-center rounded-full bg-[#210059]/10 text-[#210059] px-3 py-1 text-xs font-semibold"
+                                >
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
 
                     <div className="flex items-center gap-4 mb-8 text-sm text-gray-500 border-b pb-8">
                         <span className="flex items-center gap-2">
@@ -95,10 +108,12 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
                     <div
                         className="prose prose-lg prose-slate max-w-none 
               prose-headings:font-bold prose-headings:text-[#210059] prose-headings:tracking-tight
-              prose-p:text-gray-600 prose-p:leading-relaxed
+              prose-h2:mt-10 prose-h2:mb-4 prose-h3:mt-8 prose-h3:mb-3
+              prose-p:mt-4 prose-p:text-gray-600 prose-p:leading-relaxed
               prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
               prose-strong:text-[#210059] prose-strong:font-bold
-              prose-li:text-gray-600
+              prose-li:mt-2 prose-li:text-gray-600
+              prose-ul:mt-4 prose-ol:mt-4
               prose-img:rounded-xl prose-img:shadow-lg prose-img:my-8"
                         dangerouslySetInnerHTML={{ __html: content }}
                     />
