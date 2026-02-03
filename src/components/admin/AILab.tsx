@@ -511,6 +511,36 @@ const AILab = () => {
 
         try {
             setIsSavingDraft(true);
+            const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string) => {
+                return await new Promise<T>((resolve, reject) => {
+                    const timer = window.setTimeout(() => {
+                        reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`));
+                    }, ms);
+                    promise
+                        .then((value) => {
+                            window.clearTimeout(timer);
+                            resolve(value);
+                        })
+                        .catch((err) => {
+                            window.clearTimeout(timer);
+                            reject(err);
+                        });
+                });
+            };
+
+            const logSaveEvent = async (status: string, payload?: Record<string, any>) => {
+                try {
+                    await supabase.from('ai_generation_logs').insert({
+                        action: 'ai_lab_save_draft',
+                        status,
+                        model: selectedModel,
+                        user_id: user.id,
+                        details: payload || null,
+                    });
+                } catch {
+                    // Ignore logging failures
+                }
+            };
             // 1. Generate slug from the first available title
             const titleForSlug = generatedContent.title_sk || generatedContent.title_en || generatedContent.title_de || generatedContent.title_cn || 'untitled-article';
             const slug = titleForSlug
@@ -520,79 +550,116 @@ const AILab = () => {
                 .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
                 .replace(/(^-|-$)/g, '') // Remove leading/trailing hyphens
                 + '-' + Date.now().toString().slice(-4); // Add unique suffix to prevent collisions
+            const tagCount = Array.isArray(generatedContent.tags) ? generatedContent.tags.length : 0;
+
+            void logSaveEvent('start', { slug, tagsCount: tagCount });
 
             // 2. Insert article
-            const { data: article, error: articleError } = await supabase
-                .from('articles')
-                .insert({
-                    title_sk: generatedContent.title_sk || '',
-                    title_en: generatedContent.title_en || '',
-                    title_de: generatedContent.title_de || '',
-                    title_cn: generatedContent.title_cn || '',
-                    slug: slug,
-                    excerpt_sk: generatedContent.excerpt_sk || '',
-                    excerpt_en: generatedContent.excerpt_en || '',
-                    excerpt_de: generatedContent.excerpt_de || '',
-                    excerpt_cn: generatedContent.excerpt_cn || '',
-                    content_sk: generatedContent.content_sk || '',
-                    content_en: generatedContent.content_en || '',
-                    content_de: generatedContent.content_de || '',
-                    content_cn: generatedContent.content_cn || '',
-                    meta_title_sk: generatedContent.meta_title_sk || '',
-                    meta_title_en: generatedContent.meta_title_en || '',
-                    meta_title_de: generatedContent.meta_title_de || '',
-                    meta_title_cn: generatedContent.meta_title_cn || '',
-                    meta_description_sk: generatedContent.meta_description_sk || '',
-                    meta_description_en: generatedContent.meta_description_en || '',
-                    meta_description_de: generatedContent.meta_description_de || '',
-                    meta_description_cn: generatedContent.meta_description_cn || '',
-                    meta_keywords_sk: generatedContent.meta_keywords_sk || '',
-                    meta_keywords_en: generatedContent.meta_keywords_en || '',
-                    meta_keywords_de: generatedContent.meta_keywords_de || '',
-                    meta_keywords_cn: generatedContent.meta_keywords_cn || '',
-                    tags: generatedContent.tags || [],
-                    author_id: user.id,
-                    is_published: false,
-                })
-                .select()
-                .single();
+            let articleId: string | null = null;
+            try {
+                const insertPromise = supabase
+                    .from('articles')
+                    .insert({
+                        title_sk: generatedContent.title_sk || '',
+                        title_en: generatedContent.title_en || '',
+                        title_de: generatedContent.title_de || '',
+                        title_cn: generatedContent.title_cn || '',
+                        slug: slug,
+                        excerpt_sk: generatedContent.excerpt_sk || '',
+                        excerpt_en: generatedContent.excerpt_en || '',
+                        excerpt_de: generatedContent.excerpt_de || '',
+                        excerpt_cn: generatedContent.excerpt_cn || '',
+                        content_sk: generatedContent.content_sk || '',
+                        content_en: generatedContent.content_en || '',
+                        content_de: generatedContent.content_de || '',
+                        content_cn: generatedContent.content_cn || '',
+                        meta_title_sk: generatedContent.meta_title_sk || '',
+                        meta_title_en: generatedContent.meta_title_en || '',
+                        meta_title_de: generatedContent.meta_title_de || '',
+                        meta_title_cn: generatedContent.meta_title_cn || '',
+                        meta_description_sk: generatedContent.meta_description_sk || '',
+                        meta_description_en: generatedContent.meta_description_en || '',
+                        meta_description_de: generatedContent.meta_description_de || '',
+                        meta_description_cn: generatedContent.meta_description_cn || '',
+                        meta_keywords_sk: generatedContent.meta_keywords_sk || '',
+                        meta_keywords_en: generatedContent.meta_keywords_en || '',
+                        meta_keywords_de: generatedContent.meta_keywords_de || '',
+                        meta_keywords_cn: generatedContent.meta_keywords_cn || '',
+                        tags: generatedContent.tags || [],
+                        author_id: user.id,
+                        is_published: false,
+                    })
+                    .select('id')
+                    .single();
 
-            if (articleError) throw articleError;
-
-            // 3. Handle Tags
-            if (generatedContent.tags && generatedContent.tags.length > 0) {
-                for (const tagName of generatedContent.tags) {
-                    const tagSlug = tagName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-
-                    // Upsert tag
-                    let { data: tag } = await supabase
-                        .from('tags')
+                const { data: article, error: articleError } = await withTimeout(insertPromise, 20000, 'Saving draft');
+                if (articleError) throw articleError;
+                articleId = article?.id || null;
+            } catch (err: any) {
+                const isTimeout = String(err?.message || '').toLowerCase().includes('timed out');
+                if (isTimeout) {
+                    // If the insert succeeded but the response was delayed, try to recover by slug
+                    const recoveryPromise = supabase
+                        .from('articles')
                         .select('id')
-                        .eq('slug', tagSlug)
+                        .eq('slug', slug)
                         .maybeSingle();
-
-                    if (!tag) {
-                        const { data: newTag, error: tagError } = await supabase
-                            .from('tags')
-                            .insert({ name_sk: tagName, name_en: tagName, slug: tagSlug })
-                            .select()
-                            .single();
-                        if (tagError) continue;
-                        tag = newTag;
+                    const { data: existing } = await withTimeout(recoveryPromise, 8000, 'Recovery check');
+                    if (existing?.id) {
+                        articleId = existing.id;
+                    } else {
+                        throw err;
                     }
-
-                    // Link tag to article
-                    if (tag) {
-                        await supabase.from('article_tags').insert({
-                            article_id: article.id,
-                            tag_id: tag.id
-                        });
-                    }
+                } else {
+                    throw err;
                 }
             }
 
+            if (!articleId) {
+                throw new Error('Failed to create article draft.');
+            }
+
+            // 3. Handle Tags
+            const tagList = Array.isArray(generatedContent.tags) ? generatedContent.tags : [];
+            if (tagList.length > 0) {
+                const linkTags = async () => {
+                    for (const tagName of tagList) {
+                        const tagSlug = tagName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+                        // Upsert tag
+                        let { data: tag } = await supabase
+                            .from('tags')
+                            .select('id')
+                            .eq('slug', tagSlug)
+                            .maybeSingle();
+
+                        if (!tag) {
+                            const { data: newTag, error: tagError } = await supabase
+                                .from('tags')
+                                .insert({ name_sk: tagName, name_en: tagName, slug: tagSlug })
+                                .select()
+                                .single();
+                            if (tagError) continue;
+                            tag = newTag;
+                        }
+
+                        // Link tag to article
+                        if (tag) {
+                            await supabase.from('article_tags').insert({
+                                article_id: articleId,
+                                tag_id: tag.id
+                            });
+                        }
+                    }
+                };
+
+                // Don't block navigation on tag linking
+                void linkTags();
+            }
+
             toast.success('Article saved as draft!');
-            const targetUrl = `/admin?tab=articles&edit=${article.id}`;
+            void logSaveEvent('success', { articleId });
+            const targetUrl = `/admin?tab=articles&edit=${articleId}`;
             router.push(targetUrl);
             setTimeout(() => {
                 if (window.location.pathname !== '/admin' || !window.location.search.includes('edit=')) {
@@ -600,7 +667,14 @@ const AILab = () => {
                 }
             }, 600);
         } catch (error: any) {
-            toast.error(error.message || 'Failed to save article');
+            void supabase.from('ai_generation_logs').insert({
+                action: 'ai_lab_save_draft',
+                status: 'error',
+                model: selectedModel,
+                user_id: user.id,
+                error_message: error?.message || String(error),
+            }).catch(() => {});
+            toast.error(error?.message || 'Failed to save article');
         } finally {
             setIsSavingDraft(false);
         }
