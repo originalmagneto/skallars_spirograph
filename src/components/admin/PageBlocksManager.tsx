@@ -11,11 +11,12 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, FileBlockIcon } from 'hugeicons-react';
+import PageBlockItemsManager from './PageBlockItemsManager';
 
 interface PageBlock {
   id?: string;
   page: string;
-  block_type: 'callout';
+  block_type: 'callout' | 'testimonials' | 'faq';
   title_sk?: string | null;
   title_en?: string | null;
   title_de?: string | null;
@@ -220,13 +221,16 @@ export default function PageBlocksManager() {
             </div>
 
             {editingId === block.id && (
-              <div className="mt-4">
+              <div className="mt-4 space-y-4">
                 <BlockForm
                   values={editForm}
                   onChange={setEditForm}
                   onSave={handleSave}
                   onCancel={() => setEditingId(null)}
                 />
+                {editForm.block_type !== 'callout' && editForm.id && (
+                  <PageBlockItemsManager blockId={editForm.id} blockType={editForm.block_type} />
+                )}
               </div>
             )}
           </div>
@@ -251,6 +255,20 @@ function BlockForm({
 }) {
   return (
     <div className="p-4 border rounded-lg bg-muted/40 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label className="text-xs">Block Type</Label>
+          <select
+            value={values.block_type}
+            onChange={(e) => onChange({ ...values, block_type: e.target.value as PageBlock['block_type'] })}
+            className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          >
+            <option value="callout">Callout</option>
+            <option value="testimonials">Testimonials</option>
+            <option value="faq">FAQ</option>
+          </select>
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label className="text-xs">Title (SK)</Label>

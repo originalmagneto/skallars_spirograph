@@ -35,6 +35,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **Countries block settings** (controls, labels, stats, default view). ✅
 - Add **Footer links manager** (solutions + social URLs, multilingual labels). ✅
 - Add **Homepage blocks** (callout block type + layout integration). ✅
+- Add **Block templates** (testimonials + FAQ with item editor). ✅
 - Support **reorderable blocks** and **section templates** (Hero, Services, Team, Testimonials, Contact).
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
 - Add **live preview** with “before/after” diff for reviewers.

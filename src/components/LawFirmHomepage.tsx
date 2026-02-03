@@ -18,6 +18,7 @@ import {
 } from "framer-motion";
 import dynamic from 'next/dynamic';
 import GlobalNetworkSection from './GlobalNetworkSection';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import BlogCarousel from './BlogCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/lib/supabase';
@@ -193,6 +194,7 @@ export default function LawFirmHomepage() {
   });
   const [footerLinks, setFooterLinks] = useState<any[]>([]);
   const [pageBlocks, setPageBlocks] = useState<any[]>([]);
+  const [pageBlockItems, setPageBlockItems] = useState<any[]>([]);
   const [footerSettings, setFooterSettings] = useState({
     show_newsletter: true,
     show_social: true,
@@ -299,6 +301,14 @@ export default function LawFirmHomepage() {
       if (pageBlocksData) {
         setPageBlocks(pageBlocksData);
       }
+
+      const { data: pageBlockItemsData } = await supabase
+        .from('page_block_items')
+        .select('*')
+        .order('sort_order', { ascending: true });
+      if (pageBlockItemsData) {
+        setPageBlockItems(pageBlockItemsData);
+      }
     };
     fetchData();
   }, []);
@@ -335,6 +345,11 @@ export default function LawFirmHomepage() {
   const orderedKeys = sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const isEnabled = (key: string) => sectionEnabled[key] ?? true;
   const blockMap = new Map((pageBlocks || []).map((block: any) => [block.id, block]));
+  const blockItemsMap = new Map<string, any[]>();
+  (pageBlockItems || []).forEach((item: any) => {
+    if (!blockItemsMap.has(item.block_id)) blockItemsMap.set(item.block_id, []);
+    blockItemsMap.get(item.block_id)!.push(item);
+  });
 
   const getBlockText = (block: any, field: string) => {
     const value = block[`${field}_${language}`];
@@ -591,30 +606,75 @@ export default function LawFirmHomepage() {
 
   const renderBlock = (block: any) => {
     if (!block || block.enabled === false) return null;
-    if (block.block_type !== 'callout') return null;
     const title = getBlockText(block, 'title');
     const body = getBlockText(block, 'body');
     const buttonLabel = getBlockText(block, 'button_label');
     const buttonUrl = block.button_url;
+    const items = (blockItemsMap.get(block.id) || []).filter((item) => item.enabled !== false);
 
-    return (
-      <section className="py-16 bg-[#210059] text-white" data-admin-section={`block-${block.id}`}>
-        <div className="container mx-auto px-4 text-center space-y-4">
-          {title && <h3 className="text-3xl font-semibold">{title}</h3>}
-          {body && <p className="text-white/80 max-w-2xl mx-auto">{body}</p>}
-          {buttonLabel && buttonUrl && (
-            <a
-              href={buttonUrl}
-              target={block.button_external ? '_blank' : undefined}
-              rel={block.button_external ? 'noopener noreferrer' : undefined}
-              className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent"
-            >
-              {buttonLabel}
-            </a>
-          )}
-        </div>
-      </section>
-    );
+    if (block.block_type === 'callout') {
+      return (
+        <section className="py-16 bg-[#210059] text-white" data-admin-section={`block-${block.id}`}>
+          <div className="container mx-auto px-4 text-center space-y-4">
+            {title && <h3 className="text-3xl font-semibold">{title}</h3>}
+            {body && <p className="text-white/80 max-w-2xl mx-auto">{body}</p>}
+            {buttonLabel && buttonUrl && (
+              <a
+                href={buttonUrl}
+                target={block.button_external ? '_blank' : undefined}
+                rel={block.button_external ? 'noopener noreferrer' : undefined}
+                className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent"
+              >
+                {buttonLabel}
+              </a>
+            )}
+          </div>
+        </section>
+      );
+    }
+
+    if (block.block_type === 'testimonials') {
+      return (
+        <section className="py-16 bg-white" data-admin-section={`block-${block.id}`}>
+          <div className="container mx-auto px-4 space-y-8">
+            {title && <h3 className="text-3xl font-semibold text-center text-foreground">{title}</h3>}
+            {body && <p className="text-center text-muted-foreground max-w-2xl mx-auto">{body}</p>}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {items.map((item) => (
+                <div key={item.id} className="border rounded-xl p-6 shadow-sm bg-white">
+                  <p className="text-sm text-muted-foreground mb-4">“{getBlockText(item, 'body')}”</p>
+                  <div className="text-sm font-semibold text-foreground">{getBlockText(item, 'title')}</div>
+                  {getBlockText(item, 'subtitle') && (
+                    <div className="text-xs text-muted-foreground">{getBlockText(item, 'subtitle')}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    if (block.block_type === 'faq') {
+      return (
+        <section className="py-16 bg-gray-50" data-admin-section={`block-${block.id}`}>
+          <div className="container mx-auto px-4 space-y-6">
+            {title && <h3 className="text-3xl font-semibold text-center text-foreground">{title}</h3>}
+            {body && <p className="text-center text-muted-foreground max-w-2xl mx-auto">{body}</p>}
+            <Accordion type="single" collapsible className="max-w-3xl mx-auto">
+              {items.map((item) => (
+                <AccordionItem key={item.id} value={item.id}>
+                  <AccordionTrigger>{getBlockText(item, 'title')}</AccordionTrigger>
+                  <AccordionContent>{getBlockText(item, 'body')}</AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </section>
+      );
+    }
+
+    return null;
   };
 
   const footerSections: Record<string, JSX.Element | null> = {
