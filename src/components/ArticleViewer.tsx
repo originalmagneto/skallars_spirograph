@@ -12,15 +12,16 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
     const { language, t } = useLanguage();
 
     // Helper to get content based on language with fallback
-    const getField = (field: 'title' | 'content' | 'excerpt') => {
+    const getField = (field: 'title' | 'content' | 'excerpt' | 'disclaimer') => {
         // Try current language
-        const val = post[`${field}_${language}`];
+        const fieldKey = field === 'disclaimer' ? 'compliance_disclaimer' : field;
+        const val = post[`${fieldKey}_${language}`];
         if (val) return val;
 
         // Fallback order: EN -> SK -> DE -> CN
         const fallbacks = ['en', 'sk', 'de', 'cn'];
         for (const lang of fallbacks) {
-            if (post[`${field}_${lang}`]) return post[`${field}_${lang}`];
+            if (post[`${fieldKey}_${lang}`]) return post[`${fieldKey}_${lang}`];
         }
 
         // Legacy/Ghost fallback
@@ -34,6 +35,7 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
     const title = getField('title');
     const content = getField('content');
     const featureImage = post.cover_image_url || post.feature_image;
+    const disclaimer = getField('disclaimer');
 
     return (
         <div className="min-h-screen bg-white">
@@ -100,6 +102,13 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
               prose-img:rounded-xl prose-img:shadow-lg prose-img:my-8"
                         dangerouslySetInnerHTML={{ __html: content }}
                     />
+
+                    {disclaimer && (
+                        <div className="mt-10 rounded-xl border border-[#210059]/20 bg-[#f7f3ff] p-6 text-sm text-[#210059]">
+                            <div className="font-semibold mb-2">Legal Disclaimer</div>
+                            <div className="text-[#210059]/90">{disclaimer}</div>
+                        </div>
+                    )}
                 </article>
 
                 <div className="mt-16 pt-8 border-t flex justify-between">

@@ -62,6 +62,10 @@ const AILab = () => {
     const [toneStyle, setToneStyle] = useState('Client-Friendly');
     const [toneInstructions, setToneInstructions] = useState('Clear, approachable, and confidence-building. Avoid legalese unless essential, explain terms briefly.');
     const [toneCustom, setToneCustom] = useState(false);
+    const [priceInputPerM, setPriceInputPerM] = useState<number | null>(null);
+    const [priceOutputPerM, setPriceOutputPerM] = useState<number | null>(null);
+    const [generationTimeMs, setGenerationTimeMs] = useState<number | null>(null);
+    const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
 
     const lengthDefaults: Record<string, number> = {
         Short: 400,
@@ -85,8 +89,12 @@ const AILab = () => {
             const { data: settings } = await supabase.from('settings').select('key, value');
             const model = settings?.find(s => s.key === 'gemini_model')?.value || 'gemini-2.0-flash';
             const apiKey = settings?.find(s => s.key === 'gemini_api_key')?.value;
+            const priceInput = settings?.find(s => s.key === 'gemini_price_input_per_million')?.value;
+            const priceOutput = settings?.find(s => s.key === 'gemini_price_output_per_million')?.value;
 
             setCurrentModel(model);
+            setPriceInputPerM(priceInput ? parseFloat(priceInput) : null);
+            setPriceOutputPerM(priceOutput ? parseFloat(priceOutput) : null);
 
             // Verify capabilities if we have an API key
             if (apiKey) {
@@ -190,6 +198,9 @@ const AILab = () => {
         }
 
         setGenerating(true);
+        setGenerationTimeMs(null);
+        setEstimatedCost(null);
+        const startTime = Date.now();
         try {
             const validLinks = links.filter(l => l.trim() !== '');
             if (useOutlineWorkflow && !outlineText && !showPromptEditor) {
@@ -210,6 +221,16 @@ const AILab = () => {
                 outline: useOutlineWorkflow && outlineText && !showPromptEditor ? outlineText : undefined
             });
             setGeneratedContent(content);
+            const durationMs = Date.now() - startTime;
+            setGenerationTimeMs(durationMs);
+
+            if (content.usage && priceInputPerM !== null && priceOutputPerM !== null) {
+                const inputCost = (content.usage.promptTokens / 1_000_000) * priceInputPerM;
+                const outputCost = (content.usage.completionTokens / 1_000_000) * priceOutputPerM;
+                setEstimatedCost(inputCost + outputCost);
+            } else {
+                setEstimatedCost(null);
+            }
 
             // Log token usage if available
             if (user && content.usage) {
@@ -841,6 +862,18 @@ const AILab = () => {
                                                 <div className="bg-background rounded p-2 border">
                                                     <p className="text-muted-foreground text-[10px] uppercase">Total</p>
                                                     <p className="font-mono font-medium">{generatedContent.usage.totalTokens}</p>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                                                <div className="bg-background rounded p-2 border flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Generation time</span>
+                                                    <span className="font-mono">{generationTimeMs ? `${(generationTimeMs / 1000).toFixed(1)}s` : '—'}</span>
+                                                </div>
+                                                <div className="bg-background rounded p-2 border flex items-center justify-between">
+                                                    <span className="text-muted-foreground">Estimated cost</span>
+                                                    <span className="font-mono">
+                                                        {estimatedCost !== null ? `$${estimatedCost.toFixed(4)}` : 'Set pricing in AI Settings'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>

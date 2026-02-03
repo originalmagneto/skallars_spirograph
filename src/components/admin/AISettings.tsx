@@ -169,7 +169,9 @@ const AISettings = () => {
             { key: 'gemini_api_key', value: '', description: 'API Key for Google Gemini (Vertex AI / Generative AI)' },
             { key: 'gemini_model', value: '', description: 'Selected Gemini model for text generation' },
             { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
-            { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' }
+            { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
+            { key: 'gemini_price_input_per_million', value: '', description: 'Optional: price per 1M input tokens (USD)' },
+            { key: 'gemini_price_output_per_million', value: '', description: 'Optional: price per 1M output tokens (USD)' }
         ];
         setSettings(defaults);
     };
@@ -179,6 +181,8 @@ const AISettings = () => {
     const geminiApiKey = settings.find(s => s.key === 'gemini_api_key')?.value || '';
     const selectedModel = settings.find(s => s.key === 'gemini_model')?.value || '';
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
+    const priceInput = settings.find(s => s.key === 'gemini_price_input_per_million')?.value || '';
+    const priceOutput = settings.find(s => s.key === 'gemini_price_output_per_million')?.value || '';
     return (
         <div className="space-y-8">
             <AIUsageStats />
@@ -270,6 +274,35 @@ const AISettings = () => {
                                     </p>
                                 </div>
                             )}
+
+                            <div className="space-y-2 pt-3 border-t">
+                                <Label className="text-sm">Cost Estimation (Optional)</Label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Input price ($ per 1M tokens)</Label>
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={priceInput}
+                                            onChange={(e) => handleUpdate('gemini_price_input_per_million', e.target.value)}
+                                            placeholder="e.g. 0.10"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Output price ($ per 1M tokens)</Label>
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={priceOutput}
+                                            onChange={(e) => handleUpdate('gemini_price_output_per_million', e.target.value)}
+                                            placeholder="e.g. 0.40"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">
+                                    Used only for cost estimates in AI Lab. Leave empty to hide cost estimates.
+                                </p>
+                            </div>
 
                             {/* Image Model Selection */}
                             {availableImageModels.length > 0 && (

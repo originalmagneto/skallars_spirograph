@@ -56,9 +56,9 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
  - Improve **sources panel**: show citations inline and in a dedicated references block. ✅
 - Add **voice & tone controls** (formal legal memo, client-friendly, news brief). ✅
 - Add **length control** slider with target word count and estimated cost/time. ✅
- - Add **outline-first workflow**: generate outline, approve, then generate full draft. ✅
-- Add **editorial tools**: rewrite sections, expand/shorten, simplify.
-- Add **fact-check checklist** and **legal compliance disclaimer** blocks.
+- Add **outline-first workflow**: generate outline, approve, then generate full draft. ✅
+- Add **editorial tools**: rewrite sections, expand/shorten, simplify. ✅
+- Add **fact-check checklist** and **legal compliance disclaimer** blocks. ✅
 
 ## Phase 4: AI Image Studio (Only After Content Editing Is Strong)
 - Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets.

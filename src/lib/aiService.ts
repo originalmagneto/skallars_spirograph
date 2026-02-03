@@ -349,6 +349,83 @@ export async function generateAIArticle(
     }
 }
 
+export async function generateAIEdit(
+    text: string,
+    options: { mode: 'rewrite' | 'expand' | 'shorten' | 'simplify'; customInstruction?: string; tone?: string; toneInstructions?: string; languageLabel?: string } = {
+        mode: 'rewrite'
+    }
+): Promise<string> {
+    const apiKey = await getSetting('gemini_api_key');
+    if (!apiKey) throw new Error('Gemini API Key not found in settings.');
+
+    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const {
+        mode,
+        customInstruction = '',
+        tone = 'Client-Friendly',
+        toneInstructions = '',
+        languageLabel = 'English (EN)'
+    } = options;
+
+    const modeGuides: Record<string, string> = {
+        rewrite: 'Rewrite for clarity and flow while preserving meaning and factual accuracy.',
+        expand: 'Expand with additional detail and context, but do not invent facts. Maintain structure.',
+        shorten: 'Shorten the text by ~40% while preserving key facts and conclusions.',
+        simplify: 'Simplify the language for a general audience without losing accuracy.',
+    };
+
+    const toneGuide = getToneGuide(tone, toneInstructions);
+
+    const prompt = `You are an expert legal editor.
+Your task is to edit the text below.
+
+### EDIT CONFIGURATION
+- **Mode**: ${mode}
+- **Language**: ${languageLabel}
+- **Instruction**: ${modeGuides[mode] || modeGuides.rewrite}
+
+### TONE GUIDELINES
+${toneGuide}
+
+### RULES
+1. Preserve HTML tags and structure. Output must be valid HTML.
+2. Do NOT add markdown or JSON.
+3. Do NOT add sources unless they already exist in the text.
+4. Keep all links intact.
+${customInstruction ? `5. Custom: ${customInstruction}` : ''}
+
+### INPUT (HTML)
+${text}
+
+### OUTPUT
+Return ONLY the edited HTML string.`;
+
+    const body: any = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            responseMimeType: "text/plain"
+        }
+    };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Gemini API Error: ${response.statusText} - ${errorBody}`);
+    }
+
+    const result = await response.json();
+    let content = result.candidates[0]?.content?.parts[0]?.text;
+    if (!content) throw new Error('No edited text returned by Gemini.');
+
+    const jsonMatch = content.match(/```html\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/);
+    const cleanContent = (jsonMatch ? jsonMatch[1] : content).trim();
+    return cleanContent;
+}
 export async function generateAIOutline(
     prompt: string,
     links: string[] = [],

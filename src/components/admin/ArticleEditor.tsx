@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Save, Upload, X, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Upload, X, Eye, EyeOff, Trash2, Sparkles } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
     AlertDialog,
@@ -24,6 +25,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
+import { generateAIEdit } from '@/lib/aiService';
 
 interface ArticleFormData {
     title_sk: string;
@@ -41,6 +43,11 @@ interface ArticleFormData {
     content_cn: string;
     cover_image_url: string;
     is_published: boolean;
+    compliance_disclaimer_sk: string;
+    compliance_disclaimer_en: string;
+    compliance_disclaimer_de: string;
+    compliance_disclaimer_cn: string;
+    fact_checklist: Record<string, boolean>;
 }
 
 interface ArticleEditorProps {
@@ -53,6 +60,22 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const router = useRouter();
     const queryClient = useQueryClient();
     const { user, isAdmin, isEditor } = useAuth();
+
+    const factChecklistDefaults: Array<{ key: string; label: string }> = [
+        { key: 'facts_verified', label: 'Facts and figures verified against sources' },
+        { key: 'jurisdiction_clear', label: 'Jurisdiction and scope are clearly stated' },
+        { key: 'citations_present', label: 'Citations or references included where relevant' },
+        { key: 'no_legal_advice', label: 'No direct legal advice or client-specific promises' },
+        { key: 'risk_balanced', label: 'Risks and limitations are disclosed' },
+        { key: 'compliance_reviewed', label: 'Compliance review completed' },
+    ];
+
+    const disclaimerDefaults: Record<string, string> = {
+        sk: 'Tento článok má informačný charakter a nepredstavuje právne poradenstvo. Pre konkrétne prípady odporúčame individuálnu konzultáciu.',
+        en: 'This article is for informational purposes only and does not constitute legal advice. For specific matters, please seek individual counsel.',
+        de: 'Dieser Artikel dient nur zu Informationszwecken und stellt keine Rechtsberatung dar. Für konkrete Fälle empfehlen wir eine individuelle Beratung.',
+        cn: '本文仅供信息参考，不构成法律建议。如需具体建议，请咨询专业人士。',
+    };
 
     const [formData, setFormData] = useState<ArticleFormData>({
         title_sk: '',
@@ -70,9 +93,22 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         content_cn: '',
         cover_image_url: '',
         is_published: false,
+        compliance_disclaimer_sk: '',
+        compliance_disclaimer_en: '',
+        compliance_disclaimer_de: '',
+        compliance_disclaimer_cn: '',
+        fact_checklist: factChecklistDefaults.reduce((acc, item) => {
+            acc[item.key] = false;
+            return acc;
+        }, {} as Record<string, boolean>),
     });
     const [uploading, setUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<'sk' | 'en' | 'de' | 'cn'>('sk');
+    const [editTarget, setEditTarget] = useState<'content' | 'excerpt'>('content');
+    const [editMode, setEditMode] = useState<'rewrite' | 'expand' | 'shorten' | 'simplify'>('rewrite');
+    const [editInstruction, setEditInstruction] = useState('');
+    const [editOutput, setEditOutput] = useState('');
+    const [editLoading, setEditLoading] = useState(false);
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -109,6 +145,14 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 content_cn: article.content_cn || '',
                 cover_image_url: article.cover_image_url || '',
                 is_published: article.is_published || false,
+                compliance_disclaimer_sk: article.compliance_disclaimer_sk || '',
+                compliance_disclaimer_en: article.compliance_disclaimer_en || '',
+                compliance_disclaimer_de: article.compliance_disclaimer_de || '',
+                compliance_disclaimer_cn: article.compliance_disclaimer_cn || '',
+                fact_checklist: article.fact_checklist || factChecklistDefaults.reduce((acc, item) => {
+                    acc[item.key] = false;
+                    return acc;
+                }, {} as Record<string, boolean>),
             });
         }
     }, [article]);
@@ -258,9 +302,59 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
     };
 
+    const getCurrentDisclaimer = () => {
+        switch (activeTab) {
+            case 'sk': return formData.compliance_disclaimer_sk;
+            case 'en': return formData.compliance_disclaimer_en;
+            case 'de': return formData.compliance_disclaimer_de;
+            case 'cn': return formData.compliance_disclaimer_cn;
+            default: return formData.compliance_disclaimer_sk;
+        }
+    };
+
     const updateField = (field: 'title' | 'excerpt' | 'content', value: string) => {
         const key = `${field}_${activeTab}` as keyof ArticleFormData;
         setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const updateDisclaimer = (value: string) => {
+        const key = `compliance_disclaimer_${activeTab}` as keyof ArticleFormData;
+        setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const languageLabel = () => {
+        if (activeTab === 'sk') return 'Slovak (SK)';
+        if (activeTab === 'en') return 'English (EN)';
+        if (activeTab === 'de') return 'German (DE)';
+        if (activeTab === 'cn') return 'Chinese (CN)';
+        return 'English (EN)';
+    };
+
+    const handleEditorialEdit = async () => {
+        const inputText = editTarget === 'content' ? getCurrentContent() : getCurrentExcerpt();
+        if (!inputText?.trim()) {
+            toast.error('Please add text to edit first.');
+            return;
+        }
+        setEditLoading(true);
+        try {
+            const output = await generateAIEdit(inputText, {
+                mode: editMode,
+                customInstruction: editInstruction,
+                languageLabel: languageLabel(),
+            });
+            setEditOutput(output);
+        } catch (error: any) {
+            toast.error(error.message || 'AI edit failed');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const applyEditorialEdit = () => {
+        if (!editOutput.trim()) return;
+        updateField(editTarget, editOutput);
+        toast.success('Applied AI edit');
     };
 
     const getLabel = (enLabel: string, skLabel: string) => {
@@ -452,6 +546,120 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 <p className="text-xs text-muted-foreground">
                     Content is rendered as HTML on the blog. Use valid HTML tags. For rich text editing, consider integrating a WYSIWYG editor.
                 </p>
+            </div>
+
+            {/* Editorial Tools */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                    <Sparkles size={16} />
+                    <Label className="text-sm font-semibold">Editorial Tools (AI)</Label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Apply To</Label>
+                        <Select value={editTarget} onValueChange={(value) => setEditTarget(value as 'content' | 'excerpt')}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select target" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="content">Content</SelectItem>
+                                <SelectItem value="excerpt">Excerpt</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Action</Label>
+                        <Select value={editMode} onValueChange={(value) => setEditMode(value as 'rewrite' | 'expand' | 'shorten' | 'simplify')}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select action" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="rewrite">Rewrite</SelectItem>
+                                <SelectItem value="expand">Expand</SelectItem>
+                                <SelectItem value="shorten">Shorten</SelectItem>
+                                <SelectItem value="simplify">Simplify</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>Custom Instructions (optional)</Label>
+                    <Textarea
+                        value={editInstruction}
+                        onChange={(e) => setEditInstruction(e.target.value)}
+                        rows={2}
+                        placeholder="e.g., Keep tone formal and cite Slovak regulations."
+                    />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={handleEditorialEdit} disabled={editLoading}>
+                        {editLoading ? 'Editing...' : 'Generate AI Edit'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
+                        Clear Output
+                    </Button>
+                </div>
+                {editOutput && (
+                    <div className="space-y-2">
+                        <Label>AI Output (review before applying)</Label>
+                        <Textarea
+                            value={editOutput}
+                            onChange={(e) => setEditOutput(e.target.value)}
+                            rows={6}
+                            className="font-mono text-xs"
+                        />
+                        <div className="flex items-center gap-2">
+                            <Button size="sm" onClick={applyEditorialEdit}>
+                                Apply to {editTarget}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
+                                Discard
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Compliance & Fact Check */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                <Label className="text-sm font-semibold">Fact-Check & Compliance</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {factChecklistDefaults.map((item) => (
+                        <div key={item.key} className="flex items-center justify-between gap-3 border rounded-md px-3 py-2 bg-white">
+                            <div className="text-xs text-muted-foreground">{item.label}</div>
+                            <Switch
+                                checked={Boolean(formData.fact_checklist?.[item.key])}
+                                onCheckedChange={(checked) =>
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        fact_checklist: {
+                                            ...(prev.fact_checklist || {}),
+                                            [item.key]: checked,
+                                        },
+                                    }))
+                                }
+                            />
+                        </div>
+                    ))}
+                </div>
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <Label>{getLabel('Compliance Disclaimer', 'Právne upozornenie')}</Label>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateDisclaimer(disclaimerDefaults[activeTab] || '')}
+                        >
+                            Use Default Disclaimer
+                        </Button>
+                    </div>
+                    <Textarea
+                        value={getCurrentDisclaimer()}
+                        onChange={(e) => updateDisclaimer(e.target.value)}
+                        rows={3}
+                        placeholder="Add a legal disclaimer for this language..."
+                    />
+                </div>
             </div>
         </div>
     );
