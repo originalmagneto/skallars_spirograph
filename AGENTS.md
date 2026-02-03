@@ -56,6 +56,8 @@ Tables referenced in app code:
 - `countries_settings` (map stats/labels/controls + default focus).
 - `page_blocks` (callout/testimonials/faq blocks + enabled/order).
 - `page_block_items` (testimonial/faq items + enabled/order).
+- `media_library` (image assets with tags + public URLs).
+- `content_history` (published site_content revisions).
 
 Storage buckets referenced:
 - `images` (covers, team, client logos).
@@ -64,6 +66,7 @@ Storage buckets referenced:
 - **Content**: `src/components/admin/ContentManager.tsx` editing of `site_content` with translation helper.
 - **Layout**: `src/components/admin/PageLayoutManager.tsx` manages homepage order/visibility.
 - **Blocks**: `PageBlocksManager.tsx` with block templates + `PageBlockItemsManager.tsx` for testimonials/FAQ items.
+- **Media**: `MediaLibraryManager.tsx` for uploads + URL copy.
 - **Services**: `ServiceItemsManager.tsx` for services list items.
 - **News**: `NewsSettingsManager.tsx` for blog carousel settings.
 - **Clients**: `ClientSettingsManager.tsx` + `ClientLogosManager.tsx`.
@@ -101,6 +104,7 @@ Storage buckets referenced:
 - For AI features, handle API failures gracefully and log usage to `ai_usage_logs`.
 - `site_content.key` should use dot-paths that match `src/lib/translations.ts` (example: `hero.title`, `services.items.corporate.description`) to override frontend copy.
 - Do not alter the **Map Cities coordinate algorithm** or map projection logic; it’s validated and should stay stable.
+- The **Hero spirograph** is a permanent graphic; do not replace it with editable images.
 
 ## Content Seeds
 - Generator: `scripts/generate_site_content_seeds.mjs`

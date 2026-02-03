@@ -37,15 +37,16 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **Homepage blocks** (callout block type + layout integration). ✅
 - Add **Block templates** (testimonials + FAQ with item editor). ✅
 - Add **drag-and-drop ordering** inside Blocks (items list). ✅
+- Make **Services sticky images** editable via content overrides (non-hero). ✅
 - Support **reorderable blocks** and **section templates** (Hero, Services, Team, Testimonials, Contact).
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
 - Add **live preview** with “before/after” diff for reviewers.
 - Add **SEO editor** (meta title/desc, OpenGraph, structured data) per page.
 
 ## Phase 2.1: Media + History (Moved from Phase 1)
-- Introduce **media library** with folders, tags, and search for all images.
-- Add **image upload + crop** tools for `site_content` graphics and section assets.
-- Add **content history** (versioning, compare/restore) and **restore**.
+- Introduce **media library** with tags + search for all images. ✅
+- Add **image upload tools** for `site_content` graphics and section assets (crop later).
+- Add **content history** (versioning + restore) for published `site_content`. ✅
 
 ## Phase 3: AI Article Studio (Targeted Adjustments)
 - Add **research mode** controls: Quick vs Deep with clear time/quality tradeoff.

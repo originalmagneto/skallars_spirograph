@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon, Mail01Icon, FileBlockIcon } from "hugeicons-react";
+import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon, Mail01Icon, FileBlockIcon, Image01Icon } from "hugeicons-react";
 
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
@@ -20,6 +20,7 @@ import ServiceItemsManager from "@/components/admin/ServiceItemsManager";
 import NewsSettingsManager from "@/components/admin/NewsSettingsManager";
 import FooterSettingsManager from "@/components/admin/FooterSettingsManager";
 import PageBlocksManager from "@/components/admin/PageBlocksManager";
+import MediaLibraryManager from "@/components/admin/MediaLibraryManager";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -80,6 +81,12 @@ export default function AdminPage() {
                     <TabsTrigger value="blocks" className="gap-2">
                         <FileBlockIcon size={14} />
                         Blocks
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
+                    <TabsTrigger value="media" className="gap-2">
+                        <Image01Icon size={14} />
+                        Media
                     </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -144,6 +151,10 @@ export default function AdminPage() {
 
             <TabsContent value="blocks">
                 <PageBlocksManager />
+            </TabsContent>
+
+            <TabsContent value="media">
+                <MediaLibraryManager />
             </TabsContent>
 
             <TabsContent value="team">

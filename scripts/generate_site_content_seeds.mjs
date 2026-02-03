@@ -114,7 +114,11 @@ uniqueKeys.forEach((key, index) => {
   const section = key.split('.')[0] || 'general';
   const label = key.split('.').map(humanizeSegment).join(' / ');
   const sample = values.en || values.sk || values.de || values.cn || '';
-  const contentType = sample.length > 120 || sample.includes('\n') ? 'textarea' : 'text';
+  const looksLikeImage = /(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.svg)$/i.test(sample);
+  const keyIsImage = key.includes('.images.') || key.endsWith('.image') || key.endsWith('.imageUrl') || key.endsWith('.image_url');
+  const contentType = (looksLikeImage || keyIsImage)
+    ? 'image'
+    : (sample.length > 120 || sample.includes('\n') ? 'textarea' : 'text');
 
   registryRows.push(`(${sqlString(key)}, ${sqlString(section)}, ${sqlString(label)}, ${sqlString(contentType)}, ${sqlString(label)}, ${index})`);
 

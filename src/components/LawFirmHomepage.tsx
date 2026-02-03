@@ -42,13 +42,16 @@ export default function LawFirmHomepage() {
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
   const { t, language } = useLanguage();
 
-  const images = [
+  const fallbackImages = [
     "/images/legal-consultation.jpg",
     "/images/contract-review.jpg",
     "/images/court-representation.jpg",
     "/images/corporate-law.jpg",
     "/images/europe-map.jpg",
   ];
+  const images = Array.isArray(t.services?.images) && t.services.images.length > 0
+    ? t.services.images
+    : fallbackImages;
 
   useEffect(() => {
     const handleScroll = () => {

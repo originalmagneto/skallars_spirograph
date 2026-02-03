@@ -23,6 +23,7 @@ export interface Translations {
   services: {
     title: string;
     subtitle: string;
+    images: string[];
     items: {
       corporate: {
         title: string;
@@ -130,6 +131,13 @@ export const translations: Record<Language, Translations> = {
     services: {
       title: 'Komplexné právne poradenstvo v kľúčových právnych oblastiach',
       subtitle: 'Našim klientom poskytujeme právne poradenstvo vo všetkých kľúčových právnych oblastiach. Cieľom našich právnych služieb je minimalizovať právne riziká na strane klientov a odbremeniť ich od právnych problémov v čo najväčšej miere, aby sa mohli naplno sústrediť na svoje podnikanie.',
+      images: [
+        '/images/legal-consultation.jpg',
+        '/images/contract-review.jpg',
+        '/images/court-representation.jpg',
+        '/images/corporate-law.jpg',
+        '/images/europe-map.jpg',
+      ],
       items: {
         corporate: {
           title: 'Obchodné právo a obchodné spoločnosti',
@@ -257,6 +265,13 @@ export const translations: Record<Language, Translations> = {
     services: {
       title: 'Umfassende Rechtsberatung in wichtigen Rechtsbereichen',
       subtitle: 'Wir bieten unseren Kunden Rechtsberatung in allen wichtigen Rechtsbereichen. Das Ziel unserer Rechtsdienstleistungen ist es, rechtliche Risiken auf der Kundenseite zu minimieren und sie von rechtlichen Problemen in größtmöglichem Umfang zu entlasten, damit sie sich voll und ganz auf ihr Geschäft konzentrieren können.',
+      images: [
+        '/images/legal-consultation.jpg',
+        '/images/contract-review.jpg',
+        '/images/court-representation.jpg',
+        '/images/corporate-law.jpg',
+        '/images/europe-map.jpg',
+      ],
       items: {
         corporate: {
           title: 'Gesellschaftsrecht und Handelsgesellschaften',
@@ -385,6 +400,13 @@ export const translations: Record<Language, Translations> = {
     services: {
       title: 'Comprehensive legal advice in key legal areas',
       subtitle: 'We provide our clients with legal advice in all key legal areas. The goal of our legal services is to minimize legal risks on the client side and relieve them of legal problems to the greatest extent possible, so they can fully focus on their business.',
+      images: [
+        '/images/legal-consultation.jpg',
+        '/images/contract-review.jpg',
+        '/images/court-representation.jpg',
+        '/images/corporate-law.jpg',
+        '/images/europe-map.jpg',
+      ],
       items: {
         corporate: {
           title: 'Corporate Law and Business Companies',
@@ -512,6 +534,13 @@ export const translations: Record<Language, Translations> = {
     services: {
       title: '关键法律领域的全面法律咨询',
       subtitle: '我们为客户提供包括所有关键法律领域的法律咨询。我们法律服务的目标是最大限度地降低客户方面的法律风险，并在最大程度上减轻他们的法律问题，使他们能够专注于自己的业务。',
+      images: [
+        '/images/legal-consultation.jpg',
+        '/images/contract-review.jpg',
+        '/images/court-representation.jpg',
+        '/images/corporate-law.jpg',
+        '/images/europe-map.jpg',
+      ],
       items: {
         corporate: {
           title: '公司法和商业公司',

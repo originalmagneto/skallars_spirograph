@@ -11,8 +11,10 @@ import { toast } from 'sonner';
 import { PencilEdit01Icon, Cancel01Icon, Tick01Icon, Search01Icon, TextIcon, AiMagicIcon } from 'hugeicons-react';
 import { generateContentTranslation } from '@/lib/aiService';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
 
 interface SiteContent {
     id?: string;
@@ -72,7 +74,10 @@ const ContentManager = () => {
     const [uploading, setUploading] = useState(false);
     const [showPreviews, setShowPreviews] = useState(true);
     const [previewMode, setPreviewMode] = useState<'published' | 'draft'>('published');
+    const [libraryKey, setLibraryKey] = useState<string | null>(null);
+    const [historyKey, setHistoryKey] = useState<string | null>(null);
     const { language } = useLanguage();
+    const { user } = useAuth();
     const searchParams = useSearchParams();
     const initialOpen = useMemo(() => {
         const target = searchParams.get('section');
@@ -114,6 +119,25 @@ const ContentManager = () => {
         },
     });
 
+    const { data: historyItems = [], isLoading: historyLoading } = useQuery({
+        queryKey: ['content-history', historyKey],
+        queryFn: async () => {
+            if (!historyKey) return [];
+            const { data, error } = await supabase
+                .from('content_history')
+                .select('*')
+                .eq('content_key', historyKey)
+                .order('created_at', { ascending: false })
+                .limit(10);
+            if (error) {
+                console.warn('Could not fetch content history:', error);
+                return [];
+            }
+            return data as any[];
+        },
+        enabled: Boolean(historyKey),
+    });
+
     const updateMutation = useMutation({
         mutationFn: async (payload: {
             key: string;
@@ -143,8 +167,38 @@ const ContentManager = () => {
         onError: (error: Error) => toast.error(error.message),
     });
 
+    const logContentHistory = async (rows: Array<{
+        key: string;
+        section?: string | null;
+        value_sk: string;
+        value_en: string;
+        value_de: string;
+        value_cn: string;
+    }>) => {
+        if (!rows.length) return;
+        try {
+            const payload = rows.map((row) => ({
+                content_key: row.key,
+                section: row.section || null,
+                value_sk: row.value_sk,
+                value_en: row.value_en,
+                value_de: row.value_de,
+                value_cn: row.value_cn,
+                actor_id: user?.id ?? null,
+                actor_email: user?.email ?? null,
+                action: 'publish',
+            }));
+            const { error } = await supabase.from('content_history').insert(payload);
+            if (error) throw error;
+        } catch (error) {
+            console.warn('Failed to log content history:', error);
+        }
+    };
+
     const startEdit = (item: ContentItem) => {
         setEditingKey(item.key);
+        setLibraryKey(null);
+        setHistoryKey(null);
         setEditingMeta({
             content_type: item.content_type || 'text',
             section: item.section || 'general',
@@ -196,11 +250,22 @@ const ContentManager = () => {
                     draft_updated_at: null
                 }, { onConflict: 'key' });
             if (error) throw error;
+            await logContentHistory([{
+                key: item.key,
+                section: item.section,
+                value_sk: editForm.value_sk,
+                value_en: editForm.value_en,
+                value_de: editForm.value_de,
+                value_cn: editForm.value_cn,
+            }]);
             toast.success('Content published');
             queryClient.invalidateQueries({ queryKey: ['site-content-admin'] });
             queryClient.invalidateQueries({ queryKey: ['site-content'] });
+            queryClient.invalidateQueries({ queryKey: ['content-history', item.key] });
             setEditingKey(null);
             setEditingMeta(null);
+            setHistoryKey(null);
+            setLibraryKey(null);
         } catch (error: any) {
             toast.error(error.message || 'Failed to publish');
         }
@@ -254,9 +319,18 @@ const ContentManager = () => {
             }));
             const { error } = await supabase.from('site_content').upsert(payload, { onConflict: 'key' });
             if (error) throw error;
+            await logContentHistory(payload.map((row) => ({
+                key: row.key,
+                section: row.section,
+                value_sk: row.value_sk,
+                value_en: row.value_en,
+                value_de: row.value_de,
+                value_cn: row.value_cn,
+            })));
             toast.success(`Published ${section}`);
             queryClient.invalidateQueries({ queryKey: ['site-content-admin'] });
             queryClient.invalidateQueries({ queryKey: ['site-content'] });
+            queryClient.invalidateQueries({ queryKey: ['content-history'] });
         } catch (error: any) {
             toast.error(error.message || 'Failed to publish section');
         }
@@ -281,6 +355,17 @@ const ContentManager = () => {
                 .getPublicUrl(filePath);
 
             const url = urlData.publicUrl;
+            try {
+                await supabase.from('media_library').insert({
+                    title: item.label || item.key,
+                    file_path: filePath,
+                    public_url: url,
+                    bucket: 'images',
+                    tags: item.section ? [item.section] : [],
+                });
+            } catch (error) {
+                console.warn('Could not insert into media library:', error);
+            }
             setEditForm({
                 value_sk: url,
                 value_en: url,
@@ -315,6 +400,16 @@ const ContentManager = () => {
         } finally {
             setIsTranslating(false);
         }
+    };
+
+    const applyHistoryEntry = (entry: any) => {
+        setEditForm({
+            value_sk: entry?.value_sk ?? '',
+            value_en: entry?.value_en ?? '',
+            value_de: entry?.value_de ?? '',
+            value_cn: entry?.value_cn ?? '',
+        });
+        toast.success('Loaded revision into editor');
     };
 
     const registryMap = new Map((registry || []).map(item => [item.key, item]));
@@ -851,7 +946,22 @@ const ContentManager = () => {
                                                     <Button size="sm" variant="secondary" onClick={() => publishDraft(item)}>
                                                         Publish
                                                     </Button>
-                                                    <Button size="sm" variant="ghost" onClick={() => setEditingKey(null)}>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => setHistoryKey((prev) => (prev === item.key ? null : item.key))}
+                                                    >
+                                                        History
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => {
+                                                            setEditingKey(null);
+                                                            setHistoryKey(null);
+                                                            setLibraryKey(null);
+                                                        }}
+                                                    >
                                                         <Cancel01Icon size={14} />
                                                     </Button>
                                                 </div>
@@ -879,21 +989,44 @@ const ContentManager = () => {
                                                         {editForm.value_sk && (
                                                             <img src={editForm.value_sk} alt="" className="w-full max-w-sm rounded border" />
                                                         )}
-                                                        <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
-                                                            <Input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                className="hidden"
-                                                                onChange={(e) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (file) uploadImage(file, item);
-                                                                }}
-                                                            />
-                                                            <Button size="sm" variant="outline" disabled={uploading}>
-                                                                {uploading ? 'Uploading...' : 'Upload Image'}
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                                                                <Input
+                                                                    type="file"
+                                                                    accept="image/*"
+                                                                    className="hidden"
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (file) uploadImage(file, item);
+                                                                    }}
+                                                                />
+                                                                <Button size="sm" variant="outline" disabled={uploading}>
+                                                                    {uploading ? 'Uploading...' : 'Upload Image'}
+                                                                </Button>
+                                                            </label>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() => setLibraryKey((prev) => (prev === item.key ? null : item.key))}
+                                                            >
+                                                                Browse Library
                                                             </Button>
-                                                        </label>
+                                                        </div>
                                                         <p className="text-[10px] text-muted-foreground">Image URL will be used for all languages.</p>
+                                                        {libraryKey === item.key && (
+                                                            <MediaLibraryPicker
+                                                                onSelect={(url) => {
+                                                                    setEditForm({
+                                                                        value_sk: url,
+                                                                        value_en: url,
+                                                                        value_de: url,
+                                                                        value_cn: url,
+                                                                    });
+                                                                    setLibraryKey(null);
+                                                                }}
+                                                                onClose={() => setLibraryKey(null)}
+                                                            />
+                                                        )}
                                                     </div>
                                                 ) : isLongText(item.value_sk) || item.content_type === 'textarea' ? (
                                                     <Textarea
@@ -976,6 +1109,30 @@ const ContentManager = () => {
                                                     )}
                                                 </div>
                                             </div>
+
+                                            {historyKey === item.key && (
+                                                <div className="rounded-lg border bg-white p-3 space-y-2">
+                                                    <div className="text-xs font-semibold text-muted-foreground">Recent History</div>
+                                                    {historyLoading ? (
+                                                        <div className="text-xs text-muted-foreground">Loading history...</div>
+                                                    ) : historyItems.length === 0 ? (
+                                                        <div className="text-xs text-muted-foreground">No published history yet.</div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {historyItems.map((entry: any) => (
+                                                                <div key={entry.id} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1">
+                                                                    <div className="text-[11px] text-muted-foreground">
+                                                                        {new Date(entry.created_at).toLocaleString()} · {entry.actor_email || 'unknown'}
+                                                                    </div>
+                                                                    <Button size="sm" variant="outline" onClick={() => applyHistoryEntry(entry)}>
+                                                                        Restore
+                                                                    </Button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div
