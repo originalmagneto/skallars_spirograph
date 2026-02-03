@@ -95,9 +95,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const signOut = async () => {
-        await supabase.auth.signOut();
-        setIsAdmin(false);
-        setIsEditor(false);
+        try {
+            await supabase.auth.signOut();
+        } catch (error) {
+            console.error('Sign out failed:', error);
+        } finally {
+            setSession(null);
+            setUser(null);
+            setIsAdmin(false);
+            setIsEditor(false);
+        }
     };
 
     return (

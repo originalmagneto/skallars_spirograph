@@ -12,6 +12,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const router = useRouter();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    const handleSignOut = async () => {
+        await signOut();
+        router.push("/auth");
+        router.refresh();
+    };
+
     useEffect(() => {
         if (!loading && !user) {
             router.push("/auth");
@@ -40,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <Link href="/" className="text-xl font-bold">Skallars Admin</Link>
                         <div className="flex items-center gap-4">
                             <span className="text-sm text-gray-500 mr-2">{user.email}</span>
-                            <Button variant="ghost" size="sm" onClick={() => signOut()}>
+                            <Button variant="ghost" size="sm" onClick={handleSignOut}>
                                 <Logout01Icon size={18} />
                             </Button>
                         </div>
@@ -66,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </Button>
                     </div>
                     <div className="flex justify-center gap-4 pt-4">
-                        <Button variant="outline" onClick={() => signOut()}>Sign Out</Button>
+                        <Button variant="outline" onClick={handleSignOut}>Sign Out</Button>
                         <Button asChild><Link href="/">Return to Site</Link></Button>
                     </div>
                 </div>
@@ -83,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
                     <div className="flex items-center gap-4">
                         <span className="text-sm text-gray-500 mr-2">{user.email}</span>
-                        <Button variant="ghost" size="sm" onClick={() => signOut()} title="Sign Out">
+                        <Button variant="ghost" size="sm" onClick={handleSignOut} title="Sign Out">
                             <Logout01Icon size={18} />
                         </Button>
                     </div>
