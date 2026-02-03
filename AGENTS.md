@@ -37,6 +37,8 @@ Skallars Spirograph is a Next.js 14 (App Router) site for a law office with a Su
 Tables referenced in app code:
 - `profiles` (role, email, full_name). Used for admin/editor roles in `AuthContext`.
 - `site_content` (key, value_sk/en/de/cn, content_type, section, description). Used by `ContentManager`.
+- `content_registry` (sections + field metadata for content editor).
+- `site_content_drafts` (draft values + published state).
 - `articles` (title_*, excerpt_*, content_*, slug, cover_image_url, is_published, published_at, author_id).
 - `tags`, `article_tags` (tagging for articles).
 - `settings` (gemini_api_key, gemini_model, gemini_image_model, image_model, image_count).
@@ -44,17 +46,33 @@ Tables referenced in app code:
 - `team_members` (team bios and photos).
 - `clients` (client logos).
 - `map_cities` (global network map).
+- `page_sections` (homepage layout order + visibility).
+- `service_items` (services list items + enable/disable + order).
+- `news_settings` (limit/autoplay/CTA visibility).
+- `client_settings` (carousel speed/visibility).
+- `team_settings` (columns + show/hide flags).
+- `footer_settings` (column visibility + social flag).
+- `footer_links` (solutions + social links, multilingual).
+- `countries_settings` (map stats/labels/controls + default focus).
+- `page_blocks` (callout/testimonials/faq blocks + enabled/order).
+- `page_block_items` (testimonial/faq items + enabled/order).
 
 Storage buckets referenced:
 - `images` (covers, team, client logos).
 
 ## Admin Panel Modules
 - **Content**: `src/components/admin/ContentManager.tsx` editing of `site_content` with translation helper.
+- **Layout**: `src/components/admin/PageLayoutManager.tsx` manages homepage order/visibility.
+- **Blocks**: `PageBlocksManager.tsx` with block templates + `PageBlockItemsManager.tsx` for testimonials/FAQ items.
+- **Services**: `ServiceItemsManager.tsx` for services list items.
+- **News**: `NewsSettingsManager.tsx` for blog carousel settings.
+- **Clients**: `ClientSettingsManager.tsx` + `ClientLogosManager.tsx`.
+- **Team**: `TeamSettingsManager.tsx` + `TeamMembersManager.tsx`.
+- **Footer**: `FooterSettingsManager.tsx` + `FooterLinksManager.tsx`.
+- **Map Countries**: `CountriesSettingsPanel.tsx` (in Map tab).
 - **AI Lab**: `src/components/admin/AILab.tsx` for article generation (Gemini text).
 - **AI Settings**: `src/components/admin/AISettings.tsx` for API keys/models + image preferences.
 - **Articles**: `src/components/admin/ArticlesManager.tsx` and `ArticleEditor.tsx`.
-- **Team**: `TeamMembersManager.tsx` with storage uploads.
-- **Clients**: `ClientLogosManager.tsx` with storage uploads.
 - **Map Cities**: `MapCitiesManager.tsx`.
 - **Users**: `UserManagement.tsx` for roles.
 
@@ -82,6 +100,7 @@ Storage buckets referenced:
 - Keep admin routes gated by role checks in `AuthContext` and `admin/layout.tsx`.
 - For AI features, handle API failures gracefully and log usage to `ai_usage_logs`.
 - `site_content.key` should use dot-paths that match `src/lib/translations.ts` (example: `hero.title`, `services.items.corporate.description`) to override frontend copy.
+- Do not alter the **Map Cities coordinate algorithm** or map projection logic; it’s validated and should stay stable.
 
 ## Content Seeds
 - Generator: `scripts/generate_site_content_seeds.mjs`
@@ -96,12 +115,13 @@ Storage buckets referenced:
 - Article editor is plain text/markdown; no rich text editor or image blocks.
 - Image generation has no UI (only settings + backend function).
 - No structured workflow for AI research quality, citations, or editorial review.
+- Admin permission gating can be brittle; diagnostics are available but logging could be deeper.
 
 ## Admin UI vs Functionality Audit (Feb 3, 2026)
-High-impact mismatches and gaps found in current code:
-- **Content Manager does not affect the website**: `site_content` is only used in admin (`ContentManager.tsx`) and is not referenced in frontend rendering. Public site strings come from `src/lib/translations.ts` and component-local content, so admin edits do not update the live site.
-- **Article editor claims Markdown but frontend expects HTML**: `ArticleEditor.tsx` says “Supports Markdown formatting” while the blog viewer (`ArticleViewer.tsx`) renders content with `dangerouslySetInnerHTML` and the AI prompt outputs HTML. This is misleading and risks broken rendering.
-- **Map Settings “saved automatically” is not true**: `MapSettingsPanel.tsx` claims auto-save, but settings live only in `MapSettingsContext` state and are not persisted to Supabase or local storage. Refreshing loses changes.
-- **Team Member photo positioning resets on edit**: `TeamMembersManager.tsx` doesn’t load `photo_position_x/y` into the edit form, so saving an edit overwrites existing positioning with defaults (50/50).
-- **AI image batch count not implemented**: `image_count` is configurable in `AISettings.tsx`, but `generateAIImage` ignores it and no UI uses it for batch generation.
-- **AI usage cost estimate can be inaccurate**: `AIUsageStats.tsx` assumes Gemini 1.5 Pro pricing regardless of the selected model, so the displayed cost can be misleading.
+High-impact mismatches found and now resolved:
+- Content edits now render on the public site via `site_content` overrides. ✅
+- Article editor copy aligned with HTML rendering. ✅
+- Map settings persisted (no more “saved automatically” mismatch). ✅
+- Team member photo positioning preserved on edit. ✅
+- Image batch count honored or removed. ✅
+- AI usage cost estimate aligned with selected model. ✅

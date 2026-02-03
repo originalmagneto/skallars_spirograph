@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import type { DragEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, ArrowUp01Icon, ArrowDown01Icon } from 'hugeicons-react';
+import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, ArrowUp01Icon, ArrowDown01Icon, Drag01Icon } from 'hugeicons-react';
 
 interface PageBlockItem {
   id?: string;
@@ -61,6 +62,8 @@ export default function PageBlockItemsManager({
   const [editForm, setEditForm] = useState<PageBlockItem>(emptyItem(blockId));
   const [isAdding, setIsAdding] = useState(false);
   const [newItem, setNewItem] = useState<PageBlockItem>(emptyItem(blockId));
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ['page-block-items', blockId],
@@ -160,6 +163,43 @@ export default function PageBlockItemsManager({
     reorderMutation.mutate(next);
   };
 
+  const handleDragStart = (index: number) => (event: DragEvent<HTMLDivElement>) => {
+    setDragIndex(index);
+    setOverIndex(index);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (index: number) => (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (overIndex !== index) setOverIndex(index);
+  };
+
+  const handleDrop = (index: number) => (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (dragIndex === null || !items) {
+      setDragIndex(null);
+      setOverIndex(null);
+      return;
+    }
+    if (dragIndex === index) {
+      setDragIndex(null);
+      setOverIndex(null);
+      return;
+    }
+    const next = [...items];
+    const [moved] = next.splice(dragIndex, 1);
+    next.splice(index, 0, moved);
+    reorderMutation.mutate(next);
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
   if (isLoading) return <div className="text-xs text-muted-foreground">Loading items...</div>;
 
   const titleLabel = blockType === 'faq' ? 'Question' : 'Name';
@@ -193,13 +233,28 @@ export default function PageBlockItemsManager({
 
       <div className="space-y-2">
         {(items || []).map((item, index) => (
-          <div key={item.id} className="border rounded-lg px-3 py-3 bg-white">
+          <div
+            key={item.id}
+            className={`border rounded-lg px-3 py-3 bg-white transition ${overIndex === index && dragIndex !== null ? 'border-primary/60 ring-1 ring-primary/20' : 'border-border'} ${dragIndex === index ? 'opacity-70' : ''}`}
+            onDragOver={handleDragOver(index)}
+            onDrop={handleDrop(index)}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-medium">{item.title_en || item.title_sk || 'Untitled'}</div>
                 <div className="text-xs text-muted-foreground">{item.subtitle_en || item.subtitle_sk || ''}</div>
               </div>
               <div className="flex items-center gap-2">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-md border border-muted-foreground/20 text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                  draggable
+                  onDragStart={handleDragStart(index)}
+                  onDragEnd={handleDragEnd}
+                  title="Drag to reorder"
+                  aria-label="Drag to reorder"
+                >
+                  <Drag01Icon size={14} />
+                </div>
                 <div className="flex flex-col">
                   <Button size="icon" variant="ghost" onClick={() => moveItem(index, 'up')} disabled={index === 0}>
                     <ArrowUp01Icon size={14} />
