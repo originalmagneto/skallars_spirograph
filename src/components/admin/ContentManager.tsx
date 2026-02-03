@@ -12,6 +12,7 @@ import { PencilEdit01Icon, Cancel01Icon, Tick01Icon, Search01Icon, TextIcon, AiM
 import { generateContentTranslation } from '@/lib/aiService';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 
 interface SiteContent {
     id?: string;
@@ -359,14 +360,16 @@ const ContentManager = () => {
             return (a.label || a.key).localeCompare(b.label || b.key);
         });
 
-    const filteredContent = mergedContent.filter(
-        (item) =>
+    const filteredContent = mergedContent.filter((item) => {
+        if (item.key.startsWith('team.members.')) return false;
+        return (
             (item.label || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.value_sk?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.value_en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (item.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-    );
+        );
+    });
 
     // Group by section
     const groupedContent = filteredContent?.reduce((acc, item) => {
@@ -498,20 +501,11 @@ const ContentManager = () => {
                     <SectionWrapper title="Team">
                         <Title text={getValue(map, 'team.title')} keyPath="team.title" />
                         <Subtitle text={getValue(map, 'team.subtitle')} keyPath="team.subtitle" />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                            {[0, 1, 2, 3].map((idx) => (
-                                <div key={idx} className="rounded-md border p-3">
-                                    <div className="text-sm font-medium">
-                                        <EditableText text={getValue(map, `team.members.${idx}.name`)} keyPath={`team.members.${idx}.name`} />
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        <EditableText text={getValue(map, `team.members.${idx}.position`)} keyPath={`team.members.${idx}.position`} />
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        <EditableText text={getValue(map, `team.members.${idx}.description`)} keyPath={`team.members.${idx}.description`} />
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="text-xs text-muted-foreground pt-2 space-y-2">
+                            <p>Team members are managed in the Team tab.</p>
+                            <Button size="sm" variant="outline" asChild>
+                                <Link href="/admin?tab=team">Open Team Manager</Link>
+                            </Button>
                         </div>
                     </SectionWrapper>
                 )}
@@ -673,20 +667,11 @@ const ContentManager = () => {
                             <SectionWrapper title="Team">
                                 <Title text={getValue(draftMap, 'team.title')} keyPath="team.title" />
                                 <Subtitle text={getValue(draftMap, 'team.subtitle')} keyPath="team.subtitle" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                                    {[0, 1, 2, 3].map((idx) => (
-                                        <div key={idx} className="rounded-md border p-3">
-                                            <div className="text-sm font-medium">
-                                                <EditableText text={getValue(draftMap, `team.members.${idx}.name`)} keyPath={`team.members.${idx}.name`} />
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                <EditableText text={getValue(draftMap, `team.members.${idx}.position`)} keyPath={`team.members.${idx}.position`} />
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                <EditableText text={getValue(draftMap, `team.members.${idx}.description`)} keyPath={`team.members.${idx}.description`} />
-                                            </div>
-                                        </div>
-                                    ))}
+                                <div className="text-xs text-muted-foreground pt-2 space-y-2">
+                                    <p>Team members are managed in the Team tab.</p>
+                                    <Button size="sm" variant="outline" asChild>
+                                        <Link href="/admin?tab=team">Open Team Manager</Link>
+                                    </Button>
                                 </div>
                             </SectionWrapper>
                         )}

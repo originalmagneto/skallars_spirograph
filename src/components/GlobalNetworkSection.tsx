@@ -527,6 +527,11 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
                                     </span>
                                 ))}
                             </div>
+                            {t.countries.currentOffice && (
+                                <p className="text-xs text-muted-foreground mt-3">
+                                    {t.countries.currentOffice}
+                                </p>
+                            )}
                         </div>
                     </div>
 

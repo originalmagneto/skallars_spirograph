@@ -224,6 +224,14 @@ export default function LawFirmHomepage() {
           {/* Spirograph pinned to hero section */}
           <Spirograph />
           <div className="container mx-auto px-4 py-20 relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="text-sm uppercase tracking-[0.35em] text-muted-foreground mb-6"
+            >
+              {t.hero.title}
+            </motion.div>
             <motion.h1
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
@@ -240,6 +248,16 @@ export default function LawFirmHomepage() {
             >
               {t.hero.description}
             </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+              className="mt-8"
+            >
+              <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
+                {t.hero.cta}
+              </a>
+            </motion.div>
           </div>
         </section>
 
@@ -435,6 +453,11 @@ export default function LawFirmHomepage() {
             >
               {t.news.title}
             </motion.h2>
+            {t.news.subtitle && (
+              <p className="text-center text-sm text-white/70 -mt-8 mb-10">
+                {t.news.subtitle}
+              </p>
+            )}
             <BlogCarousel />
           </div>
         </section>
@@ -458,6 +481,9 @@ export default function LawFirmHomepage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
+              {t.contact.subtitle && (
+                <p className="text-xs text-gray-300 mb-3">{t.contact.subtitle}</p>
+              )}
               <p>{t.contact.address}</p>
               <p>{t.contact.phone}</p>
               <a href={`mailto:${t.contact.email}`} className="hover:underline">

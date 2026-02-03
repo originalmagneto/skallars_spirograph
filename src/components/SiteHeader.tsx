@@ -60,7 +60,7 @@ export default function SiteHeader() {
   }, []);
 
   const navItems = [
-    { id: 'home', href: '/#home', label: 'Skallars' },
+    { id: 'home', href: '/#home', label: t.navigation.home },
     { id: 'services', href: '/#services', label: t.navigation.services },
     { id: 'countries', href: '/#countries', label: t.navigation.countries },
     { id: 'team', href: '/#team', label: t.navigation.team },
