@@ -13,6 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const router = useRouter();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [accessOverride, setAccessOverride] = useState<boolean | null>(null);
+    const [accessCheckMessage, setAccessCheckMessage] = useState<string>('');
 
     const handleSignOut = async () => {
         await signOut();
@@ -21,25 +22,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
 
     const checkAccessViaRpc = async () => {
-        if (!user?.id) return;
         try {
+            const { data: userData } = await supabase.auth.getUser();
+            const targetId = userData?.user?.id || user?.id;
+            if (!targetId) {
+                setAccessCheckMessage('No active user session detected.');
+                return;
+            }
+
             const { data: isAdminRpc, error: adminError } = await supabase
-                .rpc('is_profile_admin', { _user_id: user.id });
+                .rpc('is_profile_admin', { _user_id: targetId });
 
             if (!adminError && isAdminRpc === true) {
                 setAccessOverride(true);
+                setAccessCheckMessage('Admin access confirmed.');
                 return;
             }
 
             const { data: isEditorRpc, error: editorError } = await supabase
-                .rpc('is_profile_editor', { _user_id: user.id });
+                .rpc('is_profile_editor', { _user_id: targetId });
 
             if (!editorError && isEditorRpc === true) {
                 setAccessOverride(true);
+                setAccessCheckMessage('Editor access confirmed.');
                 return;
+            }
+            if (adminError || editorError) {
+                setAccessCheckMessage('Access check failed. Please re-login.');
+            } else {
+                setAccessOverride(false);
+                setAccessCheckMessage('No admin/editor role detected.');
             }
         } catch {
             // Ignore RPC errors; fallback to context state.
+            setAccessCheckMessage('Access check failed. Please re-login.');
         }
     };
 
@@ -56,6 +72,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
+        setAccessCheckMessage('Checking permissions...');
+        try {
+            await supabase.auth.refreshSession();
+        } catch {
+            // Ignore refresh failures; continue to role checks.
+        }
         await refreshRoles();
         await checkAccessViaRpc();
         setIsRefreshing(false);
@@ -97,6 +119,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <p className="text-sm">
                             If you just granted yourself permissions in Supabase, click the button below to refresh your status.
                         </p>
+                        {accessCheckMessage && (
+                            <p className="text-xs text-gray-500">
+                                {accessCheckMessage}
+                            </p>
+                        )}
                         <Button onClick={handleRefresh} disabled={isRefreshing} className="w-full h-11">
                             <AiMagicIcon size={18} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                             {isRefreshing ? 'Checking...' : 'Refresh Permissions'}
