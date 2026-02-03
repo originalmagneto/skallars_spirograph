@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,9 +43,23 @@ interface Article {
 export default function ArticlesManager() {
     const queryClient = useQueryClient();
     const { isAdmin } = useAuth();
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [searchQuery, setSearchQuery] = useState('');
     const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
+
+    useEffect(() => {
+        const editId = searchParams.get('edit');
+        if (editId) {
+            setEditingArticleId(editId);
+            setIsCreating(false);
+        }
+        if (searchParams.get('create') === 'true') {
+            setIsCreating(true);
+            setEditingArticleId(null);
+        }
+    }, [searchParams]);
 
     // Fetch articles
     const { data: articles, isLoading, error } = useQuery({
@@ -97,6 +112,7 @@ export default function ArticlesManager() {
                     onClick={() => {
                         setEditingArticleId(null);
                         setIsCreating(false);
+                        router.replace('/admin?tab=articles');
                     }}
                 >
                     ← Back to Articles
@@ -106,6 +122,7 @@ export default function ArticlesManager() {
                     onClose={() => {
                         setEditingArticleId(null);
                         setIsCreating(false);
+                        router.replace('/admin?tab=articles');
                     }}
                 />
             </div>

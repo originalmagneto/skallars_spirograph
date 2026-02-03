@@ -695,7 +695,7 @@ const AILab = () => {
             }
 
             toast.success('Article saved as draft!');
-            router.push(`/admin/articles/edit/${article.id}`); // Adjusted route to match current project
+            router.push(`/admin?tab=articles&edit=${article.id}`);
         } catch (error: any) {
             toast.error(error.message || 'Failed to save article');
         }
@@ -1153,9 +1153,9 @@ const AILab = () => {
                             )}
                         </div>
                     </CardHeader>
-                    <CardContent className="flex-1 min-h-0">
+                    <CardContent className="flex-1 min-h-0 pb-6">
                         {generatedContent ? (
-                            <ScrollArea className="h-full max-h-[calc(100vh-260px)] pr-4 pb-10">
+                            <ScrollArea className="h-[calc(100vh-280px)] pr-4 pb-12">
                                 <div className="space-y-6">
                                     <div>
                                         <h1 className="text-2xl font-bold mb-2">
