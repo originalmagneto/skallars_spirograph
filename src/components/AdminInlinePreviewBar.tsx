@@ -59,6 +59,11 @@ export default function AdminInlinePreviewBar() {
     window.dispatchEvent(new CustomEvent("admin:highlight-sections", { detail: true }));
   };
 
+  const handleFocusEdit = (section: string) => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("admin:focus-section", { detail: section }));
+  };
+
   return (
     <div className="fixed bottom-4 right-4 z-50 w-[320px] rounded-xl border bg-white/95 shadow-lg backdrop-blur">
       <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -74,10 +79,15 @@ export default function AdminInlinePreviewBar() {
           </div>
         )}
         {sections.map(([section, count]) => (
-          <div key={section} className="flex items-center justify-between text-xs">
+          <button
+            key={section}
+            type="button"
+            onClick={() => handleFocusEdit(section)}
+            className="flex w-full items-center justify-between rounded-md px-2 py-1 text-xs hover:bg-muted"
+          >
             <span className="capitalize">{section}</span>
             <Badge variant="outline">{count}</Badge>
-          </div>
+          </button>
         ))}
       </div>
       <div className="px-4 py-3 border-t flex items-center gap-2">

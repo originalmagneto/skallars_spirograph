@@ -103,8 +103,25 @@ export default function LawFirmHomepage() {
       setShowSectionHighlights(true);
       setTimeout(() => setShowSectionHighlights(false), 3000);
     };
+    const handleFocusSection = (event: Event) => {
+      const custom = event as CustomEvent<string>;
+      const section = custom.detail;
+      if (!section) return;
+      const element = document.querySelector(`[data-admin-section="${section}"]`) as HTMLElement | null;
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        element.classList.add("ring-2", "ring-primary/70", "ring-offset-4");
+        setTimeout(() => {
+          element.classList.remove("ring-2", "ring-primary/70", "ring-offset-4");
+        }, 2000);
+      }
+    };
     window.addEventListener("admin:highlight-sections", handleHighlight as EventListener);
-    return () => window.removeEventListener("admin:highlight-sections", handleHighlight as EventListener);
+    window.addEventListener("admin:focus-section", handleFocusSection as EventListener);
+    return () => {
+      window.removeEventListener("admin:highlight-sections", handleHighlight as EventListener);
+      window.removeEventListener("admin:focus-section", handleFocusSection as EventListener);
+    };
   }, []);
 
 
