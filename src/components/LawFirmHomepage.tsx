@@ -21,6 +21,7 @@ import GlobalNetworkSection from './GlobalNetworkSection';
 import BlogCarousel from './BlogCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/lib/supabase';
+import AdminInlinePreviewBar from './AdminInlinePreviewBar';
 
 // Dynamically import the Spirograph component with no SSR
 const Spirograph = dynamic(() => import('./Spirograph'), {
@@ -184,6 +185,7 @@ export default function LawFirmHomepage() {
 
   return (
     <div className="min-h-screen">
+      <AdminInlinePreviewBar />
       {/* Header moved to global SiteHeader in layout */}
 
       <main>
