@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, UserIcon, Upload01Icon, Linkedin01Icon } from 'hugeicons-react';
+import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, UserIcon, Upload01Icon, Linkedin01Icon, SaveEnergy01Icon } from 'hugeicons-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -37,6 +37,16 @@ interface TeamMember {
     photo_position_y?: number;
 }
 
+interface TeamSettings {
+    id?: string;
+    show_linkedin: boolean;
+    show_icon: boolean;
+    show_bio: boolean;
+    columns_desktop: number;
+    columns_tablet: number;
+    columns_mobile: number;
+}
+
 const emptyMember: Omit<TeamMember, 'id'> = {
     name: '',
     role_sk: '',
@@ -53,6 +63,15 @@ const emptyMember: Omit<TeamMember, 'id'> = {
     photo_position_y: 50,
 };
 
+const defaultSettings: TeamSettings = {
+    show_linkedin: true,
+    show_icon: true,
+    show_bio: true,
+    columns_desktop: 4,
+    columns_tablet: 2,
+    columns_mobile: 1,
+};
+
 const TeamMembersManager = () => {
     const queryClient = useQueryClient();
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,6 +80,7 @@ const TeamMembersManager = () => {
     const [newMember, setNewMember] = useState<Omit<TeamMember, 'id'>>(emptyMember);
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [settingsForm, setSettingsForm] = useState<TeamSettings>(defaultSettings);
 
     const { data: members, isLoading } = useQuery({
         queryKey: ['team-members'],
@@ -77,6 +97,61 @@ const TeamMembersManager = () => {
             }
             return data as TeamMember[];
         },
+    });
+
+    const { data: teamSettings } = useQuery({
+        queryKey: ['team-settings'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('team_settings')
+                .select('*')
+                .order('updated_at', { ascending: false })
+                .limit(1);
+            if (error) {
+                console.warn("Could not fetch team settings:", error);
+                return null;
+            }
+            return (data?.[0] as TeamSettings) || null;
+        },
+    });
+
+    useEffect(() => {
+        if (!teamSettings) {
+            setSettingsForm(defaultSettings);
+            return;
+        }
+        setSettingsForm({
+            id: teamSettings.id,
+            show_linkedin: teamSettings.show_linkedin ?? true,
+            show_icon: teamSettings.show_icon ?? true,
+            show_bio: teamSettings.show_bio ?? true,
+            columns_desktop: teamSettings.columns_desktop ?? 4,
+            columns_tablet: teamSettings.columns_tablet ?? 2,
+            columns_mobile: teamSettings.columns_mobile ?? 1,
+        });
+    }, [teamSettings]);
+
+    const saveSettingsMutation = useMutation({
+        mutationFn: async (payload: TeamSettings) => {
+            const { error } = await supabase
+                .from('team_settings')
+                .upsert({
+                    id: payload.id,
+                    show_linkedin: payload.show_linkedin,
+                    show_icon: payload.show_icon,
+                    show_bio: payload.show_bio,
+                    columns_desktop: payload.columns_desktop,
+                    columns_tablet: payload.columns_tablet,
+                    columns_mobile: payload.columns_mobile,
+                    updated_at: new Date().toISOString(),
+                });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Team settings saved');
+            queryClient.invalidateQueries({ queryKey: ['team-settings'] });
+        },
+        onError: (error: any) => toast.error(error.message),
     });
 
     const uploadPhoto = async (file: File): Promise<string | null> => {
@@ -389,6 +464,84 @@ const TeamMembersManager = () => {
 
     return (
         <div className="space-y-6">
+            <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
+                <div className="flex items-center gap-2">
+                    <UserIcon size={18} className="text-primary" />
+                    <h3 className="text-sm font-semibold">Team Section Settings</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <Label className="text-xs">Desktop Columns</Label>
+                        <Input
+                            type="number"
+                            min={2}
+                            max={4}
+                            value={settingsForm.columns_desktop}
+                            onChange={(e) => setSettingsForm({
+                                ...settingsForm,
+                                columns_desktop: Math.max(2, Math.min(4, parseInt(e.target.value) || 4))
+                            })}
+                            className="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label className="text-xs">Tablet Columns</Label>
+                        <Input
+                            type="number"
+                            min={1}
+                            max={3}
+                            value={settingsForm.columns_tablet}
+                            onChange={(e) => setSettingsForm({
+                                ...settingsForm,
+                                columns_tablet: Math.max(1, Math.min(3, parseInt(e.target.value) || 2))
+                            })}
+                            className="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label className="text-xs">Mobile Columns</Label>
+                        <Input
+                            type="number"
+                            min={1}
+                            max={2}
+                            value={settingsForm.columns_mobile}
+                            onChange={(e) => setSettingsForm({
+                                ...settingsForm,
+                                columns_mobile: Math.max(1, Math.min(2, parseInt(e.target.value) || 1))
+                            })}
+                            className="mt-1"
+                        />
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <Switch
+                            checked={settingsForm.show_icon}
+                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_icon: v })}
+                        />
+                        <Label className="text-xs">Show Icons</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Switch
+                            checked={settingsForm.show_bio}
+                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_bio: v })}
+                        />
+                        <Label className="text-xs">Show Bio</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Switch
+                            checked={settingsForm.show_linkedin}
+                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_linkedin: v })}
+                        />
+                        <Label className="text-xs">Show LinkedIn</Label>
+                    </div>
+                </div>
+                <Button size="sm" onClick={() => saveSettingsMutation.mutate(settingsForm)} disabled={saveSettingsMutation.isPending}>
+                    <SaveEnergy01Icon size={14} className="mr-1" />
+                    {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
+                </Button>
+            </div>
+
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <UserIcon size={20} className="text-primary" />

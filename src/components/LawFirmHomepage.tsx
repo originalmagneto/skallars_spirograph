@@ -183,6 +183,14 @@ export default function LawFirmHomepage() {
     autoplay_interval_ms: 3000,
     visible_count: 3,
   });
+  const [teamSettings, setTeamSettings] = useState({
+    show_linkedin: true,
+    show_icon: true,
+    show_bio: true,
+    columns_desktop: 4,
+    columns_tablet: 2,
+    columns_mobile: 1,
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -235,6 +243,22 @@ export default function LawFirmHomepage() {
         .eq('is_active', true)
         .order('display_order', { ascending: true });
       if (teamData) setTeam(teamData);
+
+      const { data: teamSettingsData } = await supabase
+        .from('team_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (teamSettingsData?.[0]) {
+        setTeamSettings({
+          show_linkedin: teamSettingsData[0].show_linkedin ?? true,
+          show_icon: teamSettingsData[0].show_icon ?? true,
+          show_bio: teamSettingsData[0].show_bio ?? true,
+          columns_desktop: teamSettingsData[0].columns_desktop ?? 4,
+          columns_tablet: teamSettingsData[0].columns_tablet ?? 2,
+          columns_mobile: teamSettingsData[0].columns_mobile ?? 1,
+        });
+      }
     };
     fetchData();
   }, []);
@@ -270,6 +294,16 @@ export default function LawFirmHomepage() {
   const defaultOrder = ['hero', 'services', 'countries', 'team', 'clients', 'news', 'contact', 'footer'];
   const orderedKeys = sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const isEnabled = (key: string) => sectionEnabled[key] ?? true;
+  const gridMobile: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2' };
+  const gridTablet: Record<number, string> = { 1: 'md:grid-cols-1', 2: 'md:grid-cols-2', 3: 'md:grid-cols-3' };
+  const gridDesktop: Record<number, string> = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' };
+  const teamGridClass = [
+    'grid',
+    gridMobile[teamSettings.columns_mobile] || 'grid-cols-1',
+    gridTablet[teamSettings.columns_tablet] || 'md:grid-cols-2',
+    gridDesktop[teamSettings.columns_desktop] || 'lg:grid-cols-4',
+    'gap-8',
+  ].join(' ');
 
   const mainSections: Record<string, JSX.Element> = {
     hero: (
@@ -395,7 +429,7 @@ export default function LawFirmHomepage() {
           >
             {t.team.title}
           </motion.h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className={teamGridClass}>
             {team.map((member) => (
               <div
                 key={member.id}
@@ -412,7 +446,7 @@ export default function LawFirmHomepage() {
                       }}
                     />
                   </div>
-                  {member.linkedin_url && (
+                  {teamSettings.show_linkedin && member.linkedin_url && (
                     <a
                       href={member.linkedin_url}
                       target="_blank"
@@ -425,7 +459,7 @@ export default function LawFirmHomepage() {
                 </div>
 
                 <div className="text-center">
-                  {member.icon && (
+                  {teamSettings.show_icon && member.icon && (
                     <div className="text-2xl mb-2" aria-hidden="true">
                       {member.icon}
                     </div>
@@ -436,7 +470,7 @@ export default function LawFirmHomepage() {
                   <p className="text-muted-foreground mb-4 font-medium text-sm">
                     {language === 'sk' ? member.role_sk : member.role_en}
                   </p>
-                  {(language === 'sk' ? member.bio_sk : member.bio_en) && (
+                  {teamSettings.show_bio && (language === 'sk' ? member.bio_sk : member.bio_en) && (
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {language === 'sk' ? member.bio_sk : member.bio_en}
                     </p>
