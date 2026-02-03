@@ -720,6 +720,13 @@ export default function LawFirmHomepage() {
               {t.contact.email}
             </a>
             <p className="text-sm text-gray-300 mt-2">{t.contact.workingHours}</p>
+            {t.contact.image && (
+              <img
+                src={t.contact.image}
+                alt=""
+                className="mt-4 w-full max-w-xs rounded-lg border border-white/10 object-cover"
+              />
+            )}
             </div>
           )}
           {footerSettings.show_solutions && (

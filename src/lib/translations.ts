@@ -97,6 +97,7 @@ export interface Translations {
     phone: string;
     email: string;
     workingHours: string;
+    image: string;
   };
   footer: {
     copyright: string;
@@ -228,6 +229,7 @@ export const translations: Record<Language, Translations> = {
       phone: '+421 2 5443 5941',
       email: 'info@skallars.sk',
       workingHours: 'Pondelok - Piatok: 9:00 - 17:00',
+      image: '/images/legal-consultation.jpg',
     },
     footer: {
       copyright: '© 2023 Advokátska kancelária SKALLARS®. Všetky práva vyhradené.',
@@ -362,6 +364,7 @@ export const translations: Record<Language, Translations> = {
       phone: '+421 2 5443 5941',
       email: 'info@skallars.sk',
       workingHours: 'Montag - Freitag: 9:00 - 17:00',
+      image: '/images/legal-consultation.jpg',
     },
     footer: {
       copyright: '© 2023 SKALLARS® Anwaltskanzlei. Alle Rechte vorbehalten.',
@@ -497,6 +500,7 @@ export const translations: Record<Language, Translations> = {
       phone: '+421 2 5443 5941',
       email: 'info@skallars.sk',
       workingHours: 'Monday - Friday: 9:00 - 17:00',
+      image: '/images/legal-consultation.jpg',
     },
     footer: {
       copyright: '© 2023 SKALLARS® Law Firm. All rights reserved.',
@@ -631,6 +635,7 @@ export const translations: Record<Language, Translations> = {
       phone: '+421 2 5443 5941',
       email: 'info@skallars.sk',
       workingHours: '周一至周五：9:00 - 17:00',
+      image: '/images/legal-consultation.jpg',
     },
     footer: {
       copyright: '© 2023 SKALLARS® 律师事务所。保留所有权利。',

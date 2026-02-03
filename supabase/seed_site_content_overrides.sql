@@ -18,6 +18,7 @@ VALUES
 ('contact.subtitle', 'Kontaktujte nás pre bezplatnú konzultáciu', 'Contact us for a free consultation', 'Kontaktieren Sie uns für eine kostenlose Beratung', '联系我们获得免费咨询', 'text', 'contact', 'Contact / Subtitle'),
 ('contact.title', 'Kontakt', 'Contact', 'Kontakt', '联系我们', 'text', 'contact', 'Contact / Title'),
 ('contact.workingHours', 'Pondelok - Piatok: 9:00 - 17:00', 'Monday - Friday: 9:00 - 17:00', 'Montag - Freitag: 9:00 - 17:00', '周一至周五：9:00 - 17:00', 'text', 'contact', 'Contact / Working Hours'),
+('contact.image', '/images/legal-consultation.jpg', '/images/legal-consultation.jpg', '/images/legal-consultation.jpg', '/images/legal-consultation.jpg', 'image', 'contact', 'Contact / Image'),
 ('countries.connectionsTitle', 'Naše spojenia:', 'Our connections:', 'Unsere Verbindungen:', '我们的连接：', 'text', 'countries', 'Countries / Connections Title'),
 ('countries.currentOffice', 'Aktuálna kancelária', 'Current Office', 'Aktuelles Büro', '当前办事处', 'text', 'countries', 'Countries / Current Office'),
 ('countries.description', 'Spolupracujeme s partnermi po celom svete, aby sme vám poskytli komplexné služby bez ohľadu na to, kde podnikáte.', 'We collaborate with partners around the world to provide you with comprehensive services regardless of where you do business.', 'Wir arbeiten mit Partnern auf der ganzen Welt zusammen, um Ihnen umfassende Dienstleistungen anzubieten, unabhängig davon, wo Sie geschäftlich tätig sind.', '我们与世界各地的合作伙伴合作，无论您在哪里开展业务，都能为您提供全面的服务。', 'textarea', 'countries', 'Countries / Description'),

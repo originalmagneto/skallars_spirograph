@@ -529,6 +529,8 @@ const ContentManager = () => {
             </div>
         );
 
+        const contactImage = getValue(map, 'contact.image');
+
         const previewContent = (
             <div className="grid grid-cols-1 gap-3">
                 {section === 'navigation' && (
@@ -639,6 +641,9 @@ const ContentManager = () => {
                         <div className="text-xs text-muted-foreground">
                             <EditableText text={getValue(map, 'contact.workingHours')} keyPath="contact.workingHours" />
                         </div>
+                        {contactImage && (
+                            <img src={contactImage} alt="" className="mt-2 w-full max-w-sm rounded border" />
+                        )}
                     </SectionWrapper>
                 )}
                 {section === 'footer' && (
@@ -691,6 +696,7 @@ const ContentManager = () => {
             value_de: item.draft_value_de ?? item.value_de,
             value_cn: item.draft_value_cn ?? item.value_cn,
         }) as ContentItem).map(item => [item.key, item]));
+        const contactImageDraft = getValue(draftMap, 'contact.image');
 
         return (
             <div className="space-y-3">
@@ -805,6 +811,9 @@ const ContentManager = () => {
                                 <div className="text-xs text-muted-foreground">
                                     <EditableText text={getValue(draftMap, 'contact.workingHours')} keyPath="contact.workingHours" />
                                 </div>
+                                {contactImageDraft && (
+                                    <img src={contactImageDraft} alt="" className="mt-2 w-full max-w-sm rounded border" />
+                                )}
                             </SectionWrapper>
                         )}
                         {section === 'footer' && (
