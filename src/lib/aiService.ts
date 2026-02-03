@@ -63,6 +63,74 @@ const formatGeminiError = (result: any) => {
     }
 };
 
+const extractJsonText = (content: string) => {
+    const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/);
+    let cleanContent = jsonMatch ? jsonMatch[1] : content;
+
+    const firstOpen = cleanContent.indexOf('{');
+    const lastClose = cleanContent.lastIndexOf('}');
+    if (firstOpen !== -1 && lastClose !== -1) {
+        cleanContent = cleanContent.substring(firstOpen, lastClose + 1);
+    }
+    return cleanContent;
+};
+
+const tryParseJson = (content: string) => {
+    const cleanContent = extractJsonText(content);
+    try {
+        return JSON.parse(cleanContent);
+    } catch {
+        return null;
+    }
+};
+
+const repairJsonWithGemini = async (
+    rawContent: string,
+    selectedModel: string,
+    apiKey: string,
+    signal?: AbortSignal
+) => {
+    const prompt = `You are a JSON repair tool. Your task:
+1) Convert the input into STRICT valid JSON.
+2) Preserve all fields and values.
+3) Output ONLY JSON (no markdown, no commentary).
+
+INPUT:
+${rawContent}`;
+
+    const body: any = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            responseMimeType: "application/json",
+            temperature: 0,
+            maxOutputTokens: 4096
+        }
+    };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Gemini JSON repair failed: ${response.statusText} - ${errorBody}`);
+    }
+
+    const result = await response.json();
+    const repaired = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!repaired) {
+        throw new Error(formatGeminiError(result));
+    }
+    const parsed = tryParseJson(repaired);
+    if (!parsed) {
+        throw new Error('JSON repair did not return valid JSON.');
+    }
+    return parsed;
+};
+
 const STYLE_GUIDES: Record<string, string> = {
     'Deep Dive': `
 - **Structure**: Comprehensive analysis. Introduction -> Background -> Key Issues/Analysis -> Strategic Implications -> Conclusion.
@@ -316,18 +384,10 @@ export async function generateAIArticle(
     if (!content) throw new Error(formatGeminiError(result));
 
     try {
-        // If content is wrapped in markdown code block, extract it
-        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/);
-        let cleanContent = jsonMatch ? jsonMatch[1] : content;
-
-        // Fallback: Find first '{' and last '}' to handle partial matches or conversational prefixes
-        const firstOpen = cleanContent.indexOf('{');
-        const lastClose = cleanContent.lastIndexOf('}');
-        if (firstOpen !== -1 && lastClose !== -1) {
-            cleanContent = cleanContent.substring(firstOpen, lastClose + 1);
+        let parsedContent = tryParseJson(content);
+        if (!parsedContent) {
+            parsedContent = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
         }
-
-        const parsedContent = JSON.parse(cleanContent);
 
         // Append grounding sources if available
         if (groundingMetadata?.groundingChunks) {
