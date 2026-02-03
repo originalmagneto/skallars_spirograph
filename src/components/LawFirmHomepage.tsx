@@ -191,6 +191,12 @@ export default function LawFirmHomepage() {
     columns_tablet: 2,
     columns_mobile: 1,
   });
+  const [footerSettings, setFooterSettings] = useState({
+    show_newsletter: true,
+    show_social: true,
+    show_solutions: true,
+    show_contact: true,
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -257,6 +263,20 @@ export default function LawFirmHomepage() {
           columns_desktop: teamSettingsData[0].columns_desktop ?? 4,
           columns_tablet: teamSettingsData[0].columns_tablet ?? 2,
           columns_mobile: teamSettingsData[0].columns_mobile ?? 1,
+        });
+      }
+
+      const { data: footerSettingsData } = await supabase
+        .from('footer_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (footerSettingsData?.[0]) {
+        setFooterSettings({
+          show_newsletter: footerSettingsData[0].show_newsletter ?? true,
+          show_social: footerSettingsData[0].show_social ?? true,
+          show_solutions: footerSettingsData[0].show_solutions ?? true,
+          show_contact: footerSettingsData[0].show_contact ?? true,
         });
       }
     };
@@ -543,8 +563,8 @@ export default function LawFirmHomepage() {
     ),
   };
 
-  const footerSections: Record<string, JSX.Element> = {
-    contact: (
+  const footerSections: Record<string, JSX.Element | null> = {
+    contact: footerSettings.show_contact ? (
       <div data-admin-section="contact">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8">
           <img
@@ -552,14 +572,17 @@ export default function LawFirmHomepage() {
             alt="SKALLARS Logo"
             className="h-10 mb-4 md:mb-0"
           />
-          <div className="flex space-x-4">
-            <a href="#" className="hover:text-gray-300">
-              <Linkedin />
-            </a>
-          </div>
+          {footerSettings.show_social && (
+            <div className="flex space-x-4">
+              <a href="#" className="hover:text-gray-300">
+                <Linkedin />
+              </a>
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div>
+          {footerSettings.show_contact && (
+            <div>
             <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
             {t.contact.subtitle && (
               <p className="text-xs text-gray-300 mb-3">{t.contact.subtitle}</p>
@@ -570,33 +593,10 @@ export default function LawFirmHomepage() {
               {t.contact.email}
             </a>
             <p className="text-sm text-gray-300 mt-2">{t.contact.workingHours}</p>
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold mb-4">{t.navigation.services}</h3>
-            <ul className="space-y-2">
-              <li>
-                <a href="#" className="hover:underline">
-                  {t.services.items.corporate.title}
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:underline">
-                  {t.services.items.contracts.title}
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:underline">
-                  {t.services.items.litigation.title}
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:underline">
-                  {t.services.items.employment.title}
-                </a>
-              </li>
-            </ul>
-          </div>
-          <div>
+            </div>
+          )}
+          {footerSettings.show_solutions && (
+            <div>
             <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
             <ul className="space-y-2">
               {t.footer.solutionsItems.map((item) => (
@@ -607,8 +607,10 @@ export default function LawFirmHomepage() {
                 </li>
               ))}
             </ul>
-          </div>
-          <div>
+            </div>
+          )}
+          {footerSettings.show_newsletter && (
+            <div>
             <h3 className="text-lg font-semibold mb-4">{t.news.title}</h3>
             <form className="flex flex-col space-y-2">
               <input
@@ -623,10 +625,11 @@ export default function LawFirmHomepage() {
                 {t.footer.newsletterCta}
               </button>
             </form>
-          </div>
+            </div>
+          )}
         </div>
       </div>
-    ),
+    ) : null,
     footer: (
       <div data-admin-section="footer" className="mt-8 pt-8 border-t border-gray-800 text-center">
         <p>{t.footer.copyright}</p>

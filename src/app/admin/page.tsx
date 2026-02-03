@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon } from "hugeicons-react";
+import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon, Mail01Icon } from "hugeicons-react";
 
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
@@ -18,6 +18,7 @@ import ClientLogosManager from "@/components/admin/ClientLogosManager";
 import PageLayoutManager from "@/components/admin/PageLayoutManager";
 import ServiceItemsManager from "@/components/admin/ServiceItemsManager";
 import NewsSettingsManager from "@/components/admin/NewsSettingsManager";
+import FooterSettingsManager from "@/components/admin/FooterSettingsManager";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -66,6 +67,12 @@ export default function AdminPage() {
                     <TabsTrigger value="news-settings" className="gap-2">
                         <NewsIcon size={14} />
                         News
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
+                    <TabsTrigger value="footer" className="gap-2">
+                        <Mail01Icon size={14} />
+                        Footer
                     </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -122,6 +129,10 @@ export default function AdminPage() {
 
             <TabsContent value="news-settings">
                 <NewsSettingsManager />
+            </TabsContent>
+
+            <TabsContent value="footer">
+                <FooterSettingsManager />
             </TabsContent>
 
             <TabsContent value="team">
