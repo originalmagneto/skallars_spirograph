@@ -31,6 +31,7 @@ export interface GeneratedArticle {
         completionTokens: number;
         totalTokens: number;
     };
+    sources?: Array<{ title?: string; url?: string }>;
 }
 
 async function getSetting(key: string): Promise<string | null> {
@@ -44,51 +45,93 @@ async function getSetting(key: string): Promise<string | null> {
     return data.value;
 }
 
-export function getAIArticlePrompt(
-    prompt: string,
-    links: string[] = [],
-    options: { type?: string, length?: string, targetLanguages?: string[] } = {}
-): string {
-    const { type = 'Deep Dive', length = 'Medium', targetLanguages = ['sk', 'en', 'de', 'cn'] } = options;
-    const researchContext = links.length > 0
-        ? `\n\n### DEEP RESEARCH SOURCES\nCRITICAL: Analyze and synthesize the following sources to enrich the article. You MUST cite specific facts/figures from these sources where possible.\n${links.join('\n')}`
-        : '';
-
-    // Style Definitions
-    const styleGuides: Record<string, string> = {
-        'Deep Dive': `
+const STYLE_GUIDES: Record<string, string> = {
+    'Deep Dive': `
 - **Structure**: Comprehensive analysis. Introduction -> Background -> Key Issues/Analysis -> Strategic Implications -> Conclusion.
 - **Tone**: Authoritative, analytical, thought-provoking.
 - **Focus**: Explore the 'why' and 'how'. Connect dots between disparate trends. Provide strategic foresight.`,
-        'News': `
+    'News': `
 - **Structure**: Journalistic "Inverted Pyramid". Most important info first -> Supporting details -> Context.
 - **Tone**: Objective, factual, concise, urgent.
 - **Focus**: What happened? Who is involved? When? Why does it matter right now?`,
-        'Trends': `
+    'Trends': `
 - **Structure**: Pattern recognition. Current state -> Emerging shift -> Evidence/Data -> Future prediction.
 - **Tone**: Forward-looking, speculative but grounded, exciting.
 - **Focus**: Identify new shifts in the market or industry. Use data to support predictions.`,
-        'Law': `
+    'Law': `
 - **Structure**: Formal legal brief style. Issue -> Rule/Regulation -> Analysis/Application -> Conclusion.
 - **Tone**: Precise, formal, guarded but clear.
 - **Focus**: Cite specific laws (Acts, Paragraphs) where applicable. Focus on compliance and legal risk.`,
-        'Tax': `
+    'Tax': `
 - **Structure**: Advisory. Situation/Change -> Impact on Tax Liability -> Actionable Advice.
 - **Tone**: Practical, advisory, detailed.
 - **Focus**: Specific tax rates, deadlines, and deductions. Focus on optimization and compliance.`,
-        'Accounting': `
+    'Accounting': `
 - **Structure**: Technical. Standard/Principle -> Application -> Reporting Impact.
 - **Tone**: Technical, clear, methodical.
-- **Focus**: Impact on financial statements (Balance Sheet, P&L). IFRS/SAS standards.`
-    };
+- **Focus**: Impact on financial statements (Balance Sheet, P&L). IFRS/SAS standards.`,
+    'Regulatory': `
+- **Structure**: Compliance brief. Regulation -> Scope -> Requirements -> Practical steps -> Risks.
+- **Tone**: Clear, precise, compliance-first.
+- **Focus**: Applicability, deadlines, and actionable compliance guidance.`,
+};
 
-    const selectedStyle = styleGuides[type] || styleGuides['Deep Dive'];
+const TONE_GUIDES: Record<string, string> = {
+    'Client-Friendly': 'Clear, approachable, and confidence-building. Avoid legalese unless essential, explain terms briefly.',
+    'Legal Memo': 'Formal, precise, and risk-aware. Use structured reasoning and cite applicable rules where relevant.',
+    'News Brief': 'Concise, factual, and timely. Emphasize what happened and why it matters now.',
+    'Executive': 'Strategic, high-level, and decision-oriented. Focus on implications, not minutiae.',
+    'Neutral': 'Balanced and objective. Avoid strong opinions or marketing language.',
+};
 
+const getLengthGuide = (length: string, targetWordCount?: number) => {
     let lengthGuide = 'Standard depth (700-900 words). Balanced capability and detail.';
     if (length === 'Short') lengthGuide = 'Focus on brevity (300-500 words). Stick to the core message. No fluff.';
     if (length === 'Large') lengthGuide = 'Extensive coverage (1200w+). Include historical context, multiple perspectives, and detailed examples.';
     if (length === 'Comprehensive') lengthGuide = 'Very extensive (1500-2000 words). Cover every angle. Multiple sections, data points, and deep analysis.';
     if (length === 'Report') lengthGuide = 'Maximum depth (2500 words+). Whitepaper quality. Executive summary + Detailed Chapters + Recommendations.';
+    if (targetWordCount && targetWordCount > 0) {
+        lengthGuide = `Target ~${targetWordCount} words. Keep within ±10% unless the topic clearly requires more.`;
+    }
+    return lengthGuide;
+};
+
+const getResearchGuidance = (researchDepth: string) => (
+    researchDepth === 'Deep'
+        ? `- **Research Depth**: Deep. Use Google Search grounding when available to verify claims and include citations.`
+        : `- **Research Depth**: Quick. Use only the provided links and prior knowledge; do not fabricate sources.`
+);
+
+const getToneGuide = (tone: string, toneInstructions?: string) => {
+    const selectedTone = TONE_GUIDES[tone] || TONE_GUIDES['Client-Friendly'];
+    return `${selectedTone}${toneInstructions ? `\n- **Custom Tone Instructions**: ${toneInstructions}` : ''}`;
+};
+
+export function getAIArticlePrompt(
+    prompt: string,
+    links: string[] = [],
+    options: { type?: string, length?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string } = {}
+): string {
+    const {
+        type = 'Deep Dive',
+        length = 'Medium',
+        targetLanguages = ['sk', 'en', 'de', 'cn'],
+        researchDepth = 'Quick',
+        targetWordCount,
+        tone = 'Client-Friendly',
+        toneInstructions = '',
+        outline = ''
+    } = options;
+    const researchContext = links.length > 0
+        ? `\n\n### RESEARCH SOURCES\nCRITICAL: Analyze and synthesize the following sources to enrich the article. You MUST cite specific facts/figures from these sources where possible.\n${links.join('\n')}`
+        : '';
+    const researchGuidance = getResearchGuidance(researchDepth);
+    const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
+    const lengthGuide = getLengthGuide(length, targetWordCount);
+    const toneBlock = getToneGuide(tone, toneInstructions);
+    const outlineBlock = outline
+        ? `\n\n### APPROVED OUTLINE\nUse this outline exactly. Do not add or remove sections unless strictly necessary.\n${outline}\n`
+        : '';
 
     // Construct the language instruction and JSON structure dynamically
     const langNames = {
@@ -114,10 +157,16 @@ Your task is to write a world-class article that demonstrates deep expertise and
 - **Topic**: ${prompt}
 - **Type**: ${type}
 - **Target Length**: ${length} (${lengthGuide})
+${researchGuidance}
+- **Tone**: ${tone}
 ${researchContext}
+${outlineBlock}
 
 ### STYLE GUIDELINES
 ${selectedStyle}
+
+### TONE GUIDELINES
+${toneBlock}
 
 ### WRITING RULES
 1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
@@ -140,10 +189,70 @@ ${jsonFields},
 }`;
 }
 
+export function getAIOutlinePrompt(
+    prompt: string,
+    links: string[] = [],
+    options: { type?: string, length?: string, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string } = {}
+): string {
+    const {
+        type = 'Deep Dive',
+        length = 'Medium',
+        researchDepth = 'Quick',
+        targetWordCount,
+        tone = 'Client-Friendly',
+        toneInstructions = '',
+        languageLabel = 'English (EN)',
+    } = options;
+
+    const researchContext = links.length > 0
+        ? `\n\n### RESEARCH SOURCES\nCRITICAL: Analyze and synthesize the following sources. Use them to shape the outline and include factual sections where appropriate.\n${links.join('\n')}`
+        : '';
+
+    const lengthGuide = getLengthGuide(length, targetWordCount);
+    const researchGuidance = getResearchGuidance(researchDepth);
+    const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
+    const toneBlock = getToneGuide(tone, toneInstructions);
+
+    return `You are an elite expert writer for OCP (Omni Consulting Products).
+Your task is to create a structured outline that will be used to write the final article.
+
+### OUTLINE CONFIGURATION
+- **Topic**: ${prompt}
+- **Type**: ${type}
+- **Target Length**: ${length} (${lengthGuide})
+${researchGuidance}
+- **Tone**: ${tone}
+- **Language**: ${languageLabel}
+${researchContext}
+
+### STYLE GUIDELINES
+${selectedStyle}
+
+### TONE GUIDELINES
+${toneBlock}
+
+### OUTLINE RULES
+1. Use a clear hierarchy: main sections (H2) and subsections (H3).
+2. Keep sections concise but informative.
+3. Include a recommended section order that matches the style guide.
+4. Do NOT write the full article—only the outline.
+
+### OUTPUT FORMAT
+Return ONLY raw JSON. No markdown.
+{
+  "outline": [
+    "H2: Section Title",
+    "H3: Subsection Title",
+    "H2: Another Section Title"
+  ],
+  "notes": "Optional guidance for the writer (1-3 sentences)."
+}`;
+}
+
 export async function generateAIArticle(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[] } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string } = {}
 ): Promise<GeneratedArticle> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
@@ -203,16 +312,24 @@ export async function generateAIArticle(
 
         // Append grounding sources if available
         if (groundingMetadata?.groundingChunks) {
-            const sources = groundingMetadata.groundingChunks
-                .map((chunk: any) => chunk.web?.uri ? `<a href="${chunk.web.uri}" target="_blank">${chunk.web.title || chunk.web.uri}</a>` : null)
-                .filter(Boolean);
+            const sourceItems = groundingMetadata.groundingChunks
+                .map((chunk: any) => {
+                    const uri = chunk.web?.uri;
+                    if (!uri) return null;
+                    return {
+                        url: uri,
+                        title: chunk.web?.title || uri,
+                    };
+                })
+                .filter(Boolean) as Array<{ url: string; title?: string }>;
 
-            if (sources.length > 0) {
-                const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ul>${sources.map((s: string) => `<li>${s}</li>`).join('')}</ul>`;
-                parsedContent.content_sk += sourcesHtml;
-                parsedContent.content_en += sourcesHtml;
-                parsedContent.content_de += sourcesHtml;
-                parsedContent.content_cn += sourcesHtml;
+            if (sourceItems.length > 0) {
+                const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ul>${sourceItems.map((s) => `<li><a href="${s.url}" target="_blank">${s.title || s.url}</a></li>`).join('')}</ul>`;
+                parsedContent.content_sk = (parsedContent.content_sk || '') + sourcesHtml;
+                parsedContent.content_en = (parsedContent.content_en || '') + sourcesHtml;
+                parsedContent.content_de = (parsedContent.content_de || '') + sourcesHtml;
+                parsedContent.content_cn = (parsedContent.content_cn || '') + sourcesHtml;
+                parsedContent.sources = sourceItems;
             }
         }
 
@@ -229,6 +346,105 @@ export async function generateAIArticle(
     } catch (e) {
         console.error("Failed to parse Gemini response as JSON", content);
         throw new Error('Generated content was not in valid JSON format.');
+    }
+}
+
+export async function generateAIOutline(
+    prompt: string,
+    links: string[] = [],
+    options: { type?: string, length?: string, useGrounding?: boolean, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string } = {}
+): Promise<{ outline: string[]; notes?: string; sources?: Array<{ title?: string; url?: string }>; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }> {
+    const apiKey = await getSetting('gemini_api_key');
+    if (!apiKey) throw new Error('Gemini API Key not found in settings.');
+
+    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const { useGrounding = false } = options;
+    const promptText = getAIOutlinePrompt(prompt, links, options);
+
+    const body: any = {
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: {
+            responseMimeType: useGrounding ? "text/plain" : "application/json"
+        }
+    };
+
+    if (useGrounding) {
+        body.tools = [{ googleSearch: {} }];
+    }
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Gemini API Error: ${response.statusText} - ${errorBody}`);
+    }
+
+    const result = await response.json();
+    const groundingMetadata = result.candidates[0]?.groundingMetadata;
+    const usageMetadata = result.usageMetadata;
+    let content = result.candidates[0]?.content?.parts[0]?.text;
+
+    if (!content) throw new Error('No outline generated by Gemini.');
+
+    const fallbackParse = (text: string) => {
+        const lines = text
+            .split('\n')
+            .map((line) => line.replace(/^[\-\*\d\.\s]+/, '').trim())
+            .filter(Boolean);
+        return { outline: lines.length ? lines : ['H2: Introduction', 'H2: Key Points', 'H2: Conclusion'] };
+    };
+
+    try {
+        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/);
+        let cleanContent = jsonMatch ? jsonMatch[1] : content;
+
+        const firstOpen = cleanContent.indexOf('{');
+        const lastClose = cleanContent.lastIndexOf('}');
+        if (firstOpen !== -1 && lastClose !== -1) {
+            cleanContent = cleanContent.substring(firstOpen, lastClose + 1);
+        }
+
+        const parsed = JSON.parse(cleanContent);
+        if (!parsed.outline || !Array.isArray(parsed.outline)) {
+            return fallbackParse(content);
+        }
+
+        const responsePayload: any = {
+            outline: parsed.outline,
+            notes: parsed.notes,
+        };
+
+        if (groundingMetadata?.groundingChunks) {
+            const sourceItems = groundingMetadata.groundingChunks
+                .map((chunk: any) => {
+                    const uri = chunk.web?.uri;
+                    if (!uri) return null;
+                    return {
+                        url: uri,
+                        title: chunk.web?.title || uri,
+                    };
+                })
+                .filter(Boolean) as Array<{ url: string; title?: string }>;
+            if (sourceItems.length > 0) {
+                responsePayload.sources = sourceItems;
+            }
+        }
+
+        if (usageMetadata) {
+            responsePayload.usage = {
+                promptTokens: usageMetadata.promptTokenCount || 0,
+                completionTokens: usageMetadata.candidatesTokenCount || 0,
+                totalTokens: usageMetadata.totalTokenCount || 0
+            };
+        }
+
+        return responsePayload;
+    } catch (e) {
+        return fallbackParse(content);
     }
 }
 

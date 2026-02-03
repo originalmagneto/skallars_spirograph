@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
 import {
     CheckmarkCircle01Icon,
@@ -31,7 +32,7 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { generateAIArticle, GeneratedArticle, getAIArticlePrompt } from '@/lib/aiService';
+import { generateAIArticle, generateAIOutline, GeneratedArticle, getAIArticlePrompt } from '@/lib/aiService';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -42,16 +43,41 @@ const AILab = () => {
     const [links, setLinks] = useState<string[]>(['']);
     const [articleType, setArticleType] = useState('Deep Dive');
     const [articleLength, setArticleLength] = useState('Medium');
-    const [useGrounding, setUseGrounding] = useState(false);
+    const [researchDepth, setResearchDepth] = useState<'Quick' | 'Deep'>('Quick');
+    const [targetWordCount, setTargetWordCount] = useState(800);
     const [customPrompt, setCustomPrompt] = useState('');
     const [showPromptEditor, setShowPromptEditor] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<GeneratedArticle | null>(null);
+    const [useOutlineWorkflow, setUseOutlineWorkflow] = useState(false);
+    const [outlineText, setOutlineText] = useState('');
+    const [outlineNotes, setOutlineNotes] = useState('');
+    const [outlineSources, setOutlineSources] = useState<Array<{ title?: string; url?: string }>>([]);
+    const [outlineGenerating, setOutlineGenerating] = useState(false);
     const [activeTab, setActiveTab] = useState<'sk' | 'en'>('sk');
     const [currentModel, setCurrentModel] = useState<string>('');
     const [modelSupportsGrounding, setModelSupportsGrounding] = useState<boolean>(true);
 
     const [targetLanguages, setTargetLanguages] = useState<string[]>(['sk', 'en']);
+    const [toneStyle, setToneStyle] = useState('Client-Friendly');
+    const [toneInstructions, setToneInstructions] = useState('Clear, approachable, and confidence-building. Avoid legalese unless essential, explain terms briefly.');
+    const [toneCustom, setToneCustom] = useState(false);
+
+    const lengthDefaults: Record<string, number> = {
+        Short: 400,
+        Medium: 800,
+        Large: 1300,
+        Comprehensive: 1700,
+        Report: 2500,
+    };
+
+    const toneDefaults: Record<string, string> = {
+        'Client-Friendly': 'Clear, approachable, and confidence-building. Avoid legalese unless essential, explain terms briefly.',
+        'Legal Memo': 'Formal, precise, and risk-aware. Use structured reasoning and cite applicable rules where relevant.',
+        'News Brief': 'Concise, factual, and timely. Emphasize what happened and why it matters now.',
+        'Executive': 'Strategic, high-level, and decision-oriented. Focus on implications, not minutiae.',
+        'Neutral': 'Balanced and objective. Avoid strong opinions or marketing language.',
+    };
 
     // Fetch model settings on load
     useEffect(() => {
@@ -90,6 +116,17 @@ const AILab = () => {
         init();
     }, []);
 
+    useEffect(() => {
+        const next = lengthDefaults[articleLength] || 800;
+        setTargetWordCount(next);
+    }, [articleLength]);
+
+    useEffect(() => {
+        if (!toneCustom) {
+            setToneInstructions(toneDefaults[toneStyle] || '');
+        }
+    }, [toneStyle, toneCustom]);
+
     const addLink = () => setLinks([...links, '']);
     const removeLink = (index: number) => setLinks(links.filter((_, i) => i !== index));
     const updateLink = (index: number, val: string) => {
@@ -102,7 +139,11 @@ const AILab = () => {
         const p = getAIArticlePrompt(prompt || '[Your topic here]', links.filter(l => l.trim() !== ''), {
             type: articleType,
             length: articleLength,
-            targetLanguages
+            targetLanguages,
+            researchDepth,
+            targetWordCount,
+            tone: toneStyle,
+            toneInstructions
         });
         setCustomPrompt(p);
         setShowPromptEditor(true);
@@ -112,7 +153,11 @@ const AILab = () => {
         const p = getAIArticlePrompt(prompt || '[Your topic here]', links.filter(l => l.trim() !== ''), {
             type: articleType,
             length: articleLength,
-            targetLanguages
+            targetLanguages,
+            researchDepth,
+            targetWordCount,
+            tone: toneStyle,
+            toneInstructions
         });
         setCustomPrompt(p);
         toast.success('Prompt reset to default');
@@ -124,6 +169,13 @@ const AILab = () => {
                 ? prev.filter(l => l !== lang)
                 : [...prev, lang]
         );
+    };
+
+    const languageLabels: Record<string, string> = {
+        sk: 'Slovak (SK)',
+        en: 'English (EN)',
+        de: 'German (DE)',
+        cn: 'Chinese (CN)',
     };
 
     const handleGenerate = async () => {
@@ -140,12 +192,22 @@ const AILab = () => {
         setGenerating(true);
         try {
             const validLinks = links.filter(l => l.trim() !== '');
+            if (useOutlineWorkflow && !outlineText && !showPromptEditor) {
+                await handleGenerateOutline();
+                setGenerating(false);
+                return;
+            }
             const content = await generateAIArticle(prompt, validLinks, {
                 type: articleType,
                 length: articleLength,
-                useGrounding: useGrounding,
+                useGrounding: researchDepth === 'Deep',
                 customPrompt: showPromptEditor ? customPrompt : undefined,
-                targetLanguages
+                targetLanguages,
+                researchDepth,
+                targetWordCount,
+                tone: toneStyle,
+                toneInstructions,
+                outline: useOutlineWorkflow && outlineText && !showPromptEditor ? outlineText : undefined
             });
             setGeneratedContent(content);
 
@@ -170,6 +232,40 @@ const AILab = () => {
             toast.error(error.message || 'Generation failed');
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleGenerateOutline = async () => {
+        if (!prompt && !customPrompt) {
+            toast.error('Please enter a topic or prompt');
+            return;
+        }
+        if (targetLanguages.length === 0) {
+            toast.error('Please select at least one language');
+            return;
+        }
+        setOutlineGenerating(true);
+        try {
+            const validLinks = links.filter(l => l.trim() !== '');
+            const primaryLang = targetLanguages[0] || 'en';
+            const outlineResult = await generateAIOutline(prompt, validLinks, {
+                type: articleType,
+                length: articleLength,
+                researchDepth,
+                targetWordCount,
+                tone: toneStyle,
+                toneInstructions,
+                languageLabel: languageLabels[primaryLang] || primaryLang,
+                useGrounding: researchDepth === 'Deep',
+            });
+            setOutlineText(outlineResult.outline.join('\n'));
+            setOutlineNotes(outlineResult.notes || '');
+            setOutlineSources(outlineResult.sources || []);
+            toast.success('Outline generated');
+        } catch (error: any) {
+            toast.error(error.message || 'Outline generation failed');
+        } finally {
+            setOutlineGenerating(false);
         }
     };
 
@@ -302,7 +398,7 @@ const AILab = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Article Type</Label>
                                 <Select value={articleType} onValueChange={setArticleType}>
@@ -322,7 +418,7 @@ const AILab = () => {
                             </div>
                             <div className="space-y-2">
                                 <Label>Length</Label>
-                                <Select value={articleLength} onValueChange={setArticleLength}>
+                                <Select value={articleLength} onValueChange={(value) => setArticleLength(value)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select length" />
                                     </SelectTrigger>
@@ -337,26 +433,177 @@ const AILab = () => {
                             </div>
                         </div>
 
+                        <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-primary/10">
+                            <Label className="text-sm font-medium flex items-center gap-2">
+                                <GlobalSearchIcon size={16} className="text-primary" />
+                                Research Depth
+                            </Label>
+                            <Select value={researchDepth} onValueChange={(value) => setResearchDepth(value as 'Quick' | 'Deep')}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select depth" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Quick">Quick (No web grounding)</SelectItem>
+                                    <SelectItem value="Deep">Deep (Use Google Search)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                                {researchDepth === 'Deep'
+                                    ? 'Deep mode uses Google Search grounding to verify facts.'
+                                    : 'Quick mode uses only your prompt + links; no external search.'}
+                                {currentModel && (
+                                    <span className="block text-[10px] text-primary mt-1">
+                                        Current Model: {currentModel}
+                                    </span>
+                                )}
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>Target Word Count</Label>
+                                <Input
+                                    type="number"
+                                    min={300}
+                                    max={3000}
+                                    value={targetWordCount}
+                                    onChange={(e) => setTargetWordCount(Math.max(300, Math.min(3000, parseInt(e.target.value) || 0)))}
+                                    className="w-28"
+                                />
+                            </div>
+                            <Slider
+                                min={300}
+                                max={3000}
+                                step={50}
+                                value={[targetWordCount]}
+                                onValueChange={(value) => setTargetWordCount(value[0] ?? 800)}
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Word count target is enforced in the prompt (±10%).
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Tone / Voice</Label>
+                            <Select value={toneStyle} onValueChange={(value) => { setToneStyle(value); setToneCustom(false); }}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select tone" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Client-Friendly">Client-Friendly</SelectItem>
+                                    <SelectItem value="Legal Memo">Legal Memo</SelectItem>
+                                    <SelectItem value="News Brief">News Brief</SelectItem>
+                                    <SelectItem value="Executive">Executive</SelectItem>
+                                    <SelectItem value="Neutral">Neutral</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs text-muted-foreground">Tone Instructions (customizable)</Label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => {
+                                            setToneInstructions(toneDefaults[toneStyle] || '');
+                                            setToneCustom(false);
+                                        }}
+                                    >
+                                        Reset to Default
+                                    </Button>
+                                </div>
+                                <Textarea
+                                    value={toneInstructions}
+                                    onChange={(e) => {
+                                        setToneInstructions(e.target.value);
+                                        setToneCustom(true);
+                                    }}
+                                    rows={3}
+                                    placeholder="Add your own tone instructions..."
+                                />
+                            </div>
+                        </div>
+
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
                             <div className="space-y-0.5">
                                 <Label className="text-sm font-medium flex items-center gap-2">
-                                    <GlobalSearchIcon size={16} className="text-primary" />
-                                    Deep Research (Search Grounding)
+                                    <PlusSignIcon size={16} className="text-primary" />
+                                    Outline-First Workflow
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
-                                    Use Google Search to find latest information.
-                                    {currentModel && (
-                                        <span className="block text-[10px] text-primary mt-1">
-                                            Current Model: {currentModel}
-                                        </span>
-                                    )}
+                                    Generate an outline first, review it, then create the full article.
                                 </p>
                             </div>
                             <Switch
-                                checked={useGrounding}
-                                onCheckedChange={setUseGrounding}
+                                checked={useOutlineWorkflow}
+                                onCheckedChange={(value) => {
+                                    setUseOutlineWorkflow(value);
+                                    if (!value) {
+                                        setOutlineText('');
+                                        setOutlineNotes('');
+                                        setOutlineSources([]);
+                                    }
+                                }}
                             />
                         </div>
+                        {useOutlineWorkflow && showPromptEditor && (
+                            <p className="text-[10px] text-muted-foreground">
+                                Outline workflow is disabled while the custom prompt editor is enabled.
+                            </p>
+                        )}
+
+                        {useOutlineWorkflow && !showPromptEditor && (
+                            <div className="space-y-2">
+                                <Label>Outline (editable)</Label>
+                                <Textarea
+                                    value={outlineText}
+                                    onChange={(e) => setOutlineText(e.target.value)}
+                                    rows={6}
+                                    placeholder="Generate an outline or write your own structure here..."
+                                />
+                                <p className="text-[10px] text-muted-foreground">
+                                    Outline is injected into the prompt for the final article.
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={handleGenerateOutline}
+                                        disabled={outlineGenerating}
+                                    >
+                                        {outlineGenerating ? 'Generating...' : 'Generate Outline'}
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setOutlineText('');
+                                            setOutlineNotes('');
+                                            setOutlineSources([]);
+                                        }}
+                                    >
+                                        Clear
+                                    </Button>
+                                </div>
+                                {outlineNotes && (
+                                    <div className="text-xs text-muted-foreground">
+                                        <strong>Notes:</strong> {outlineNotes}
+                                    </div>
+                                )}
+                                {outlineSources.length > 0 && (
+                                    <div className="text-xs text-muted-foreground">
+                                        <strong>Outline Sources:</strong>
+                                        <ul className="list-disc list-inside">
+                                            {outlineSources.map((source, idx) => (
+                                                <li key={`${source.url}-${idx}`}>
+                                                    {source.title || source.url}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
                             <div className="space-y-0.5">
@@ -455,7 +702,7 @@ const AILab = () => {
                             ) : (
                                 <>
                                     <Search01Icon size={18} className="mr-2" />
-                                    Research & Generate Article
+                                    {useOutlineWorkflow && !outlineText && !showPromptEditor ? 'Generate Outline' : 'Research & Generate Article'}
                                 </>
                             )}
                         </Button>
@@ -534,6 +781,29 @@ const AILab = () => {
                                             __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
                                         }}
                                     />
+
+                                    {generatedContent.sources && generatedContent.sources.length > 0 && (
+                                        <div className="bg-muted/30 p-4 rounded-lg space-y-2">
+                                            <h3 className="text-sm font-semibold flex items-center gap-2">
+                                                <GlobalSearchIcon size={14} className="text-primary" />
+                                                Sources & References
+                                            </h3>
+                                            <ul className="text-xs list-disc list-inside space-y-1">
+                                                {generatedContent.sources.map((source, idx) => (
+                                                    <li key={`${source.url}-${idx}`}>
+                                                        <a
+                                                            href={source.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary hover:underline"
+                                                        >
+                                                            {source.title || source.url}
+                                                        </a>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
 
                                     <div className="pt-6 border-t flex flex-wrap gap-2">
                                         {generatedContent.tags.map(tag => (
