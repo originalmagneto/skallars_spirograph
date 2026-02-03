@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { PencilEdit01Icon, Cancel01Icon, Tick01Icon, Search01Icon, TextIcon, AiMagicIcon } from 'hugeicons-react';
 import { generateContentTranslation } from '@/lib/aiService';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useSearchParams } from 'next/navigation';
 
 interface SiteContent {
     id?: string;
@@ -69,6 +70,12 @@ const ContentManager = () => {
     const [uploading, setUploading] = useState(false);
     const [showPreviews, setShowPreviews] = useState(true);
     const { language } = useLanguage();
+    const searchParams = useSearchParams();
+    const initialOpen = useMemo(() => {
+        const target = searchParams.get('section');
+        if (!target) return Object.keys(SECTION_LABELS);
+        return Array.from(new Set([target, ...Object.keys(SECTION_LABELS)]));
+    }, [searchParams]);
 
     const { data: content, isLoading } = useQuery({
         queryKey: ['site-content-admin'],
@@ -623,7 +630,7 @@ const ContentManager = () => {
                 />
             </div>
 
-            <Accordion type="multiple" defaultValue={Object.keys(SECTION_LABELS)} className="space-y-2">
+            <Accordion type="multiple" defaultValue={initialOpen} className="space-y-2">
                 {Object.entries(groupedContent || {}).map(([section, items]) => (
                     <AccordionItem key={section} value={section} className="border rounded-lg px-4">
                         <AccordionTrigger className="hover:no-underline">
