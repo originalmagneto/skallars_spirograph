@@ -50,7 +50,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 return;
             }
             if (adminError || editorError) {
-                setAccessCheckMessage('Access check failed. Please re-login.');
+                const adminMsg = adminError?.message ? `Admin check error: ${adminError.message}` : '';
+                const editorMsg = editorError?.message ? `Editor check error: ${editorError.message}` : '';
+                setAccessCheckMessage([adminMsg, editorMsg].filter(Boolean).join(' | ') || 'Access check failed. Please re-login.');
             } else {
                 setAccessOverride(false);
                 setAccessCheckMessage('No admin/editor role detected.');
@@ -169,6 +171,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const output = JSON.stringify(result, null, 2);
             setDiagnostics(output);
             console.info('[admin-diagnostics]', result);
+
+            if (user?.id) {
+                await supabase.from('admin_access_logs').insert({
+                    user_id: user.id,
+                    status: 'diagnostics',
+                    details: result
+                });
+            }
         } catch (error: any) {
             const message = error?.message || 'Unknown diagnostics error';
             setDiagnostics(`Diagnostics failed: ${message}`);
