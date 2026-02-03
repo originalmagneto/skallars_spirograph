@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { LayoutGridIcon, ArrowUp01Icon, ArrowDown01Icon, Reset02Icon, Save01Icon } from 'hugeicons-react';
+import { LayoutGridIcon, ArrowUp01Icon, ArrowDown01Icon, FilterResetIcon, SaveEnergy01Icon } from 'hugeicons-react';
 
 interface PageSectionRow {
   id?: string;
@@ -121,11 +121,11 @@ export default function PageLayoutManager() {
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={resetToDefault}>
-            <Reset02Icon size={14} className="mr-1" />
+            <FilterResetIcon size={14} className="mr-1" />
             Reset Default
           </Button>
           <Button size="sm" onClick={saveLayout} disabled={!dirty || saveMutation.isPending}>
-            <Save01Icon size={14} className="mr-1" />
+            <SaveEnergy01Icon size={14} className="mr-1" />
             {saveMutation.isPending ? 'Saving...' : 'Save Layout'}
           </Button>
         </div>
