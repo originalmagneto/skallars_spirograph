@@ -510,6 +510,19 @@ const AILab = () => {
         if (!generatedContent || !user) return;
 
         const modelForLog = currentModel || 'gemini-2.0-flash';
+        const logSaveEvent = async (status: string, payload?: Record<string, any>) => {
+            try {
+                await supabase.from('ai_generation_logs').insert({
+                    action: 'ai_lab_save_draft',
+                    status,
+                    model: modelForLog,
+                    user_id: user.id,
+                    details: payload || null,
+                });
+            } catch {
+                // Ignore logging failures
+            }
+        };
 
         try {
             setIsSavingDraft(true);
@@ -531,19 +544,6 @@ const AILab = () => {
                 });
             };
 
-            const logSaveEvent = async (status: string, payload?: Record<string, any>) => {
-                try {
-                    await supabase.from('ai_generation_logs').insert({
-                        action: 'ai_lab_save_draft',
-                        status,
-                        model: modelForLog,
-                        user_id: user.id,
-                        details: payload || null,
-                    });
-                } catch {
-                    // Ignore logging failures
-                }
-            };
             // 1. Generate slug from the first available title
             const titleForSlug = generatedContent.title_sk || generatedContent.title_en || generatedContent.title_de || generatedContent.title_cn || 'untitled-article';
             const slug = titleForSlug
@@ -670,13 +670,7 @@ const AILab = () => {
                 }
             }, 600);
         } catch (error: any) {
-            void supabase.from('ai_generation_logs').insert({
-                action: 'ai_lab_save_draft',
-                status: 'error',
-                model: modelForLog,
-                user_id: user.id,
-                error_message: error?.message || String(error),
-            }).catch(() => {});
+            void logSaveEvent('error', { error_message: error?.message || String(error) });
             toast.error(error?.message || 'Failed to save article');
         } finally {
             setIsSavingDraft(false);
