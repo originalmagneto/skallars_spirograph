@@ -80,12 +80,20 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      if (String(primary.error?.message || '').includes('AbortError')) {
+        // Ignore aborted requests (tab switch / auth re-init)
+        return;
+      }
+
       console.warn('Primary site content override fetch failed, retrying with legacy columns:', primary.error);
       const fallback = await supabase
         .from('site_content')
         .select('key, value_sk, value_en');
 
       if (!isActive) return;
+      if (String(fallback.error?.message || '').includes('AbortError')) {
+        return;
+      }
       if (fallback.error) {
         console.warn('Could not fetch site content overrides:', fallback.error);
         setSiteContent([]);
