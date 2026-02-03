@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -45,16 +45,18 @@ export default function PageLayoutManager() {
       if (error) throw error;
       return data as PageSectionRow[];
     },
-    onSuccess: (rows) => {
-      if (rows && rows.length > 0) {
-        setItems(rows);
-        setDirty(false);
-      } else {
-        setItems(DEFAULT_SECTIONS);
-        setDirty(false);
-      }
-    },
   });
+
+  useEffect(() => {
+    if (!data) return;
+    if (data.length > 0) {
+      setItems(data);
+      setDirty(false);
+    } else {
+      setItems(DEFAULT_SECTIONS);
+      setDirty(false);
+    }
+  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: async (rows: PageSectionRow[]) => {
