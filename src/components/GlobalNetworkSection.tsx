@@ -458,7 +458,12 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
     const currentViewBox = `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`;
 
     return (
-        <section id={id} ref={sectionRef} className="relative py-20 md:py-32 overflow-visible">
+        <section
+            id={id}
+            ref={sectionRef}
+            className="relative py-20 md:py-32 overflow-visible"
+            data-admin-section="countries"
+        >
             {/* ... styles and container ... */}
             <div className="absolute inset-0 bg-card" />
 

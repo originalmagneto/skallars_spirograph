@@ -54,6 +54,11 @@ export default function AdminInlinePreviewBar() {
   const sections = Object.entries(draftSummary).sort((a, b) => b[1] - a[1]);
   const totalDrafts = sections.reduce((sum, [, count]) => sum + count, 0);
 
+  const handleHighlight = () => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent("admin:highlight-sections", { detail: true }));
+  };
+
   return (
     <div className="fixed bottom-4 right-4 z-50 w-[320px] rounded-xl border bg-white/95 shadow-lg backdrop-blur">
       <div className="flex items-center justify-between px-4 py-3 border-b">
@@ -78,6 +83,9 @@ export default function AdminInlinePreviewBar() {
       <div className="px-4 py-3 border-t flex items-center gap-2">
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
           {isFetching ? "Refreshing..." : "Refresh"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleHighlight}>
+          Highlight
         </Button>
         <Button size="sm" asChild>
           <Link href="/admin">Open Admin</Link>

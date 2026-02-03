@@ -34,6 +34,7 @@ export default function LawFirmHomepage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const serviceRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [currentClientIndex, setCurrentClientIndex] = useState(0);
+  const [showSectionHighlights, setShowSectionHighlights] = useState(false);
 
   const [activeSection, setActiveSection] = useState("");
   const { scrollYProgress } = useScroll();
@@ -96,6 +97,15 @@ export default function LawFirmHomepage() {
       observer.disconnect();
     };
   }, [images.length]);
+
+  useEffect(() => {
+    const handleHighlight = () => {
+      setShowSectionHighlights(true);
+      setTimeout(() => setShowSectionHighlights(false), 3000);
+    };
+    window.addEventListener("admin:highlight-sections", handleHighlight as EventListener);
+    return () => window.removeEventListener("admin:highlight-sections", handleHighlight as EventListener);
+  }, []);
 
 
   const scrollToSection = (sectionId: string) => {
@@ -191,7 +201,7 @@ export default function LawFirmHomepage() {
       <main>
         <section
           id="home"
-          className="min-h-screen flex items-center justify-center relative overflow-visible pt-24"
+          className={`min-h-screen flex items-center justify-center relative overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         >
           {/* Spirograph pinned to hero section */}
           <Spirograph />
@@ -215,7 +225,7 @@ export default function LawFirmHomepage() {
           </div>
         </section>
 
-        <section id="team" className="py-24 bg-transparent reveal">
+        <section id="team" className={`py-24 bg-transparent reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="team">
           <div className="container mx-auto px-4">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -293,7 +303,8 @@ export default function LawFirmHomepage() {
         <section
           id="services"
           ref={servicesRef}
-          className="py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden"
+          className={`py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+          data-admin-section="services"
         >
           <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
           <div className="container mx-auto px-4 relative z-10">
@@ -352,7 +363,7 @@ export default function LawFirmHomepage() {
 
         <GlobalNetworkSection id="countries" />
 
-        <section id="clients" className="py-20 bg-white reveal">
+        <section id="clients" className={`py-20 bg-white reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="clients">
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center justify-between">
               <div className="md:w-1/2 mb-10 md:mb-0">
@@ -385,7 +396,7 @@ export default function LawFirmHomepage() {
           </div>
         </section>
 
-        <section className="py-24 bg-gradient-to-b from-[#210059] to-gray-900 text-white reveal">
+        <section className={`py-24 bg-gradient-to-b from-[#210059] to-gray-900 text-white reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="news">
           <div className="container mx-auto px-4">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -401,7 +412,7 @@ export default function LawFirmHomepage() {
         </section>
       </main>
 
-      <footer id="contact" className="bg-[#110C19] text-white py-10 relative overflow-hidden">
+      <footer id="contact" className={`bg-[#110C19] text-white py-10 relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="contact">
         <div className="absolute inset-0 bg-pattern opacity-10 pointer-events-none mix-blend-soft-light" />
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8">
