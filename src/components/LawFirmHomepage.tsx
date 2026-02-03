@@ -417,11 +417,12 @@ export default function LawFirmHomepage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
-              <p>Staré Grunty 18</p>
-              <p>841 04 Bratislava</p>
-              <a href="mailto:info@skallars.sk" className="hover:underline">
-                info@skallars.sk
+              <p>{t.contact.address}</p>
+              <p>{t.contact.phone}</p>
+              <a href={`mailto:${t.contact.email}`} className="hover:underline">
+                {t.contact.email}
               </a>
+              <p className="text-sm text-gray-300 mt-2">{t.contact.workingHours}</p>
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-4">{t.navigation.services}</h3>
@@ -449,28 +450,15 @@ export default function LawFirmHomepage() {
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Riešenia</h3>
+              <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
               <ul className="space-y-2">
-                <li>
-                  <a href="#" className="hover:underline">
-                    IT a ochrana osobných údajov
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:underline">
-                    Duševné vlastníctvo
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:underline">
-                    Umelá inteligencia
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:underline">
-                    {t.services.items.realEstate.title}
-                  </a>
-                </li>
+                {t.footer.solutionsItems.map((item) => (
+                  <li key={item}>
+                    <a href="#" className="hover:underline">
+                      {item}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
@@ -478,14 +466,14 @@ export default function LawFirmHomepage() {
               <form className="flex flex-col space-y-2">
                 <input
                   type="email"
-                  placeholder="Váš email"
+                  placeholder={t.footer.newsletterPlaceholder}
                   className="px-4 py-2 bg-gray-800 rounded"
                 />
                 <button
                   type="submit"
                   className="px-4 py-2 bg-[#210059] text-white rounded hover:bg-[#210059]/80"
                 >
-                  Odoberať
+                  {t.footer.newsletterCta}
                 </button>
               </form>
             </div>

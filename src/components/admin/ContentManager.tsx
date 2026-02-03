@@ -438,6 +438,17 @@ const ContentManager = () => {
                 {section === 'footer' && (
                     <SectionWrapper title="Footer">
                         <div className="text-xs text-muted-foreground">{getValue(map, 'footer.copyright')}</div>
+                        <div className="pt-2">
+                            <div className="text-sm font-medium">{getValue(map, 'footer.solutionsTitle')}</div>
+                            <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                {[0, 1, 2, 3].map((idx) => (
+                                    <li key={idx}>{getValue(map, `footer.solutionsItems.${idx}`)}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="pt-2 text-xs text-muted-foreground">
+                            {getValue(map, 'footer.newsletterPlaceholder')} • {getValue(map, 'footer.newsletterCta')}
+                        </div>
                     </SectionWrapper>
                 )}
                 {section === 'map' && (
@@ -557,6 +568,17 @@ const ContentManager = () => {
                         {section === 'footer' && (
                             <SectionWrapper title="Footer">
                                 <div className="text-xs text-muted-foreground">{getValue(draftMap, 'footer.copyright')}</div>
+                                <div className="pt-2">
+                                    <div className="text-sm font-medium">{getValue(draftMap, 'footer.solutionsTitle')}</div>
+                                    <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                        {[0, 1, 2, 3].map((idx) => (
+                                            <li key={idx}>{getValue(draftMap, `footer.solutionsItems.${idx}`)}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                                <div className="pt-2 text-xs text-muted-foreground">
+                                    {getValue(draftMap, 'footer.newsletterPlaceholder')} • {getValue(draftMap, 'footer.newsletterCta')}
+                                </div>
                             </SectionWrapper>
                         )}
                         {section === 'map' && (

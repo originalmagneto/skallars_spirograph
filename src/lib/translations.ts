@@ -99,6 +99,10 @@ export interface Translations {
   };
   footer: {
     copyright: string;
+    solutionsTitle: string;
+    solutionsItems: string[];
+    newsletterPlaceholder: string;
+    newsletterCta: string;
   };
   map: {
     slovakia: string;
@@ -219,6 +223,15 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       copyright: '© 2023 Advokátska kancelária SKALLARS®. Všetky práva vyhradené.',
+      solutionsTitle: 'Riešenia',
+      solutionsItems: [
+        'IT a ochrana osobných údajov',
+        'Duševné vlastníctvo',
+        'Umelá inteligencia',
+        'Nehnuteľnosti',
+      ],
+      newsletterPlaceholder: 'Váš email',
+      newsletterCta: 'Odoberať',
     },
     map: {
       slovakia: 'Slovensko',
@@ -337,6 +350,15 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       copyright: '© 2023 SKALLARS® Anwaltskanzlei. Alle Rechte vorbehalten.',
+      solutionsTitle: 'Lösungen',
+      solutionsItems: [
+        'IT & Datenschutz',
+        'Geistiges Eigentum',
+        'Künstliche Intelligenz',
+        'Immobilien',
+      ],
+      newsletterPlaceholder: 'Ihre E-Mail',
+      newsletterCta: 'Abonnieren',
     },
     map: {
       slovakia: 'Slowakei',
@@ -456,6 +478,15 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       copyright: '© 2023 SKALLARS® Law Firm. All rights reserved.',
+      solutionsTitle: 'Solutions',
+      solutionsItems: [
+        'IT & Data Protection',
+        'Intellectual Property',
+        'Artificial Intelligence',
+        'Real Estate',
+      ],
+      newsletterPlaceholder: 'Your email',
+      newsletterCta: 'Subscribe',
     },
     map: {
       slovakia: 'Slovakia',
@@ -574,6 +605,15 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       copyright: '© 2023 SKALLARS® 律师事务所。保留所有权利。',
+      solutionsTitle: '解决方案',
+      solutionsItems: [
+        'IT 与数据保护',
+        '知识产权',
+        '人工智能',
+        '房地产',
+      ],
+      newsletterPlaceholder: '您的邮箱',
+      newsletterCta: '订阅',
     },
     map: {
       slovakia: '斯洛伐克',
