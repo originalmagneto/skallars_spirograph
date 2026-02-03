@@ -203,6 +203,62 @@ const ContentManager = () => {
         }
     };
 
+    const hasDraft = (item: ContentItem) =>
+        Boolean(item.draft_value_sk || item.draft_value_en || item.draft_value_de || item.draft_value_cn);
+
+    const saveSectionDrafts = async (section: string, items: ContentItem[]) => {
+        try {
+            const payload = items.map((item) => ({
+                key: item.key,
+                value_sk: item.value_sk || '',
+                value_en: item.value_en || '',
+                value_de: item.value_de || '',
+                value_cn: item.value_cn || '',
+                content_type: item.content_type || 'text',
+                section: item.section || section || 'general',
+                description: item.description || null,
+                draft_value_sk: item.draft_value_sk ?? item.value_sk ?? '',
+                draft_value_en: item.draft_value_en ?? item.value_en ?? '',
+                draft_value_de: item.draft_value_de ?? item.value_de ?? '',
+                draft_value_cn: item.draft_value_cn ?? item.value_cn ?? '',
+                draft_updated_at: item.draft_updated_at ?? new Date().toISOString(),
+            }));
+            const { error } = await supabase.from('site_content').upsert(payload, { onConflict: 'key' });
+            if (error) throw error;
+            toast.success(`Drafts saved for ${section}`);
+            queryClient.invalidateQueries({ queryKey: ['site-content-admin'] });
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to save section drafts');
+        }
+    };
+
+    const publishSectionDrafts = async (section: string, items: ContentItem[]) => {
+        try {
+            const payload = items.map((item) => ({
+                key: item.key,
+                value_sk: item.draft_value_sk ?? item.value_sk ?? '',
+                value_en: item.draft_value_en ?? item.value_en ?? '',
+                value_de: item.draft_value_de ?? item.value_de ?? '',
+                value_cn: item.draft_value_cn ?? item.value_cn ?? '',
+                content_type: item.content_type || 'text',
+                section: item.section || section || 'general',
+                description: item.description || null,
+                draft_value_sk: null,
+                draft_value_en: null,
+                draft_value_de: null,
+                draft_value_cn: null,
+                draft_updated_at: null,
+            }));
+            const { error } = await supabase.from('site_content').upsert(payload, { onConflict: 'key' });
+            if (error) throw error;
+            toast.success(`Published ${section}`);
+            queryClient.invalidateQueries({ queryKey: ['site-content-admin'] });
+            queryClient.invalidateQueries({ queryKey: ['site-content'] });
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to publish section');
+        }
+    };
+
     const uploadImage = async (file: File, item: ContentItem) => {
         setUploading(true);
         try {
@@ -637,9 +693,20 @@ const ContentManager = () => {
                             <div className="flex items-center gap-2">
                                 <span className="font-medium">{SECTION_LABELS[section]?.en || section}</span>
                                 <Badge variant="outline" className="text-xs">{items.length}</Badge>
+                                {items.some(hasDraft) && (
+                                    <Badge variant="secondary" className="text-[10px]">Drafts</Badge>
+                                )}
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
+                            <div className="flex flex-wrap gap-2 pb-3">
+                                <Button size="sm" variant="outline" onClick={() => saveSectionDrafts(section, items)}>
+                                    Save Drafts
+                                </Button>
+                                <Button size="sm" variant="secondary" onClick={() => publishSectionDrafts(section, items)}>
+                                    Publish Section
+                                </Button>
+                            </div>
                             {renderSectionPreview(section, items)}
                             <div className="space-y-3 pb-2">
                                 {items.map((item) =>
