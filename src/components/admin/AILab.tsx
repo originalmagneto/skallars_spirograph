@@ -511,12 +511,13 @@ const AILab = () => {
 
         try {
             setIsSavingDraft(true);
-            const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string) => {
+            const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number, label: string) => {
+                const wrapped = Promise.resolve(promise);
                 return await new Promise<T>((resolve, reject) => {
                     const timer = window.setTimeout(() => {
                         reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`));
                     }, ms);
-                    promise
+                    wrapped
                         .then((value) => {
                             window.clearTimeout(timer);
                             resolve(value);
@@ -591,7 +592,7 @@ const AILab = () => {
                         is_published: false,
                     })
                     .select('id')
-                    .single() as Promise<{ data: { id: string } | null; error: any }>;
+                    .single();
 
                 const { data: article, error: articleError } = await withTimeout(insertPromise, 20000, 'Saving draft');
                 if (articleError) throw articleError;
