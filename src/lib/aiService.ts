@@ -624,7 +624,10 @@ export async function generateAIArticle(
                 .filter(Boolean) as Array<{ url: string; title?: string }>;
             appendSources(sourceItems);
         } else if (providedSources && providedSources.length > 0) {
-            appendSources(providedSources);
+            const sanitizedSources = providedSources
+                .filter((s): s is { url: string; title?: string } => Boolean(s?.url))
+                .map((s) => ({ url: s.url, title: s.title }));
+            appendSources(sanitizedSources);
         }
 
         // Add usage metadata if available
