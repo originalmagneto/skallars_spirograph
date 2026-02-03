@@ -24,6 +24,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         router.refresh();
     };
 
+    const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number, label: string) => {
+        const wrapped = Promise.resolve(promise);
+        return await new Promise<T>((resolve, reject) => {
+            const timer = window.setTimeout(() => {
+                reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`));
+            }, ms);
+            wrapped
+                .then((value) => {
+                    window.clearTimeout(timer);
+                    resolve(value);
+                })
+                .catch((err) => {
+                    window.clearTimeout(timer);
+                    reject(err);
+                });
+        });
+    };
+
     const checkAccessViaRpc = async () => {
         try {
             const { data: userData } = await supabase.auth.getUser();
@@ -113,13 +131,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setIsRefreshing(true);
         setAccessCheckMessage('Checking permissions...');
         try {
-            await supabase.auth.refreshSession();
-        } catch {
-            // Ignore refresh failures; continue to role checks.
+            try {
+                await withTimeout(supabase.auth.refreshSession(), 8000, 'Session refresh');
+            } catch {
+                // Ignore refresh failures; continue to role checks.
+            }
+            await withTimeout(refreshRoles(), 8000, 'Role refresh');
+            await withTimeout(checkAccessViaRpc(), 8000, 'Access check');
+        } catch (error: any) {
+            setAccessCheckMessage(error?.message || 'Refresh failed.');
+        } finally {
+            setIsRefreshing(false);
         }
-        await refreshRoles();
-        await checkAccessViaRpc();
-        setIsRefreshing(false);
     };
 
     const runDiagnostics = async () => {
@@ -136,7 +159,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 },
             };
 
-            const sessionRes = await supabase.auth.getSession();
+            const sessionRes = await withTimeout(supabase.auth.getSession(), 8000, 'Session check');
             result.session = {
                 userId: sessionRes.data.session?.user?.id || null,
                 email: sessionRes.data.session?.user?.email || null,
@@ -144,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 error: sessionRes.error?.message || null,
             };
 
-            const userRes = await supabase.auth.getUser();
+            const userRes = await withTimeout(supabase.auth.getUser(), 8000, 'User check');
             result.user = {
                 userId: userRes.data.user?.id || null,
                 email: userRes.data.user?.email || null,
@@ -153,50 +176,74 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             const targetId = userRes.data.user?.id || user?.id || null;
             if (targetId) {
-                const profileRes = await supabase
+                const profileRes = await withTimeout(
+                    supabase
                     .from('profiles')
                     .select('id, role')
                     .eq('id', targetId)
-                    .maybeSingle();
+                    .maybeSingle(),
+                    8000,
+                    'Profile check'
+                );
                 result.profile = {
                     data: profileRes.data,
                     error: profileRes.error?.message || null,
                 };
 
-                const adminRpc = await supabase.rpc('is_profile_admin', { _user_id: targetId });
+                const adminRpc = await withTimeout(
+                    supabase.rpc('is_profile_admin', { _user_id: targetId }),
+                    8000,
+                    'Admin RPC check'
+                );
                 result.is_profile_admin = {
                     data: adminRpc.data,
                     error: adminRpc.error?.message || null,
                 };
 
-                const editorRpc = await supabase.rpc('is_profile_editor', { _user_id: targetId });
+                const editorRpc = await withTimeout(
+                    supabase.rpc('is_profile_editor', { _user_id: targetId }),
+                    8000,
+                    'Editor RPC check'
+                );
                 result.is_profile_editor = {
                     data: editorRpc.data,
                     error: editorRpc.error?.message || null,
                 };
 
-                const rolesRes = await supabase
+                const rolesRes = await withTimeout(
+                    supabase
                     .from('user_roles')
                     .select('role')
-                    .eq('user_id', targetId);
+                    .eq('user_id', targetId),
+                    8000,
+                    'Roles check'
+                );
                 result.user_roles = {
                     data: rolesRes.data,
                     error: rolesRes.error?.message || null,
                 };
 
-                const contentRes = await supabase
+                const contentRes = await withTimeout(
+                    supabase
                     .from('site_content')
                     .select('key')
-                    .limit(1);
+                    .limit(1),
+                    8000,
+                    'Site content check'
+                );
                 result.site_content_select = {
                     ok: !contentRes.error,
                     error: contentRes.error?.message || null,
                 };
 
-                const layoutRes = await supabase
+                const layoutRes = await withTimeout(
+                    supabase
                     .from('page_sections')
                     .select('section_key')
-                    .limit(1);
+                    .limit(1),
+                    8000,
+                    'Page sections check'
+                );
                 result.page_sections_select = {
                     ok: !layoutRes.error,
                     error: layoutRes.error?.message || null,
