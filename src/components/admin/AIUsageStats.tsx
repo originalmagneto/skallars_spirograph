@@ -63,7 +63,7 @@ export default function AIUsageStats() {
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="bg-gradient-to-br from-[#210059] to-[#3a0099] text-white border-none shadow-lg">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-white/80">Total Tokens Used</CardTitle>
@@ -86,21 +86,6 @@ export default function AIUsageStats() {
                         <div className="text-3xl font-bold text-[#210059]">{stats?.totalGenerations}</div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Articles & Images
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Estimated Cost</CardTitle>
-                        <Coins className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-[#210059]">
-                            ${((stats?.totalInput || 0) / 1000000 * 0.15 + (stats?.totalOutput || 0) / 1000000 * 0.60).toFixed(4)}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Based on Gemini 1.5 Pro pricing
                         </p>
                     </CardContent>
                 </Card>

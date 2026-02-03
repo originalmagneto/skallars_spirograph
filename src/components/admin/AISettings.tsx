@@ -169,8 +169,7 @@ const AISettings = () => {
             { key: 'gemini_api_key', value: '', description: 'API Key for Google Gemini (Vertex AI / Generative AI)' },
             { key: 'gemini_model', value: '', description: 'Selected Gemini model for text generation' },
             { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
-            { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
-            { key: 'image_count', value: '3', description: 'Number of image variants to generate' }
+            { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' }
         ];
         setSettings(defaults);
     };
@@ -180,8 +179,6 @@ const AISettings = () => {
     const geminiApiKey = settings.find(s => s.key === 'gemini_api_key')?.value || '';
     const selectedModel = settings.find(s => s.key === 'gemini_model')?.value || '';
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
-    const currentImageCount = settings.find(s => s.key === 'image_count')?.value || '3';
-
     return (
         <div className="space-y-8">
             <AIUsageStats />
@@ -329,19 +326,9 @@ const AISettings = () => {
                                 </button>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="image_count">Batch Generation Count</Label>
-                                <Input
-                                    id="image_count"
-                                    type="number"
-                                    min="1"
-                                    max="6"
-                                    value={currentImageCount}
-                                    onChange={(e) => handleUpdate('image_count', e.target.value)}
-                                    className="w-24"
-                                />
-                                <p className="text-xs text-muted-foreground">How many variants to generate at once (1-6).</p>
-                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Batch generation controls will appear in the Image Studio once it is enabled.
+                            </p>
                         </div>
                     </div>
 

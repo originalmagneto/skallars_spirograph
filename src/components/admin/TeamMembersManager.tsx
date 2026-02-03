@@ -149,6 +149,8 @@ const TeamMembersManager = () => {
             linkedin_url: member.linkedin_url || '',
             display_order: member.display_order,
             is_active: member.is_active,
+            photo_position_x: member.photo_position_x ?? 50,
+            photo_position_y: member.photo_position_y ?? 50,
         });
     };
 

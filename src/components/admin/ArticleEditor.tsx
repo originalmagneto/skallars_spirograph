@@ -450,7 +450,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     className="font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                    Supports Markdown formatting. For rich text editing, consider integrating a WYSIWYG editor.
+                    Content is rendered as HTML on the blog. Use valid HTML tags. For rich text editing, consider integrating a WYSIWYG editor.
                 </p>
             </div>
         </div>
