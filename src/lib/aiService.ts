@@ -193,6 +193,38 @@ const getToneGuide = (tone: string, toneInstructions?: string) => {
     return `${selectedTone}${toneInstructions ? `\n- **Custom Tone Instructions**: ${toneInstructions}` : ''}`;
 };
 
+const getArticleResponseSchema = (targetLanguages: string[]) => {
+    const properties: Record<string, any> = {};
+    targetLanguages.forEach((lang) => {
+        properties[`title_${lang}`] = { type: 'STRING' };
+        properties[`excerpt_${lang}`] = { type: 'STRING' };
+        properties[`content_${lang}`] = { type: 'STRING' };
+        properties[`meta_title_${lang}`] = { type: 'STRING' };
+        properties[`meta_description_${lang}`] = { type: 'STRING' };
+        properties[`meta_keywords_${lang}`] = { type: 'STRING' };
+    });
+    properties.tags = {
+        type: 'ARRAY',
+        items: { type: 'STRING' }
+    };
+
+    return {
+        type: 'OBJECT',
+        properties
+    };
+};
+
+const getOutlineResponseSchema = () => ({
+    type: 'OBJECT',
+    properties: {
+        outline: {
+            type: 'ARRAY',
+            items: { type: 'STRING' }
+        },
+        notes: { type: 'STRING' }
+    }
+});
+
 export function getAIArticlePrompt(
     prompt: string,
     links: string[] = [],
@@ -348,6 +380,7 @@ export async function generateAIArticle(
     console.log('[AI] Using Gemini model:', selectedModel);
 
     const { useGrounding = false, customPrompt, signal } = options;
+    const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
 
     const finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
 
@@ -356,7 +389,8 @@ export async function generateAIArticle(
         generationConfig: {
             // JSON mode is incompatible with Grounding/Tools in some Gemini versions
             // We'll try to use it if Grounding is OFF, otherwise we rely on the prompt to request JSON
-            responseMimeType: useGrounding ? "text/plain" : "application/json"
+            responseMimeType: useGrounding ? "text/plain" : "application/json",
+            ...(useGrounding ? {} : { responseSchema: getArticleResponseSchema(targetLanguages) })
         }
     };
 
@@ -522,7 +556,8 @@ export async function generateAIOutline(
     const body: any = {
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
-            responseMimeType: useGrounding ? "text/plain" : "application/json"
+            responseMimeType: useGrounding ? "text/plain" : "application/json",
+            ...(useGrounding ? {} : { responseSchema: getOutlineResponseSchema() })
         }
     };
 
