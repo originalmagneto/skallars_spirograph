@@ -178,6 +178,11 @@ export default function LawFirmHomepage() {
   const [serviceItems, setServiceItems] = useState<any[]>([]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const [sectionEnabled, setSectionEnabled] = useState<Record<string, boolean>>({});
+  const [clientSettings, setClientSettings] = useState({
+    autoplay: true,
+    autoplay_interval_ms: 3000,
+    visible_count: 3,
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -210,6 +215,19 @@ export default function LawFirmHomepage() {
         .order('display_order', { ascending: true });
       if (clientData) setClients(clientData);
 
+      const { data: clientSettingsData } = await supabase
+        .from('client_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      if (clientSettingsData?.[0]) {
+        setClientSettings({
+          autoplay: clientSettingsData[0].autoplay ?? true,
+          autoplay_interval_ms: clientSettingsData[0].autoplay_interval_ms ?? 3000,
+          visible_count: clientSettingsData[0].visible_count ?? 3,
+        });
+      }
+
       // Team
       const { data: teamData } = await supabase
         .from('team_members')
@@ -223,16 +241,18 @@ export default function LawFirmHomepage() {
 
   // Effect for auto-scrolling clients
   useEffect(() => {
-    if (clients.length <= 2) return; // Don't scroll if few clients
-
+    const visibleCount = Math.max(1, Math.min(6, clientSettings.visible_count || 3));
+    if (!clientSettings.autoplay) return;
+    if (clients.length <= visibleCount) return; // Don't scroll if few clients
+    const steps = clients.length - visibleCount + 1;
     const interval = setInterval(() => {
       setCurrentClientIndex(
-        (prevIndex) => (prevIndex + 1) % (clients.length - 2)
+        (prevIndex) => (prevIndex + 1) % steps
       );
-    }, 3000);
+    }, Math.max(500, clientSettings.autoplay_interval_ms || 3000));
 
     return () => clearInterval(interval);
-  }, [clients.length]);
+  }, [clients.length, clientSettings.autoplay, clientSettings.autoplay_interval_ms, clientSettings.visible_count]);
 
   const servicesFromDb = (serviceItems || [])
     .filter((item: any) => item.enabled !== false)
@@ -444,11 +464,15 @@ export default function LawFirmHomepage() {
               <div
                 className="absolute inset-0 flex items-center justify-between transition-transform duration-500 ease-in-out"
                 style={{
-                  transform: `translateX(-${currentClientIndex * 33.33}%)`,
+                  transform: `translateX(-${currentClientIndex * (100 / Math.max(1, Math.min(6, clientSettings.visible_count || 3)))}%)`,
                 }}
               >
                 {clients.map((client, index) => (
-                  <div key={index} className="w-1/3 px-4 flex-shrink-0">
+                  <div
+                    key={index}
+                    className="px-4 flex-shrink-0"
+                    style={{ width: `${100 / Math.max(1, Math.min(6, clientSettings.visible_count || 3))}%` }}
+                  >
                     <img
                       src={client.logo_url}
                       alt={`${client.name} logo`}

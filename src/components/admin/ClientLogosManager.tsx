@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, Image01Icon, Upload01Icon, Link01Icon } from 'hugeicons-react';
+import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, Image01Icon, Upload01Icon, Link01Icon, SaveEnergy01Icon } from 'hugeicons-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,12 +28,25 @@ interface Client {
     is_active: boolean;
 }
 
+interface ClientSettings {
+    id?: string;
+    autoplay: boolean;
+    autoplay_interval_ms: number;
+    visible_count: number;
+}
+
 const emptyClient: Omit<Client, 'id'> = {
     name: '',
     logo_url: '',
     website_url: '',
     display_order: 0,
     is_active: true,
+};
+
+const defaultSettings: ClientSettings = {
+    autoplay: true,
+    autoplay_interval_ms: 3000,
+    visible_count: 3,
 };
 
 const ClientLogosManager = () => {
@@ -44,6 +57,7 @@ const ClientLogosManager = () => {
     const [newClient, setNewClient] = useState<Omit<Client, 'id'>>(emptyClient);
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [settingsForm, setSettingsForm] = useState<ClientSettings>(defaultSettings);
 
     const { data: clients, isLoading } = useQuery({
         queryKey: ['clients'],
@@ -59,6 +73,55 @@ const ClientLogosManager = () => {
             }
             return data as Client[];
         },
+    });
+
+    const { data: clientSettings } = useQuery({
+        queryKey: ['client-settings'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('client_settings')
+                .select('*')
+                .order('updated_at', { ascending: false })
+                .limit(1);
+            if (error) {
+                console.warn("Could not fetch client settings:", error);
+                return null;
+            }
+            return (data?.[0] as ClientSettings) || null;
+        },
+    });
+
+    useEffect(() => {
+        if (!clientSettings) {
+            setSettingsForm(defaultSettings);
+            return;
+        }
+        setSettingsForm({
+            id: clientSettings.id,
+            autoplay: clientSettings.autoplay ?? true,
+            autoplay_interval_ms: clientSettings.autoplay_interval_ms ?? 3000,
+            visible_count: clientSettings.visible_count ?? 3,
+        });
+    }, [clientSettings]);
+
+    const saveSettingsMutation = useMutation({
+        mutationFn: async (payload: ClientSettings) => {
+            const { error } = await supabase
+                .from('client_settings')
+                .upsert({
+                    id: payload.id,
+                    autoplay: payload.autoplay,
+                    autoplay_interval_ms: payload.autoplay_interval_ms,
+                    visible_count: payload.visible_count,
+                    updated_at: new Date().toISOString(),
+                });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Client settings saved');
+            queryClient.invalidateQueries({ queryKey: ['client-settings'] });
+        },
+        onError: (error: any) => toast.error(error.message),
     });
 
     const uploadLogo = async (file: File): Promise<string | null> => {
@@ -256,6 +319,54 @@ const ClientLogosManager = () => {
 
     return (
         <div className="space-y-6">
+            <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
+                <div className="flex items-center gap-2">
+                    <Image01Icon size={18} className="text-primary" />
+                    <h3 className="text-sm font-semibold">Clients Section Settings</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <Label className="text-xs">Visible Logos</Label>
+                        <Input
+                            type="number"
+                            min={1}
+                            max={6}
+                            value={settingsForm.visible_count}
+                            onChange={(e) => setSettingsForm({
+                                ...settingsForm,
+                                visible_count: Math.max(1, Math.min(6, parseInt(e.target.value) || 1))
+                            })}
+                            className="mt-1"
+                        />
+                    </div>
+                    <div>
+                        <Label className="text-xs">Autoplay Interval (ms)</Label>
+                        <Input
+                            type="number"
+                            min={500}
+                            max={10000}
+                            value={settingsForm.autoplay_interval_ms}
+                            onChange={(e) => setSettingsForm({
+                                ...settingsForm,
+                                autoplay_interval_ms: Math.max(500, parseInt(e.target.value) || 3000)
+                            })}
+                            className="mt-1"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 pt-6">
+                        <Switch
+                            checked={settingsForm.autoplay}
+                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, autoplay: v })}
+                        />
+                        <Label className="text-xs">Autoplay</Label>
+                    </div>
+                </div>
+                <Button size="sm" onClick={() => saveSettingsMutation.mutate(settingsForm)} disabled={saveSettingsMutation.isPending}>
+                    <SaveEnergy01Icon size={14} className="mr-1" />
+                    {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
+                </Button>
+            </div>
+
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Image01Icon size={20} className="text-primary" />
