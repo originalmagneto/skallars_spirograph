@@ -192,6 +192,7 @@ export default function LawFirmHomepage() {
     columns_mobile: 1,
   });
   const [footerLinks, setFooterLinks] = useState<any[]>([]);
+  const [pageBlocks, setPageBlocks] = useState<any[]>([]);
   const [footerSettings, setFooterSettings] = useState({
     show_newsletter: true,
     show_social: true,
@@ -289,6 +290,15 @@ export default function LawFirmHomepage() {
       if (footerLinksData) {
         setFooterLinks(footerLinksData);
       }
+
+      const { data: pageBlocksData } = await supabase
+        .from('page_blocks')
+        .select('*')
+        .eq('page', 'home')
+        .order('created_at', { ascending: true });
+      if (pageBlocksData) {
+        setPageBlocks(pageBlocksData);
+      }
     };
     fetchData();
   }, []);
@@ -324,6 +334,12 @@ export default function LawFirmHomepage() {
   const defaultOrder = ['hero', 'services', 'countries', 'team', 'clients', 'news', 'contact', 'footer'];
   const orderedKeys = sectionOrder.length > 0 ? sectionOrder : defaultOrder;
   const isEnabled = (key: string) => sectionEnabled[key] ?? true;
+  const blockMap = new Map((pageBlocks || []).map((block: any) => [block.id, block]));
+
+  const getBlockText = (block: any, field: string) => {
+    const value = block[`${field}_${language}`];
+    return value || block[`${field}_en`] || block[`${field}_sk`] || '';
+  };
   const gridMobile: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2' };
   const gridTablet: Record<number, string> = { 1: 'md:grid-cols-1', 2: 'md:grid-cols-2', 3: 'md:grid-cols-3' };
   const gridDesktop: Record<number, string> = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4' };
@@ -573,6 +589,34 @@ export default function LawFirmHomepage() {
     ),
   };
 
+  const renderBlock = (block: any) => {
+    if (!block || block.enabled === false) return null;
+    if (block.block_type !== 'callout') return null;
+    const title = getBlockText(block, 'title');
+    const body = getBlockText(block, 'body');
+    const buttonLabel = getBlockText(block, 'button_label');
+    const buttonUrl = block.button_url;
+
+    return (
+      <section className="py-16 bg-[#210059] text-white" data-admin-section={`block-${block.id}`}>
+        <div className="container mx-auto px-4 text-center space-y-4">
+          {title && <h3 className="text-3xl font-semibold">{title}</h3>}
+          {body && <p className="text-white/80 max-w-2xl mx-auto">{body}</p>}
+          {buttonLabel && buttonUrl && (
+            <a
+              href={buttonUrl}
+              target={block.button_external ? '_blank' : undefined}
+              rel={block.button_external ? 'noopener noreferrer' : undefined}
+              className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent"
+            >
+              {buttonLabel}
+            </a>
+          )}
+        </div>
+      </section>
+    );
+  };
+
   const footerSections: Record<string, JSX.Element | null> = {
     contact: footerSettings.show_contact ? (
       <div data-admin-section="contact">
@@ -675,6 +719,12 @@ export default function LawFirmHomepage() {
         {orderedKeys.map((key) => {
           if (key === 'contact' || key === 'footer') return null;
           if (!isEnabled(key)) return null;
+          if (key.startsWith('block:')) {
+            const blockId = key.split(':')[1];
+            const block = blockMap.get(blockId);
+            const blockNode = renderBlock(block);
+            return blockNode ? <React.Fragment key={key}>{blockNode}</React.Fragment> : null;
+          }
           const node = mainSections[key];
           if (!node) return null;
           return <React.Fragment key={key}>{node}</React.Fragment>;

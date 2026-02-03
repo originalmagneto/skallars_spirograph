@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon, Mail01Icon } from "hugeicons-react";
+import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon, Mail01Icon, FileBlockIcon } from "hugeicons-react";
 
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
@@ -19,6 +19,7 @@ import PageLayoutManager from "@/components/admin/PageLayoutManager";
 import ServiceItemsManager from "@/components/admin/ServiceItemsManager";
 import NewsSettingsManager from "@/components/admin/NewsSettingsManager";
 import FooterSettingsManager from "@/components/admin/FooterSettingsManager";
+import PageBlocksManager from "@/components/admin/PageBlocksManager";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -73,6 +74,12 @@ export default function AdminPage() {
                     <TabsTrigger value="footer" className="gap-2">
                         <Mail01Icon size={14} />
                         Footer
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
+                    <TabsTrigger value="blocks" className="gap-2">
+                        <FileBlockIcon size={14} />
+                        Blocks
                     </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -133,6 +140,10 @@ export default function AdminPage() {
 
             <TabsContent value="footer">
                 <FooterSettingsManager />
+            </TabsContent>
+
+            <TabsContent value="blocks">
+                <PageBlocksManager />
             </TabsContent>
 
             <TabsContent value="team">
