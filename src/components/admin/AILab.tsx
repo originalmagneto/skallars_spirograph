@@ -803,7 +803,7 @@ const AILab = () => {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={handleGenerateOutline}
+                                        onClick={() => handleGenerateOutline()}
                                         disabled={outlineGenerating}
                                     >
                                         {outlineGenerating ? 'Generating...' : 'Generate Outline'}
