@@ -33,6 +33,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **Team block settings** (columns + show/hide icons, bios, LinkedIn). ✅
 - Add **Footer block settings** (show/hide contact, solutions, newsletter, social). ✅
 - Add **Countries block settings** (controls, labels, stats, default view). ✅
+- Add **Footer links manager** (solutions + social URLs, multilingual labels). ✅
 - Support **reorderable blocks** and **section templates** (Hero, Services, Team, Testimonials, Contact).
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
 - Add **live preview** with “before/after” diff for reviewers.

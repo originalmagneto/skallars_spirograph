@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Mail01Icon, SaveEnergy01Icon } from 'hugeicons-react';
+import FooterLinksManager from './FooterLinksManager';
 
 interface FooterSettingsRow {
   id?: string;
@@ -113,6 +114,8 @@ export default function FooterSettingsManager() {
         <SaveEnergy01Icon size={14} className="mr-1" />
         {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
       </Button>
+
+      <FooterLinksManager />
     </div>
   );
 }

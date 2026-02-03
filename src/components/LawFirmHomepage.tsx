@@ -191,6 +191,7 @@ export default function LawFirmHomepage() {
     columns_tablet: 2,
     columns_mobile: 1,
   });
+  const [footerLinks, setFooterLinks] = useState<any[]>([]);
   const [footerSettings, setFooterSettings] = useState({
     show_newsletter: true,
     show_social: true,
@@ -278,6 +279,15 @@ export default function LawFirmHomepage() {
           show_solutions: footerSettingsData[0].show_solutions ?? true,
           show_contact: footerSettingsData[0].show_contact ?? true,
         });
+      }
+
+      const { data: footerLinksData } = await supabase
+        .from('footer_links')
+        .select('*')
+        .order('section', { ascending: true })
+        .order('sort_order', { ascending: true });
+      if (footerLinksData) {
+        setFooterLinks(footerLinksData);
       }
     };
     fetchData();
@@ -574,9 +584,19 @@ export default function LawFirmHomepage() {
           />
           {footerSettings.show_social && (
             <div className="flex space-x-4">
-              <a href="#" className="hover:text-gray-300">
-                <Linkedin />
-              </a>
+              {footerLinks
+                .filter((link) => link.section === 'social' && link.enabled)
+                .map((link) => (
+                  <a
+                    key={link.id || link.url}
+                    href={link.url}
+                    target={link.is_external ? '_blank' : undefined}
+                    rel={link.is_external ? 'noopener noreferrer' : undefined}
+                    className="hover:text-gray-300"
+                  >
+                    <Linkedin />
+                  </a>
+                ))}
             </div>
           )}
         </div>
@@ -597,16 +617,23 @@ export default function LawFirmHomepage() {
           )}
           {footerSettings.show_solutions && (
             <div>
-            <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
-            <ul className="space-y-2">
-              {t.footer.solutionsItems.map((item) => (
-                <li key={item}>
-                  <a href="#" className="hover:underline">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
+              <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
+              <ul className="space-y-2">
+                {footerLinks
+                  .filter((link) => link.section === 'solutions' && link.enabled)
+                  .map((link) => (
+                    <li key={link.id || link.url}>
+                      <a
+                        href={link.url}
+                        target={link.is_external ? '_blank' : undefined}
+                        rel={link.is_external ? 'noopener noreferrer' : undefined}
+                        className="hover:underline"
+                      >
+                        {link[`label_${language}`] || link.label_en || link.label_sk}
+                      </a>
+                    </li>
+                  ))}
+              </ul>
             </div>
           )}
           {footerSettings.show_newsletter && (
