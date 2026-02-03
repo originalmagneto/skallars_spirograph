@@ -219,6 +219,7 @@ export default function LawFirmHomepage() {
         <section
           id="home"
           className={`min-h-screen flex items-center justify-center relative overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+          data-admin-section="hero"
         >
           {/* Spirograph pinned to hero section */}
           <Spirograph />
@@ -439,9 +440,9 @@ export default function LawFirmHomepage() {
         </section>
       </main>
 
-      <footer id="contact" className={`bg-[#110C19] text-white py-10 relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="contact">
+      <footer id="contact" className={`bg-[#110C19] text-white py-10 relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="footer">
         <div className="absolute inset-0 bg-pattern opacity-10 pointer-events-none mix-blend-soft-light" />
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 relative z-10" data-admin-section="contact">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8">
             <img
               src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_white-oudH0EnuPhJanLlxguzBXMippVasLU.svg"

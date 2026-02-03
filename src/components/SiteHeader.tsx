@@ -73,6 +73,7 @@ export default function SiteHeader() {
           ? 'py-3 glass shadow-lg'
           : 'py-5 bg-transparent'
         }`}
+      data-admin-section="navigation"
     >
       <div className="container mx-auto px-4 lg:px-8">
         <div className="flex items-center justify-between">
