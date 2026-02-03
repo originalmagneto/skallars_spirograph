@@ -149,7 +149,7 @@ export default function LawFirmHomepage() {
 
 
 
-  const legalServices = [
+  const fallbackServices = [
     {
       title: t.services.items.corporate.title,
       description: t.services.items.corporate.description,
@@ -175,6 +175,7 @@ export default function LawFirmHomepage() {
   // Fetch clients from database
   const [clients, setClients] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
+  const [serviceItems, setServiceItems] = useState<any[]>([]);
   const [sectionOrder, setSectionOrder] = useState<string[]>([]);
   const [sectionEnabled, setSectionEnabled] = useState<Record<string, boolean>>({});
 
@@ -194,6 +195,12 @@ export default function LawFirmHomepage() {
         });
         setSectionEnabled(enabledMap);
       }
+
+      const { data: serviceData } = await supabase
+        .from('service_items')
+        .select('*')
+        .order('sort_order', { ascending: true });
+      if (serviceData) setServiceItems(serviceData);
 
       // Clients
       const { data: clientData } = await supabase
@@ -226,6 +233,19 @@ export default function LawFirmHomepage() {
 
     return () => clearInterval(interval);
   }, [clients.length]);
+
+  const servicesFromDb = (serviceItems || [])
+    .filter((item: any) => item.enabled !== false)
+    .map((item: any) => ({
+      title: item[`title_${language}`] || item.title_en || item.title_sk || '',
+      description: item[`description_${language}`] || item.description_en || item.description_sk || '',
+      icon: item.icon || null,
+    }))
+    .filter((item: any) => item.title || item.description);
+
+  const servicesToRender = servicesFromDb.length > 0
+    ? servicesFromDb
+    : fallbackServices.map((item) => ({ ...item, icon: null }));
 
   const defaultOrder = ['hero', 'services', 'countries', 'team', 'clients', 'news', 'contact', 'footer'];
   const orderedKeys = sectionOrder.length > 0 ? sectionOrder : defaultOrder;
@@ -312,7 +332,7 @@ export default function LawFirmHomepage() {
             </div>
             <div className="lg:w-2/3 mt-8 lg:mt-0">
               <div className="grid grid-cols-1 gap-8">
-                {legalServices.map((service, index) => (
+                {servicesToRender.map((service, index) => (
                   <div
                     key={index}
                     ref={(el) => {
@@ -321,7 +341,11 @@ export default function LawFirmHomepage() {
                     data-index={index}
                     className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border border-transparent hover:border-secondary/20"
                   >
-                    <Check className="text-accent flex-shrink-0 mt-1" />
+                    {service.icon ? (
+                      <span className="text-xl text-accent flex-shrink-0 mt-0.5">{service.icon}</span>
+                    ) : (
+                      <Check className="text-accent flex-shrink-0 mt-1" />
+                    )}
                     <div>
                       <h3 className="text-xl font-semibold mb-2 text-foreground">
                         {service.title}
