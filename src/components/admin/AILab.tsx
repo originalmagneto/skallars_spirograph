@@ -32,7 +32,7 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { generateAIArticle, generateAIOutline, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
+import { generateAIArticle, generateAIOutline, generateAIResearchPack, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -70,6 +70,8 @@ const AILab = () => {
     const [generationElapsedMs, setGenerationElapsedMs] = useState<number>(0);
     const [lastRequestId, setLastRequestId] = useState<string | null>(null);
     const [testRunning, setTestRunning] = useState(false);
+    const [researchSources, setResearchSources] = useState<Array<{ title?: string; url?: string }>>([]);
+    const [researchSummary, setResearchSummary] = useState<string>('');
 
     const generationControllerRef = useRef<AbortController | null>(null);
     const generationTimeoutRef = useRef<number | null>(null);
@@ -202,6 +204,26 @@ const AILab = () => {
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
 
+    const buildResearchFindings = (pack: { summary?: string; key_points?: string[]; facts?: string[]; outline?: string[]; sources?: Array<{ title?: string; url?: string }> }) => {
+        const sections: string[] = [];
+        if (pack.summary) {
+            sections.push(`Summary:\n${pack.summary}`);
+        }
+        if (pack.key_points && pack.key_points.length > 0) {
+            sections.push(`Key Points:\n- ${pack.key_points.join('\n- ')}`);
+        }
+        if (pack.facts && pack.facts.length > 0) {
+            sections.push(`Facts & Figures:\n- ${pack.facts.join('\n- ')}`);
+        }
+        if (pack.outline && pack.outline.length > 0) {
+            sections.push(`Suggested Outline:\n${pack.outline.join('\n')}`);
+        }
+        if (pack.sources && pack.sources.length > 0) {
+            sections.push(`Sources:\n- ${pack.sources.map((s) => s.title ? `${s.title} (${s.url})` : s.url).join('\n- ')}`);
+        }
+        return sections.join('\n\n');
+    };
+
     const clearGenerationTimers = () => {
         if (generationTimeoutRef.current) {
             window.clearTimeout(generationTimeoutRef.current);
@@ -276,6 +298,8 @@ const AILab = () => {
         setEstimatedCost(null);
         setGenerationStatus('Starting request...');
         setGenerationElapsedMs(0);
+        setResearchSources([]);
+        setResearchSummary('');
         const requestId = (globalThis.crypto && 'randomUUID' in globalThis.crypto)
             ? globalThis.crypto.randomUUID()
             : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -305,24 +329,53 @@ const AILab = () => {
         const startTime = Date.now();
         try {
             const validLinks = links.filter(l => l.trim() !== '');
+            let researchFindings = '';
+            let researchSourcesLocal: Array<{ title?: string; url?: string }> = [];
+
+            if (researchDepth === 'Deep') {
+                setGenerationStatus('Gathering sources and research...');
+                const researchPack = await generateAIResearchPack(prompt || customPrompt, validLinks, {
+                    type: articleType,
+                    length: articleLength,
+                    targetWordCount,
+                    tone: toneStyle,
+                    toneInstructions,
+                    signal: controller.signal
+                });
+                researchFindings = buildResearchFindings(researchPack);
+                researchSourcesLocal = researchPack.sources || [];
+                setResearchSources(researchSourcesLocal);
+                setResearchSummary(researchPack.summary || '');
+            }
+
             if (useOutlineWorkflow && !outlineText && !showPromptEditor) {
-                await handleGenerateOutline();
+                await handleGenerateOutline({
+                    researchFindings,
+                    useGroundingOverride: false,
+                    signal: controller.signal
+                });
                 setGenerating(false);
                 clearGenerationTimers();
                 return;
             }
-            setGenerationStatus('Waiting for Gemini response...');
+
+            setGenerationStatus('Writing article...');
+            const customPromptOverride = showPromptEditor
+                ? `${customPrompt}${researchFindings ? `\n\n### RESEARCH BRIEF (PRE-COMPILED)\n${researchFindings}` : ''}`
+                : undefined;
             const content = await generateAIArticle(prompt, validLinks, {
                 type: articleType,
                 length: articleLength,
-                useGrounding: researchDepth === 'Deep',
-                customPrompt: showPromptEditor ? customPrompt : undefined,
+                useGrounding: false,
+                customPrompt: customPromptOverride,
                 targetLanguages,
-                researchDepth,
+                researchDepth: researchDepth === 'Deep' ? 'Quick' : researchDepth,
                 targetWordCount,
                 tone: toneStyle,
                 toneInstructions,
                 outline: useOutlineWorkflow && outlineText && !showPromptEditor ? outlineText : undefined,
+                researchFindings,
+                sources: researchSourcesLocal,
                 signal: controller.signal
             });
             setGenerationStatus('Finalizing...');
@@ -372,7 +425,7 @@ const AILab = () => {
         }
     };
 
-    const handleGenerateOutline = async () => {
+    const handleGenerateOutline = async (options?: { researchFindings?: string; useGroundingOverride?: boolean; signal?: AbortSignal; timeoutMs?: number }) => {
         if (!prompt && !customPrompt) {
             toast.error('Please enter a topic or prompt');
             return;
@@ -383,12 +436,23 @@ const AILab = () => {
         }
         setOutlineGenerating(true);
         const outlineController = new AbortController();
+        if (options?.signal) {
+            if (options.signal.aborted) {
+                outlineController.abort();
+            } else {
+                options.signal.addEventListener('abort', () => outlineController.abort(), { once: true });
+            }
+        }
+        const timeoutMs = options?.timeoutMs ?? 60000;
         const outlineTimeout = window.setTimeout(() => {
             outlineController.abort();
-        }, 60000);
+        }, timeoutMs);
         try {
             const validLinks = links.filter(l => l.trim() !== '');
             const primaryLang = targetLanguages[0] || 'en';
+            const useGrounding = typeof options?.useGroundingOverride === 'boolean'
+                ? options.useGroundingOverride
+                : (researchDepth === 'Deep');
             const outlineResult = await generateAIOutline(prompt, validLinks, {
                 type: articleType,
                 length: articleLength,
@@ -397,7 +461,8 @@ const AILab = () => {
                 tone: toneStyle,
                 toneInstructions,
                 languageLabel: languageLabels[primaryLang] || primaryLang,
-                useGrounding: researchDepth === 'Deep',
+                useGrounding,
+                researchFindings: options?.researchFindings,
                 signal: outlineController.signal
             });
             setOutlineText(outlineResult.outline.join('\n'));
@@ -766,6 +831,23 @@ const AILab = () => {
                                         <ul className="list-disc list-inside">
                                             {outlineSources.map((source, idx) => (
                                                 <li key={`${source.url}-${idx}`}>
+                                                    {source.title || source.url}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {researchSummary && (
+                                    <div className="text-xs text-muted-foreground">
+                                        <strong>Research Summary:</strong> {researchSummary}
+                                    </div>
+                                )}
+                                {researchSources.length > 0 && (
+                                    <div className="text-xs text-muted-foreground">
+                                        <strong>Research Sources (last run):</strong>
+                                        <ul className="list-disc list-inside">
+                                            {researchSources.map((source, idx) => (
+                                                <li key={`research-${source.url}-${idx}`}>
                                                     {source.title || source.url}
                                                 </li>
                                             ))}

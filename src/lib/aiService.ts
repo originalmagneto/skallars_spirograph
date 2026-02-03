@@ -34,6 +34,19 @@ export interface GeneratedArticle {
     sources?: Array<{ title?: string; url?: string }>;
 }
 
+export interface ResearchPack {
+    summary?: string;
+    key_points?: string[];
+    facts?: string[];
+    outline?: string[];
+    sources?: Array<{ title?: string; url?: string }>;
+    usage?: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+    };
+}
+
 async function getSetting(key: string): Promise<string | null> {
     const { data, error } = await supabase
         .from('settings')
@@ -102,6 +115,7 @@ ${rawContent}`;
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
             responseMimeType: "application/json",
+            response_mime_type: "application/json",
             temperature: 0,
             maxOutputTokens: 4096
         }
@@ -207,6 +221,16 @@ const getArticleResponseSchema = (targetLanguages: string[]) => {
         type: 'ARRAY',
         items: { type: 'STRING' }
     };
+    properties.sources = {
+        type: 'ARRAY',
+        items: {
+            type: 'OBJECT',
+            properties: {
+                title: { type: 'STRING' },
+                url: { type: 'STRING' }
+            }
+        }
+    };
 
     return {
         type: 'OBJECT',
@@ -225,10 +249,20 @@ const getOutlineResponseSchema = () => ({
     }
 });
 
+const getResearchPackResponseSchema = () => ({
+    type: 'OBJECT',
+    properties: {
+        summary: { type: 'STRING' },
+        key_points: { type: 'ARRAY', items: { type: 'STRING' } },
+        facts: { type: 'ARRAY', items: { type: 'STRING' } },
+        outline: { type: 'ARRAY', items: { type: 'STRING' } }
+    }
+});
+
 export function getAIArticlePrompt(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string } = {}
+    options: { type?: string, length?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string, researchFindings?: string } = {}
 ): string {
     const {
         type = 'Deep Dive',
@@ -238,12 +272,18 @@ export function getAIArticlePrompt(
         targetWordCount,
         tone = 'Client-Friendly',
         toneInstructions = '',
-        outline = ''
+        outline = '',
+        researchFindings = ''
     } = options;
     const researchContext = links.length > 0
         ? `\n\n### RESEARCH SOURCES\nCRITICAL: Analyze and synthesize the following sources to enrich the article. You MUST cite specific facts/figures from these sources where possible.\n${links.join('\n')}`
         : '';
-    const researchGuidance = getResearchGuidance(researchDepth);
+    const researchBrief = researchFindings
+        ? `\n\n### RESEARCH BRIEF (PRE-COMPILED)\nUse the following research notes and sources. Do NOT invent new sources; cite from these notes.\n${researchFindings}`
+        : '';
+    const researchGuidance = researchFindings
+        ? `- **Research Depth**: Deep (provided). Use the research brief below; do not call external tools.`
+        : getResearchGuidance(researchDepth);
     const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
     const lengthGuide = getLengthGuide(length, targetWordCount);
     const toneBlock = getToneGuide(tone, toneInstructions);
@@ -278,6 +318,7 @@ Your task is to write a world-class article that demonstrates deep expertise and
 ${researchGuidance}
 - **Tone**: ${tone}
 ${researchContext}
+${researchBrief}
 ${outlineBlock}
 
 ### STYLE GUIDELINES
@@ -303,6 +344,7 @@ ${toneBlock}
 IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
 {
 ${jsonFields},
+  "sources": [{"title": "Source title", "url": "https://source.com"}],
   "tags": ["tag1", "tag2", "tag3"]
 }`;
 }
@@ -310,7 +352,7 @@ ${jsonFields},
 export function getAIOutlinePrompt(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string } = {}
+    options: { type?: string, length?: string, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string, researchFindings?: string } = {}
 ): string {
     const {
         type = 'Deep Dive',
@@ -320,14 +362,20 @@ export function getAIOutlinePrompt(
         tone = 'Client-Friendly',
         toneInstructions = '',
         languageLabel = 'English (EN)',
+        researchFindings = '',
     } = options;
 
     const researchContext = links.length > 0
         ? `\n\n### RESEARCH SOURCES\nCRITICAL: Analyze and synthesize the following sources. Use them to shape the outline and include factual sections where appropriate.\n${links.join('\n')}`
         : '';
+    const researchBrief = researchFindings
+        ? `\n\n### RESEARCH BRIEF (PRE-COMPILED)\nUse the following research notes and sources. Do NOT invent new sources; cite from these notes.\n${researchFindings}`
+        : '';
 
     const lengthGuide = getLengthGuide(length, targetWordCount);
-    const researchGuidance = getResearchGuidance(researchDepth);
+    const researchGuidance = researchFindings
+        ? `- **Research Depth**: Deep (provided). Use the research brief below; do not call external tools.`
+        : getResearchGuidance(researchDepth);
     const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
     const toneBlock = getToneGuide(tone, toneInstructions);
 
@@ -342,6 +390,7 @@ ${researchGuidance}
 - **Tone**: ${tone}
 - **Language**: ${languageLabel}
 ${researchContext}
+${researchBrief}
 
 ### STYLE GUIDELINES
 ${selectedStyle}
@@ -367,10 +416,134 @@ Return ONLY raw JSON. No markdown.
 }`;
 }
 
+export function getAIResearchPrompt(
+    prompt: string,
+    links: string[] = [],
+    options: { type?: string; length?: string; targetWordCount?: number; tone?: string; toneInstructions?: string } = {}
+): string {
+    const {
+        type = 'Deep Dive',
+        length = 'Medium',
+        targetWordCount,
+        tone = 'Client-Friendly',
+        toneInstructions = '',
+    } = options;
+
+    const lengthGuide = getLengthGuide(length, targetWordCount);
+    const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
+    const toneBlock = getToneGuide(tone, toneInstructions);
+    const researchContext = links.length > 0
+        ? `\n\n### RESEARCH SOURCES\nAnalyze and synthesize these sources. Prioritize verifiable facts and cite the sources explicitly in the JSON.\n${links.join('\n')}`
+        : '';
+
+    return `You are a research analyst. Collect factual notes to support a future article.
+
+### TOPIC
+${prompt}
+
+### TARGET DEPTH
+${length} (${lengthGuide})
+
+${researchContext}
+
+### STYLE GUIDELINES
+${selectedStyle}
+
+### TONE GUIDELINES
+${toneBlock}
+
+### OUTPUT FORMAT
+Return ONLY raw JSON. No markdown or commentary.
+{
+  "summary": "2-4 sentence summary of the key findings",
+  "key_points": ["bullet 1", "bullet 2", "bullet 3"],
+  "facts": ["fact with numbers or dates", "fact with numbers or dates"],
+  "outline": ["H2: Section", "H3: Subsection"]
+}`;
+}
+
+export async function generateAIResearchPack(
+    prompt: string,
+    links: string[] = [],
+    options: { type?: string; length?: string; targetWordCount?: number; tone?: string; toneInstructions?: string; signal?: AbortSignal } = {}
+): Promise<ResearchPack> {
+    const apiKey = await getSetting('gemini_api_key');
+    if (!apiKey) throw new Error('Gemini API Key not found in settings.');
+
+    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const promptText = getAIResearchPrompt(prompt, links, options);
+    const { signal } = options;
+
+    const body: any = {
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: {
+            responseMimeType: "text/plain",
+            response_mime_type: "text/plain",
+            responseSchema: getResearchPackResponseSchema(),
+            response_schema: getResearchPackResponseSchema(),
+            temperature: 0.3,
+            maxOutputTokens: 4096
+        },
+        tools: [{ googleSearch: {} }]
+    };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Gemini API Error: ${response.statusText} - ${errorBody}`);
+    }
+
+    const result = await response.json();
+    const groundingMetadata = result?.candidates?.[0]?.groundingMetadata;
+    const usageMetadata = result?.usageMetadata;
+    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!content) throw new Error(formatGeminiError(result));
+
+    let parsed = tryParseJson(content);
+    if (!parsed) {
+        parsed = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
+    }
+
+    const responsePayload: ResearchPack = parsed || {};
+
+    if (groundingMetadata?.groundingChunks) {
+        const sourceItems = groundingMetadata.groundingChunks
+            .map((chunk: any) => {
+                const uri = chunk.web?.uri;
+                if (!uri) return null;
+                return {
+                    url: uri,
+                    title: chunk.web?.title || uri,
+                };
+            })
+            .filter(Boolean) as Array<{ url: string; title?: string }>;
+        if (sourceItems.length > 0) {
+            responsePayload.sources = sourceItems;
+        }
+    }
+
+    if (usageMetadata) {
+        responsePayload.usage = {
+            promptTokens: usageMetadata.promptTokenCount || 0,
+            completionTokens: usageMetadata.candidatesTokenCount || 0,
+            totalTokens: usageMetadata.totalTokenCount || 0
+        };
+    }
+
+    return responsePayload;
+}
+
 export async function generateAIArticle(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string, signal?: AbortSignal } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string, researchFindings?: string, sources?: Array<{ title?: string; url?: string }>, signal?: AbortSignal } = {}
 ): Promise<GeneratedArticle> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
@@ -379,7 +552,7 @@ export async function generateAIArticle(
     const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
     console.log('[AI] Using Gemini model:', selectedModel);
 
-    const { useGrounding = false, customPrompt, signal } = options;
+    const { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
     const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
 
     const finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
@@ -390,7 +563,8 @@ export async function generateAIArticle(
             // JSON mode is incompatible with Grounding/Tools in some Gemini versions
             // We'll try to use it if Grounding is OFF, otherwise we rely on the prompt to request JSON
             responseMimeType: useGrounding ? "text/plain" : "application/json",
-            ...(useGrounding ? {} : { responseSchema: getArticleResponseSchema(targetLanguages) })
+            response_mime_type: useGrounding ? "text/plain" : "application/json",
+            ...(useGrounding ? {} : { responseSchema: getArticleResponseSchema(targetLanguages), response_schema: getArticleResponseSchema(targetLanguages) })
         }
     };
 
@@ -423,7 +597,20 @@ export async function generateAIArticle(
             parsedContent = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
         }
 
-        // Append grounding sources if available
+        const appendSources = (sourceItems: Array<{ url: string; title?: string }>) => {
+            if (!sourceItems.length) return;
+            const hasSources = ['content_sk', 'content_en', 'content_de', 'content_cn']
+                .some((field) => String((parsedContent as any)[field] || '').includes('Sources & References'));
+            if (!hasSources) {
+                const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ul>${sourceItems.map((s) => `<li><a href="${s.url}" target="_blank">${s.title || s.url}</a></li>`).join('')}</ul>`;
+                parsedContent.content_sk = (parsedContent.content_sk || '') + sourcesHtml;
+                parsedContent.content_en = (parsedContent.content_en || '') + sourcesHtml;
+                parsedContent.content_de = (parsedContent.content_de || '') + sourcesHtml;
+                parsedContent.content_cn = (parsedContent.content_cn || '') + sourcesHtml;
+            }
+            parsedContent.sources = sourceItems;
+        };
+
         if (groundingMetadata?.groundingChunks) {
             const sourceItems = groundingMetadata.groundingChunks
                 .map((chunk: any) => {
@@ -435,15 +622,9 @@ export async function generateAIArticle(
                     };
                 })
                 .filter(Boolean) as Array<{ url: string; title?: string }>;
-
-            if (sourceItems.length > 0) {
-                const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ul>${sourceItems.map((s) => `<li><a href="${s.url}" target="_blank">${s.title || s.url}</a></li>`).join('')}</ul>`;
-                parsedContent.content_sk = (parsedContent.content_sk || '') + sourcesHtml;
-                parsedContent.content_en = (parsedContent.content_en || '') + sourcesHtml;
-                parsedContent.content_de = (parsedContent.content_de || '') + sourcesHtml;
-                parsedContent.content_cn = (parsedContent.content_cn || '') + sourcesHtml;
-                parsedContent.sources = sourceItems;
-            }
+            appendSources(sourceItems);
+        } else if (providedSources && providedSources.length > 0) {
+            appendSources(providedSources);
         }
 
         // Add usage metadata if available
@@ -517,7 +698,8 @@ Return ONLY the edited HTML string.`;
     const body: any = {
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-            responseMimeType: "text/plain"
+            responseMimeType: "text/plain",
+            response_mime_type: "text/plain"
         }
     };
 
@@ -544,7 +726,7 @@ Return ONLY the edited HTML string.`;
 export async function generateAIOutline(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string, signal?: AbortSignal } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string, researchFindings?: string, signal?: AbortSignal } = {}
 ): Promise<{ outline: string[]; notes?: string; sources?: Array<{ title?: string; url?: string }>; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
@@ -557,7 +739,8 @@ export async function generateAIOutline(
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
             responseMimeType: useGrounding ? "text/plain" : "application/json",
-            ...(useGrounding ? {} : { responseSchema: getOutlineResponseSchema() })
+            response_mime_type: useGrounding ? "text/plain" : "application/json",
+            ...(useGrounding ? {} : { responseSchema: getOutlineResponseSchema(), response_schema: getOutlineResponseSchema() })
         }
     };
 
@@ -651,6 +834,7 @@ export async function testGeminiConnection(signal?: AbortSignal): Promise<string
         contents: [{ parts: [{ text: 'Reply with OK in plain text.' }] }],
         generationConfig: {
             responseMimeType: "text/plain",
+            response_mime_type: "text/plain",
             maxOutputTokens: 64,
             temperature: 0,
             topP: 1,
