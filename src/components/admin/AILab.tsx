@@ -528,12 +528,13 @@ const AILab = () => {
                 });
             };
 
+            const modelForLog = currentModel || 'gemini-2.0-flash';
             const logSaveEvent = async (status: string, payload?: Record<string, any>) => {
                 try {
                     await supabase.from('ai_generation_logs').insert({
                         action: 'ai_lab_save_draft',
                         status,
-                        model: selectedModel,
+                        model: modelForLog,
                         user_id: user.id,
                         details: payload || null,
                     });
@@ -670,7 +671,7 @@ const AILab = () => {
             void supabase.from('ai_generation_logs').insert({
                 action: 'ai_lab_save_draft',
                 status: 'error',
-                model: selectedModel,
+                model: modelForLog,
                 user_id: user.id,
                 error_message: error?.message || String(error),
             }).catch(() => {});
