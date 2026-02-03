@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon } from "hugeicons-react";
+import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon } from "hugeicons-react";
 
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
@@ -17,6 +17,7 @@ import AISettings from "@/components/admin/AISettings";
 import ClientLogosManager from "@/components/admin/ClientLogosManager";
 import PageLayoutManager from "@/components/admin/PageLayoutManager";
 import ServiceItemsManager from "@/components/admin/ServiceItemsManager";
+import NewsSettingsManager from "@/components/admin/NewsSettingsManager";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -59,6 +60,12 @@ export default function AdminPage() {
                     <TabsTrigger value="services" className="gap-2">
                         <ListViewIcon size={14} />
                         Services
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
+                    <TabsTrigger value="news-settings" className="gap-2">
+                        <NewsIcon size={14} />
+                        News
                     </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -111,6 +118,10 @@ export default function AdminPage() {
 
             <TabsContent value="services">
                 <ServiceItemsManager />
+            </TabsContent>
+
+            <TabsContent value="news-settings">
+                <NewsSettingsManager />
             </TabsContent>
 
             <TabsContent value="team">

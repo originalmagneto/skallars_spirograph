@@ -28,6 +28,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Implement a **page/section editor** (block-based) to edit homepage and key pages without code.
 - Add **layout control** for homepage section order + visibility (Phase 2 kickoff). ✅
 - Add **Services block list** (reorder + enable/disable + multilingual titles/descriptions). ✅
+- Add **News block settings** (limit, autoplay speed, show/hide View All). ✅
 - Support **reorderable blocks** and **section templates** (Hero, Services, Team, Testimonials, Contact).
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
 - Add **live preview** with “before/after” diff for reviewers.

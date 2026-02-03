@@ -20,6 +20,13 @@ type PostPreview = {
 export default function BlogCarousel() {
   const [posts, setPosts] = useState<PostPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState({
+    limit_count: 6,
+    show_view_all: true,
+    autoplay: true,
+    autoplay_interval_ms: 50,
+    scroll_step: 1,
+  });
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const autoplayRef = useRef<NodeJS.Timeout | null>(null);
   const { t } = useLanguage();
@@ -27,12 +34,21 @@ export default function BlogCarousel() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch('/api/blog?limit=9', { cache: 'no-store' });
+        const res = await fetch('/api/blog', { cache: 'no-store' });
         if (!res.ok) {
           setPosts(MOCK_POSTS);
         } else {
           const data = await res.json();
           setPosts(data.posts || MOCK_POSTS);
+          if (data.settings) {
+            setSettings({
+              limit_count: data.settings.limit_count ?? 6,
+              show_view_all: data.settings.show_view_all ?? true,
+              autoplay: data.settings.autoplay ?? true,
+              autoplay_interval_ms: data.settings.autoplay_interval_ms ?? 50,
+              scroll_step: data.settings.scroll_step ?? 1,
+            });
+          }
         }
       } catch (e) {
         console.error(e);
@@ -47,20 +63,21 @@ export default function BlogCarousel() {
   // Autoplay slow scroll (pause on hover)
   useEffect(() => {
     if (!scrollRef.current || posts.length === 0) return;
+    if (!settings.autoplay) return;
     
     const start = () => {
       autoplayRef.current && clearInterval(autoplayRef.current);
       autoplayRef.current = setInterval(() => {
         if (!scrollRef.current) return;
         const el = scrollRef.current;
-        const next = el.scrollLeft + 1; // slower drift
+        const next = el.scrollLeft + Math.max(1, settings.scroll_step || 1);
         const end = el.scrollWidth - el.clientWidth;
         if (next >= end) {
           el.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
           el.scrollTo({ left: next, behavior: 'smooth' });
         }
-      }, 50);
+      }, Math.max(10, settings.autoplay_interval_ms || 50));
     };
     
     const stop = () => {
@@ -83,7 +100,7 @@ export default function BlogCarousel() {
       el.removeEventListener('mouseleave', start);
       stop();
     };
-  }, [posts.length]);
+  }, [posts.length, settings.autoplay, settings.autoplay_interval_ms, settings.scroll_step]);
 
   const scrollBy = (delta: number) => {
     if (scrollRef.current) {
@@ -107,17 +124,18 @@ export default function BlogCarousel() {
       setTimeout(() => {
         if (!autoplayRef.current) {
           const start = () => {
+            if (!settings.autoplay) return;
             autoplayRef.current = setInterval(() => {
               if (!scrollRef.current) return;
               const el = scrollRef.current;
-              const next = el.scrollLeft + 1;
+              const next = el.scrollLeft + Math.max(1, settings.scroll_step || 1);
               const end = el.scrollWidth - el.clientWidth;
               if (next >= end) {
                 el.scrollTo({ left: 0, behavior: 'smooth' });
               } else {
                 el.scrollTo({ left: next, behavior: 'smooth' });
               }
-            }, 50);
+            }, Math.max(10, settings.autoplay_interval_ms || 50));
           };
           start();
         }
@@ -203,17 +221,18 @@ export default function BlogCarousel() {
           </article>
         ))}
       </div>
-      <div className="mt-6 text-center">
-        <Link
-          href="/blog"
-          className="inline-block px-4 py-2 rounded-full font-semibold shadow-md transition-transform duration-200 hover:scale-[1.02]"
-          style={{ backgroundColor: '#210059', color: '#FFFFFF', textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}
-        >
-          {t.news.viewAll}
-        </Link>
-      </div>
+      {settings.show_view_all && (
+        <div className="mt-6 text-center">
+          <Link
+            href="/blog"
+            className="inline-block px-4 py-2 rounded-full font-semibold shadow-md transition-transform duration-200 hover:scale-[1.02]"
+            style={{ backgroundColor: '#210059', color: '#FFFFFF', textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}
+          >
+            {t.news.viewAll}
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
-
 

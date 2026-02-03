@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const limit = parseInt(searchParams.get('limit') || '6', 10);
+  const limitParam = searchParams.get('limit');
   const page = parseInt(searchParams.get('page') || '1', 10);
 
   // Initialize Supabase client
@@ -17,9 +17,26 @@ export async function GET(req: NextRequest) {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
+    // Fetch news settings (optional)
+    let settings: any = null;
+    try {
+      const { data: settingsData } = await supabase
+        .from('news_settings')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+      settings = settingsData?.[0] || null;
+    } catch {
+      settings = null;
+    }
+
+    const effectiveLimit = Number.isFinite(parseInt(limitParam || '', 10))
+      ? parseInt(limitParam as string, 10)
+      : (settings?.limit_count ?? 6);
+
     // Determine offset
-    const from = (page - 1) * limit;
-    const to = from + limit - 1;
+    const from = (page - 1) * effectiveLimit;
+    const to = from + effectiveLimit - 1;
 
     // Fetch articles from Supabase
     const { data: posts, error, count } = await supabase
@@ -54,11 +71,18 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       posts: transformedPosts,
+      settings: {
+        limit_count: settings?.limit_count ?? 6,
+        show_view_all: settings?.show_view_all ?? true,
+        autoplay: settings?.autoplay ?? true,
+        autoplay_interval_ms: settings?.autoplay_interval_ms ?? 50,
+        scroll_step: settings?.scroll_step ?? 1,
+      },
       meta: {
         pagination: {
           page,
-          limit,
-          pages: Math.ceil((count || 0) / limit),
+          limit: effectiveLimit,
+          pages: Math.ceil((count || 0) / effectiveLimit),
           total: count
         }
       },
@@ -70,5 +94,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ posts: [], meta: { pagination: { page: 1, limit, pages: 0, total: 0 } } });
   }
 }
-
 
