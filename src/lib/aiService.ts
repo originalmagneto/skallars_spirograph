@@ -897,9 +897,9 @@ Format the output as a JSON object:
 
 export async function generateAIImage(
     prompt: string,
-    options: { turbo?: boolean; width?: number; height?: number } = {}
+    options: { turbo?: boolean; width?: number; height?: number; model?: string } = {}
 ): Promise<string> {
-    const { turbo: forceTurbo, width = 1024, height = 1024 } = options;
+    const { turbo: forceTurbo, width = 1024, height = 1024, model } = options;
 
     // Check global settings if turbo is not forced
     // Default to 'turbo' if not set or if forceTurbo is true
@@ -928,7 +928,7 @@ export async function generateAIImage(
 
     try {
         // Get selected image model, fallback to imagen-3.0-generate-001 (standard Gemini Image Gen)
-        const imageModel = await getSetting('gemini_image_model') || 'imagen-3.0-generate-001';
+        const imageModel = model || await getSetting('gemini_image_model') || 'imagen-3.0-generate-001';
         console.log('[AI] Generating image with Gemini model:', imageModel);
 
         // Use Gemini's image generation model

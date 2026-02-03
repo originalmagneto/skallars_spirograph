@@ -25,7 +25,7 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
-import { generateAIEdit } from '@/lib/aiService';
+import { generateAIEdit, generateAIImage } from '@/lib/aiService';
 
 interface ArticleFormData {
     title_sk: string;
@@ -109,6 +109,14 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [editInstruction, setEditInstruction] = useState('');
     const [editOutput, setEditOutput] = useState('');
     const [editLoading, setEditLoading] = useState(false);
+    const [imagePrompt, setImagePrompt] = useState('');
+    const [imageStyle, setImageStyle] = useState('Editorial Photo');
+    const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
+    const [imageCount, setImageCount] = useState(2);
+    const [imageProvider, setImageProvider] = useState<'gemini' | 'turbo'>('gemini');
+    const [imageModel, setImageModel] = useState('');
+    const [imageGenerating, setImageGenerating] = useState(false);
+    const [generatedImages, setGeneratedImages] = useState<Array<{ url: string; provider: 'gemini' | 'turbo' }>>([]);
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -156,6 +164,24 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             });
         }
     }, [article]);
+
+    useEffect(() => {
+        const loadImageSettings = async () => {
+            const { data } = await supabase
+                .from('settings')
+                .select('key, value')
+                .in('key', ['image_model', 'gemini_image_model']);
+            const imageMode = data?.find((s) => s.key === 'image_model')?.value;
+            const geminiModel = data?.find((s) => s.key === 'gemini_image_model')?.value;
+            if (imageMode) {
+                setImageProvider(imageMode === 'turbo' ? 'turbo' : 'gemini');
+            }
+            if (geminiModel) {
+                setImageModel(geminiModel);
+            }
+        };
+        loadImageSettings();
+    }, []);
 
     // Auto-generate slug from Slovak title
     useEffect(() => {
@@ -261,6 +287,100 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error(error.message || 'Failed to upload image');
         } finally {
             setUploading(false);
+        }
+    };
+
+    const stripHtml = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const buildImagePromptFromArticle = () => {
+        const title = getCurrentTitle();
+        const excerpt = getCurrentExcerpt();
+        const contentSnippet = stripHtml(getCurrentContent()).slice(0, 240);
+        const basePrompt = title
+            ? `Create an editorial cover image for an article titled: "${title}".`
+            : 'Create an editorial cover image for a legal/business article.';
+        const detailPrompt = excerpt ? `Key theme: ${excerpt}` : '';
+        const contextPrompt = contentSnippet ? `Context: ${contentSnippet}` : '';
+        const stylePrompt = `Style: ${imageStyle}. Aspect ratio: ${imageAspect}. Professional, high-quality, no text overlay.`;
+        setImagePrompt([basePrompt, detailPrompt, contextPrompt, stylePrompt].filter(Boolean).join('\n'));
+    };
+
+    const aspectSizes: Record<string, { width: number; height: number }> = {
+        '1:1': { width: 1024, height: 1024 },
+        '16:9': { width: 1280, height: 720 },
+        '4:3': { width: 1024, height: 768 },
+        '3:4': { width: 768, height: 1024 },
+    };
+
+    const uploadImageToLibrary = async (imageUrl: string, title: string) => {
+        const response = await fetch(imageUrl);
+        if (!response.ok) throw new Error('Failed to fetch image data.');
+        const blob = await response.blob();
+        const ext = blob.type.split('/')[1] || 'png';
+        const filePath = `ai/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('images')
+            .upload(filePath, blob, { contentType: blob.type });
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage.from('images').getPublicUrl(filePath);
+        const publicUrl = urlData.publicUrl;
+
+        await supabase.from('media_library').insert({
+            title,
+            file_path: filePath,
+            public_url: publicUrl,
+            bucket: 'images',
+            tags: ['ai', 'article', 'generated'],
+        });
+
+        return publicUrl;
+    };
+
+    const handleGenerateImages = async () => {
+        if (!imagePrompt.trim()) {
+            toast.error('Enter an image prompt.');
+            return;
+        }
+        setImageGenerating(true);
+        setGeneratedImages([]);
+        try {
+            const { width, height } = aspectSizes[imageAspect];
+            const finalPrompt = `${imagePrompt}\nStyle: ${imageStyle}. Aspect ratio: ${imageAspect}.`;
+            const results: Array<{ url: string; provider: 'gemini' | 'turbo' }> = [];
+            for (let i = 0; i < imageCount; i += 1) {
+                const url = await generateAIImage(finalPrompt, {
+                    turbo: imageProvider === 'turbo',
+                    width,
+                    height,
+                    model: imageProvider === 'gemini' && imageModel ? imageModel : undefined,
+                });
+                results.push({ url, provider: imageProvider });
+            }
+            setGeneratedImages(results);
+            toast.success('Images generated');
+        } catch (error: any) {
+            toast.error(error.message || 'Image generation failed');
+        } finally {
+            setImageGenerating(false);
+        }
+    };
+
+    const handleSaveImage = async (imageUrl: string) => {
+        const title = imagePrompt ? imagePrompt.split('\n')[0].slice(0, 80) : 'AI generated image';
+        const publicUrl = await uploadImageToLibrary(imageUrl, title);
+        toast.success('Saved to media library');
+        return publicUrl;
+    };
+
+    const handleUseAsCover = async (imageUrl: string) => {
+        try {
+            const publicUrl = await handleSaveImage(imageUrl);
+            setFormData(prev => ({ ...prev, cover_image_url: publicUrl }));
+            toast.success('Cover image set');
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to set cover image');
         }
     };
 
@@ -458,6 +578,136 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                                 />
                             </label>
                         </Button>
+                    </div>
+                )}
+            </div>
+
+            {/* AI Cover Image Generator */}
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/20">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Sparkles size={16} className="text-primary" />
+                        <span className="text-sm font-semibold">Generate Cover Image</span>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={buildImagePromptFromArticle}>
+                        Use Article Content
+                    </Button>
+                </div>
+
+                <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Image Prompt</Label>
+                    <Textarea
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        rows={4}
+                        placeholder="Describe the desired cover image..."
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Style</Label>
+                        <Select value={imageStyle} onValueChange={setImageStyle}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select style" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Editorial Photo">Editorial Photo</SelectItem>
+                                <SelectItem value="Corporate Illustration">Corporate Illustration</SelectItem>
+                                <SelectItem value="Minimal Abstract">Minimal Abstract</SelectItem>
+                                <SelectItem value="Professional 3D">Professional 3D</SelectItem>
+                                <SelectItem value="Watercolor Illustration">Watercolor Illustration</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Aspect Ratio</Label>
+                        <Select value={imageAspect} onValueChange={(value) => setImageAspect(value as typeof imageAspect)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select ratio" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="16:9">16:9 (Hero)</SelectItem>
+                                <SelectItem value="4:3">4:3 (Blog)</SelectItem>
+                                <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                                <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Provider</Label>
+                        <Select value={imageProvider} onValueChange={(value) => setImageProvider(value as 'gemini' | 'turbo')}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select provider" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="gemini">Gemini (Pro)</SelectItem>
+                                <SelectItem value="turbo">Turbo (Fast)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">
+                            Gemini uses your API key. Turbo is fast and free, good for drafts.
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Image Variations</Label>
+                        <Input
+                            type="number"
+                            min={1}
+                            max={4}
+                            value={imageCount}
+                            onChange={(e) => setImageCount(Math.max(1, Math.min(4, parseInt(e.target.value) || 1)))}
+                        />
+                    </div>
+                </div>
+
+                {imageProvider === 'gemini' && (
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Gemini Image Model (optional override)</Label>
+                        <Input
+                            value={imageModel}
+                            onChange={(e) => setImageModel(e.target.value)}
+                            placeholder="imagen-3.0-generate-001"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                            Leave empty to use the default from AI Settings.
+                        </p>
+                    </div>
+                )}
+
+                <Button onClick={handleGenerateImages} disabled={imageGenerating}>
+                    {imageGenerating ? 'Generating images...' : 'Generate Images'}
+                </Button>
+
+                {generatedImages.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        {generatedImages.map((img, idx) => (
+                            <div key={`${img.url}-${idx}`} className="border rounded-lg overflow-hidden bg-white">
+                                <div className="aspect-video bg-muted">
+                                    <img
+                                        src={img.url}
+                                        alt={`Generated ${idx + 1}`}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="p-3 space-y-2">
+                                    <div className="text-[11px] text-muted-foreground">
+                                        Provider: {img.provider === 'gemini' ? 'Gemini' : 'Turbo'}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => handleSaveImage(img.url)}>
+                                            Save
+                                        </Button>
+                                        <Button size="sm" onClick={() => handleUseAsCover(img.url)}>
+                                            Use as Cover
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
