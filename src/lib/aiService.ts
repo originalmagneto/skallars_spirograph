@@ -926,10 +926,14 @@ export async function generateAIImage(
         if (globalImageModel === null) useTurbo = true;
     }
 
+    const normalizePrompt = (value: string) => value.replace(/\s+/g, ' ').trim();
+    const truncatePrompt = (value: string, max = 600) => (value.length > max ? `${value.slice(0, max - 1)}…` : value);
+
     if (useTurbo) {
         // Use Pollinations.ai for fast, free, high-quality Flux images
         const seed = Math.floor(Math.random() * 1000000);
-        const encodedPrompt = encodeURIComponent(prompt);
+        const turboPrompt = truncatePrompt(normalizePrompt(prompt));
+        const encodedPrompt = encodeURIComponent(turboPrompt);
         return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
     }
 
@@ -939,6 +943,32 @@ export async function generateAIImage(
         console.warn('Gemini API key not found, falling back to Turbo mode');
         return generateAIImage(prompt, { turbo: true });
     }
+
+    const translatePromptToEnglish = async (text: string) => {
+        const apiKey = await getSetting('gemini_api_key');
+        if (!apiKey) return text;
+
+        const model = await getSetting('gemini_model') || 'gemini-2.0-flash';
+        const translationPrompt = `Translate the following text to English. Return only the translation.\n\n${text}`;
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: translationPrompt }] }],
+                    generationConfig: { responseMimeType: "text/plain", temperature: 0.2, maxOutputTokens: 256 }
+                })
+            }
+        );
+
+        if (!response.ok) {
+            return text;
+        }
+
+        const result = await response.json();
+        const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        return content ? content.trim() : text;
+    };
 
     try {
         // Get selected image model, fallback to Imagen default
@@ -961,7 +991,7 @@ export async function generateAIImage(
         if (normalizedAspectRatio) imageConfig.aspectRatio = normalizedAspectRatio;
         if (imageSize) imageConfig.imageSize = imageSize;
 
-        const makeGenerateContentRequest = async () => {
+        const makeGenerateContentRequest = async (finalPrompt: string) => {
             const response = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`,
                 {
@@ -972,13 +1002,13 @@ export async function generateAIImage(
                             {
                                 parts: [
                                     {
-                                        text: `Generate a professional, high-quality image for an article. The image should be: ${prompt}`
+                                        text: `Generate a professional, high-quality image for an article. The image should be: ${normalizePrompt(finalPrompt)}`
                                     }
                                 ]
                             }
                         ],
                         generationConfig: {
-                            responseModalities: ["IMAGE"],
+                            responseModalities: ["Image"],
                             ...(Object.keys(imageConfig).length > 0 ? { imageConfig } : {})
                         }
                     })
@@ -1000,14 +1030,14 @@ export async function generateAIImage(
             throw new Error(formatGeminiError(result));
         };
 
-        const makePredictRequest = async () => {
+        const makePredictRequest = async (finalPrompt: string) => {
             const response = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:predict?key=${apiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
                     body: JSON.stringify({
-                        instances: [{ prompt }],
+                        instances: [{ prompt: normalizePrompt(finalPrompt) }],
                         parameters: {
                             sampleCount: 1,
                             ...(normalizedAspectRatio ? { aspectRatio: normalizedAspectRatio } : {}),
@@ -1040,17 +1070,24 @@ export async function generateAIImage(
         };
 
         const looksLikeImagen = imageModel.toLowerCase().includes('imagen');
+        const needsEnglish = looksLikeImagen && /[^\x00-\x7F]/.test(prompt);
+        const effectivePrompt = needsEnglish ? await translatePromptToEnglish(prompt) : prompt;
+
+        if (effectivePrompt !== prompt) {
+            console.log('[AI] Translated prompt to English for Imagen model.');
+        }
+
         try {
             if (looksLikeImagen) {
-                return await makePredictRequest();
+                return await makePredictRequest(effectivePrompt);
             }
-            return await makeGenerateContentRequest();
+            return await makeGenerateContentRequest(effectivePrompt);
         } catch (primaryError) {
             console.warn('[AI] Primary image generation failed, retrying with alternate endpoint...', primaryError);
             if (looksLikeImagen) {
-                return await makeGenerateContentRequest();
+                return await makeGenerateContentRequest(effectivePrompt);
             }
-            return await makePredictRequest();
+            return await makePredictRequest(effectivePrompt);
         }
     } catch (err) {
         console.warn('Gemini image generation failed (Handled), falling back to Turbo mode:', err);
