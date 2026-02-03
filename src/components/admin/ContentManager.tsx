@@ -24,6 +24,7 @@ interface SiteContent {
     draft_value_en?: string | null;
     draft_value_de?: string | null;
     draft_value_cn?: string | null;
+    draft_updated_at?: string | null;
     content_type: string;
     section: string;
     description: string | null;
