@@ -266,6 +266,13 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
     const sectionRef = useRef<HTMLElement>(null);
     const svgContainerRef = useRef<HTMLDivElement>(null);
     const [focusMode, setFocusMode] = useState<FocusMode>('centralEurope');
+    const [countriesSettings, setCountriesSettings] = useState({
+        show_stats: true,
+        show_connections: true,
+        show_labels: true,
+        show_controls: true,
+        default_focus: 'centralEurope' as FocusMode,
+    });
     const [svgContent, setSvgContent] = useState<string>('');
 
     // ... (fetch SVG and DB data unchanged) ...
@@ -296,6 +303,37 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
         },
         staleTime: 5 * 60 * 1000,
     });
+
+    const { data: countriesSettingsData } = useQuery({
+        queryKey: ['countries-settings-public'],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('countries_settings')
+                .select('*')
+                .order('updated_at', { ascending: false })
+                .limit(1);
+            if (error) return null;
+            return data?.[0] || null;
+        },
+        staleTime: 5 * 60 * 1000,
+    });
+
+    useEffect(() => {
+        if (!countriesSettingsData) return;
+        const next = {
+            show_stats: countriesSettingsData.show_stats ?? true,
+            show_connections: countriesSettingsData.show_connections ?? true,
+            show_labels: countriesSettingsData.show_labels ?? true,
+            show_controls: countriesSettingsData.show_controls ?? true,
+            default_focus: (countriesSettingsData.default_focus as FocusMode) || 'centralEurope',
+        };
+        setCountriesSettings(next);
+    }, [countriesSettingsData]);
+
+    useEffect(() => {
+        if (!countriesSettings.default_focus) return;
+        setFocusMode(countriesSettings.default_focus);
+    }, [countriesSettings.default_focus]);
 
     const citiesData = (dbCities && dbCities.length > 0) ? dbCities : FALLBACK_CITIES;
 
@@ -510,48 +548,54 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
                         <p className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-200 text-lg text-muted-foreground max-w-lg">
                             {t.countries.description}
                         </p>
-                        <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-300 grid grid-cols-3 gap-6 pt-4">
-                            {stats.map((stat, i) => (
-                                <div key={i} className="text-center">
-                                    <div className="text-3xl md:text-4xl font-bold text-foreground">{stat.number}</div>
-                                    <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-[400ms] pt-4">
-                            <p className="text-sm text-muted-foreground mb-3">{t.countries.connectionsTitle}</p>
-                            <div className="flex flex-wrap gap-2">
-                                {connectionPoints.map((city) => (
-                                    <span key={city.name} className="text-xs px-3 py-1 bg-primary/10 text-primary rounded-full">
-                                        {city.name}
-                                    </span>
+                        {countriesSettings.show_stats && (
+                            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-300 grid grid-cols-3 gap-6 pt-4">
+                                {stats.map((stat, i) => (
+                                    <div key={i} className="text-center">
+                                        <div className="text-3xl md:text-4xl font-bold text-foreground">{stat.number}</div>
+                                        <div className="text-sm text-muted-foreground mt-1">{stat.label}</div>
+                                    </div>
                                 ))}
                             </div>
-                            {t.countries.currentOffice && (
-                                <p className="text-xs text-muted-foreground mt-3">
-                                    {t.countries.currentOffice}
-                                </p>
-                            )}
-                        </div>
+                        )}
+                        {countriesSettings.show_connections && (
+                            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-[400ms] pt-4">
+                                <p className="text-sm text-muted-foreground mb-3">{t.countries.connectionsTitle}</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {connectionPoints.map((city) => (
+                                        <span key={city.name} className="text-xs px-3 py-1 bg-primary/10 text-primary rounded-full">
+                                            {city.name}
+                                        </span>
+                                    ))}
+                                </div>
+                                {t.countries.currentOffice && (
+                                    <p className="text-xs text-muted-foreground mt-3">
+                                        {t.countries.currentOffice}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-1000 delay-200 h-[400px] md:h-[500px] relative">
                         {/* ... Labels and Map Controls ... */}
-                        <div className="absolute top-2 right-2 z-40 flex bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg p-1 gap-1">
-                            {['centralEurope', 'europe', 'global'].map(mode => (
-                                <button
-                                    key={mode}
-                                    onClick={() => snapToView(mode as FocusMode)}
-                                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${focusMode === mode
-                                        ? 'bg-[#210059] text-white'
-                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                                        }`}
-                                >
-                                    {mode === 'global' ? <Globe02Icon size={14} /> : <Location01Icon size={14} />}
-                                    {VIEW_CONFIGS[mode as FocusMode].label[language as 'sk' | 'en' | 'de' | 'cn']}
-                                </button>
-                            ))}
-                        </div>
+                        {countriesSettings.show_controls && (
+                            <div className="absolute top-2 right-2 z-40 flex bg-background/80 backdrop-blur-sm border border-border/50 rounded-lg p-1 gap-1">
+                                {['centralEurope', 'europe', 'global'].map(mode => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => snapToView(mode as FocusMode)}
+                                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md text-xs font-medium transition-all ${focusMode === mode
+                                            ? 'bg-[#210059] text-white'
+                                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                            }`}
+                                    >
+                                        {mode === 'global' ? <Globe02Icon size={14} /> : <Location01Icon size={14} />}
+                                        {VIEW_CONFIGS[mode as FocusMode].label[language as 'sk' | 'en' | 'de' | 'cn']}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 text-xs text-muted-foreground/60 pointer-events-none">
                             Drag to pan • Scroll to zoom
                         </div>
@@ -567,11 +611,13 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
                             <svg viewBox={currentViewBox} className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
                                 <rect x="0" y="0" width={SVG_WIDTH} height={SVG_HEIGHT} fill="hsl(var(--background))" />
                                 <g className="world-map-paths" dangerouslySetInnerHTML={{ __html: svgContent }} />
-                                <g style={{ pointerEvents: 'none' }}>
-                                    {countryLabels.map((country) => (
-                                        <CountryLabel key={country.name} lat={country.lat} lng={country.lng} name={country.name} scale={zoomScale} />
-                                    ))}
-                                </g>
+                                {countriesSettings.show_labels && (
+                                    <g style={{ pointerEvents: 'none' }}>
+                                        {countryLabels.map((country) => (
+                                            <CountryLabel key={country.name} lat={country.lat} lng={country.lng} name={country.name} scale={zoomScale} />
+                                        ))}
+                                    </g>
+                                )}
                                 <g style={{ pointerEvents: 'none' }}>
                                     {mainPoint && otherPoints.map((point, i) => (
                                         <ConnectionLine

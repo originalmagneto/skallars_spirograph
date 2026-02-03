@@ -20,6 +20,7 @@ import {
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import MapSettingsPanel from './MapSettingsPanel';
+import CountriesSettingsPanel from './CountriesSettingsPanel';
 
 interface MapCity {
     id: string;
@@ -272,6 +273,7 @@ const MapCitiesManager = () => {
         <div className="space-y-6">
             {/* Map Display Settings */}
             <MapSettingsPanel />
+            <CountriesSettingsPanel />
 
             {/* Cities List */}
             <div className="space-y-4">
