@@ -373,6 +373,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     aspectRatio: imageAspect,
                     model: imageProvider === 'gemini' && imageModel ? imageModel : undefined,
                 });
+                if (imageProvider === 'gemini' && url.includes('image.pollinations.ai')) {
+                    toast.warning('Imagen is unavailable for your account. Using Turbo mode instead.');
+                }
                 results.push({ url, provider: imageProvider });
             }
             setGeneratedImages(results);

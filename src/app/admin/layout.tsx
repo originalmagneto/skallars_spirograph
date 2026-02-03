@@ -87,27 +87,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 }
             }
 
-            // Fallback: user_roles table
-            const rolesRes = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', targetId);
-
-            if (!rolesRes.error && rolesRes.data && rolesRes.data.length > 0) {
-                const roles = rolesRes.data.map((r: any) => r.role);
-                if (roles.includes('admin') || roles.includes('editor')) {
-                    setAccessOverride(true);
-                    setAccessCheckMessage('User roles confirmed.');
-                    return;
-                }
-            }
-
-            if (adminError || editorError || profileRes.error || rolesRes.error) {
+            if (adminError || editorError || profileRes.error) {
                 const adminMsg = adminError?.message ? `Admin check error: ${adminError.message}` : '';
                 const editorMsg = editorError?.message ? `Editor check error: ${editorError.message}` : '';
                 const profileMsg = profileRes.error?.message ? `Profile check error: ${profileRes.error.message}` : '';
-                const rolesMsg = rolesRes.error?.message ? `Roles check error: ${rolesRes.error.message}` : '';
-                setAccessCheckMessage([adminMsg, editorMsg, profileMsg, rolesMsg].filter(Boolean).join(' | ') || 'Access check failed. Please re-login.');
+                setAccessCheckMessage([adminMsg, editorMsg, profileMsg].filter(Boolean).join(' | ') || 'Access check failed. Please re-login.');
             } else {
                 setAccessOverride(false);
                 setAccessCheckMessage('No admin/editor role detected.');
@@ -231,19 +215,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 result.is_profile_editor = {
                     data: editorRpc.data,
                     error: editorRpc.error?.message || null,
-                };
-
-                const rolesRes = await withTimeout(
-                    supabase
-                    .from('user_roles')
-                    .select('role')
-                    .eq('user_id', targetId),
-                    8000,
-                    'Roles check'
-                );
-                result.user_roles = {
-                    data: rolesRes.data,
-                    error: rolesRes.error?.message || null,
                 };
 
                 const contentRes = await withTimeout(

@@ -58,21 +58,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Ignore RPC failures and continue fallback.
             }
 
-            // Fallback to user_roles table (if profiles.role is not available)
-            const { data: rolesData, error: rolesError } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', userId);
-
-            if (!rolesError && rolesData && rolesData.length > 0) {
-                const roles = rolesData.map((r: any) => r.role);
-                const isAdminRole = roles.includes('admin');
-                const isEditorRole = isAdminRole || roles.includes('editor');
-                setIsAdmin(isAdminRole);
-                setIsEditor(isEditorRole);
-                return;
-            }
-
             setIsAdmin(false);
             setIsEditor(false);
         } catch (error) {

@@ -40,10 +40,7 @@ export default function AIUsageStats() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('ai_usage_logs')
-                .select(`
-                    *,
-                    user:user_id (email)
-                `)
+                .select('*')
                 .order('created_at', { ascending: false })
                 .limit(50);
 
@@ -116,7 +113,7 @@ export default function AIUsageStats() {
                                     <TableCell className="font-medium text-xs">
                                         {format(new Date(log.created_at), 'MMM d, HH:mm')}
                                     </TableCell>
-                                    <TableCell>{log.user?.email || 'Unknown User'}</TableCell>
+                                    <TableCell>{log.user_id ? `${log.user_id.slice(0, 8)}…` : 'Unknown User'}</TableCell>
                                     <TableCell className="capitalize">{log.action.replace('_', ' ')}</TableCell>
                                     <TableCell className="text-xs font-mono text-muted-foreground">{log.model}</TableCell>
                                     <TableCell className="text-right font-mono text-xs">{log.input_tokens}</TableCell>
