@@ -43,6 +43,8 @@ Tables referenced in app code:
 - `tags`, `article_tags` (tagging for articles).
 - `settings` (gemini_api_key, gemini_model, gemini_image_model, image_model, image_count).
 - `ai_usage_logs` (token tracking and usage records).
+- `ai_generation_logs` (AI generation diagnostics).
+- `admin_access_logs` (admin permission diagnostics).
 - `team_members` (team bios and photos).
 - `clients` (client logos).
 - `map_cities` (global network map).
@@ -117,7 +119,6 @@ Storage buckets referenced:
 ## Current Gaps (Known)
 - Content editing is field-based, not a full CMS or page builder.
 - Article editor is plain text/markdown; no rich text editor or image blocks.
-- Image generation has no UI (only settings + backend function).
 - No structured workflow for AI research quality, citations, or editorial review.
 - Admin permission gating can be brittle; diagnostics are available but logging could be deeper.
 

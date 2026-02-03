@@ -895,8 +895,11 @@ Format the output as a JSON object:
     return JSON.parse(result.candidates[0].content.parts[0].text);
 }
 
-export async function generateAIImage(prompt: string, options: { turbo?: boolean } = {}): Promise<string> {
-    const { turbo: forceTurbo } = options;
+export async function generateAIImage(
+    prompt: string,
+    options: { turbo?: boolean; width?: number; height?: number } = {}
+): Promise<string> {
+    const { turbo: forceTurbo, width = 1024, height = 1024 } = options;
 
     // Check global settings if turbo is not forced
     // Default to 'turbo' if not set or if forceTurbo is true
@@ -913,7 +916,7 @@ export async function generateAIImage(prompt: string, options: { turbo?: boolean
         // Use Pollinations.ai for fast, free, high-quality Flux images
         const seed = Math.floor(Math.random() * 1000000);
         const encodedPrompt = encodeURIComponent(prompt);
-        return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${seed}&model=flux`;
+        return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
     }
 
     // Pro mode: Use Gemini's Imagen (requires Gemini API key)
