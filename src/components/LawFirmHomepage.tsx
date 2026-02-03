@@ -175,9 +175,26 @@ export default function LawFirmHomepage() {
   // Fetch clients from database
   const [clients, setClients] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
+  const [sectionOrder, setSectionOrder] = useState<string[]>([]);
+  const [sectionEnabled, setSectionEnabled] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchData = async () => {
+      const { data: layoutData, error: layoutError } = await supabase
+        .from('page_sections')
+        .select('section_key, enabled, sort_order')
+        .eq('page', 'home')
+        .order('sort_order', { ascending: true });
+
+      if (!layoutError && layoutData && layoutData.length > 0) {
+        setSectionOrder(layoutData.map((row: any) => row.section_key));
+        const enabledMap: Record<string, boolean> = {};
+        layoutData.forEach((row: any) => {
+          enabledMap[row.section_key] = row.enabled;
+        });
+        setSectionEnabled(enabledMap);
+      }
+
       // Clients
       const { data: clientData } = await supabase
         .from('clients')
@@ -210,348 +227,364 @@ export default function LawFirmHomepage() {
     return () => clearInterval(interval);
   }, [clients.length]);
 
+  const defaultOrder = ['hero', 'services', 'countries', 'team', 'clients', 'news', 'contact', 'footer'];
+  const orderedKeys = sectionOrder.length > 0 ? sectionOrder : defaultOrder;
+  const isEnabled = (key: string) => sectionEnabled[key] ?? true;
+
+  const mainSections: Record<string, JSX.Element> = {
+    hero: (
+      <section
+        id="home"
+        className={`min-h-screen flex items-center justify-center relative overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        data-admin-section="hero"
+      >
+        <Spirograph />
+        <div className="container mx-auto px-4 py-20 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="text-sm uppercase tracking-[0.35em] text-muted-foreground mb-6"
+          >
+            {t.hero.title}
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="text-7xl md:text-8xl font-extrabold mb-6 text-foreground tracking-tight"
+          >
+            {t.hero.subtitle}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
+            className="text-2xl text-muted-foreground max-w-3xl"
+          >
+            {t.hero.description}
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+            className="mt-8"
+          >
+            <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
+              {t.hero.cta}
+            </a>
+          </motion.div>
+        </div>
+      </section>
+    ),
+    services: (
+      <section
+        id="services"
+        ref={servicesRef}
+        className={`py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        data-admin-section="services"
+      >
+        <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex flex-col lg:flex-row">
+            <div
+              ref={stickyRef}
+              className="lg:w-1/3 pr-8 lg:sticky lg:top-24 lg:self-start"
+              style={{ height: "fit-content" }}
+            >
+              <h2 className="text-4xl font-bold mb-6 text-foreground">
+                {t.services.title}
+              </h2>
+              <p className="text-xl text-muted-foreground mb-6">
+                {t.services.subtitle}
+              </p>
+              <div className="relative h-64 rounded-lg overflow-hidden ring-1 ring-border shadow-md">
+                {images.map((src, index) => (
+                  <img
+                    key={src}
+                    src={src}
+                    alt={`Legal service image ${index + 1}`}
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
+                  />
+                ))}
+                <div className="absolute inset-0 bg-primary/10 mix-blend-multiply" />
+              </div>
+            </div>
+            <div className="lg:w-2/3 mt-8 lg:mt-0">
+              <div className="grid grid-cols-1 gap-8">
+                {legalServices.map((service, index) => (
+                  <div
+                    key={index}
+                    ref={(el) => {
+                      serviceRefs.current[index] = el;
+                    }}
+                    data-index={index}
+                    className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border border-transparent hover:border-secondary/20"
+                  >
+                    <Check className="text-accent flex-shrink-0 mt-1" />
+                    <div>
+                      <h3 className="text-xl font-semibold mb-2 text-foreground">
+                        {service.title}
+                      </h3>
+                      <p className="text-muted-foreground">{service.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    ),
+    countries: (
+      <GlobalNetworkSection id="countries" />
+    ),
+    team: (
+      <section id="team" className={`py-24 bg-transparent reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="team">
+        <div className="container mx-auto px-4">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.6 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="text-5xl font-extrabold mb-12 text-center text-foreground tracking-tight"
+          >
+            {t.team.title}
+          </motion.h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {team.map((member) => (
+              <div
+                key={member.id}
+                className="bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group"
+              >
+                <div className="w-64 h-64 mx-auto mb-6 relative">
+                  <div className="w-full h-full rounded-lg overflow-hidden border-4 border-white shadow-md">
+                    <img
+                      src={member.photo_url || "/placeholder-avatar.jpg"}
+                      alt={member.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      style={{
+                        objectPosition: `${'photo_position_x' in member ? member.photo_position_x : 50}% ${'photo_position_y' in member ? member.photo_position_y : 50}%`
+                      }}
+                    />
+                  </div>
+                  {member.linkedin_url && (
+                    <a
+                      href={member.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute bottom-2 right-2 bg-[#0077b5] text-white p-2 rounded-lg shadow-sm hover:scale-110 transition-transform"
+                    >
+                      <Linkedin01Icon size={20} />
+                    </a>
+                  )}
+                </div>
+
+                <div className="text-center">
+                  {member.icon && (
+                    <div className="text-2xl mb-2" aria-hidden="true">
+                      {member.icon}
+                    </div>
+                  )}
+                  <h4 className="text-xl font-semibold mb-1 text-foreground group-hover:text-accent transition-colors">
+                    {member.name}
+                  </h4>
+                  <p className="text-muted-foreground mb-4 font-medium text-sm">
+                    {language === 'sk' ? member.role_sk : member.role_en}
+                  </p>
+                  {(language === 'sk' ? member.bio_sk : member.bio_en) && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {language === 'sk' ? member.bio_sk : member.bio_en}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    ),
+    clients: (
+      <section id="clients" className={`py-20 bg-white reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="clients">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="md:w-1/2 mb-10 md:mb-0">
+              <h3 className="text-sm font-medium text-[var(--mint-400)] mb-2 uppercase tracking-wide">
+                {t.clients.title}
+              </h3>
+              <h2 className="text-3xl font-medium text-[#210059] mb-4 tracking-tight">
+                {t.clients.subtitle}
+              </h2>
+            </div>
+            <div className="md:w-1/2 relative h-32 overflow-hidden">
+              <div
+                className="absolute inset-0 flex items-center justify-between transition-transform duration-500 ease-in-out"
+                style={{
+                  transform: `translateX(-${currentClientIndex * 33.33}%)`,
+                }}
+              >
+                {clients.map((client, index) => (
+                  <div key={index} className="w-1/3 px-4 flex-shrink-0">
+                    <img
+                      src={client.logo_url}
+                      alt={`${client.name} logo`}
+                      className="max-w-full h-auto mx-auto"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    ),
+    news: (
+      <section className={`py-24 bg-gradient-to-b from-[#210059] to-gray-900 text-white reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="news">
+        <div className="container mx-auto px-4">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.6 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="text-5xl font-extrabold mb-12 text-center tracking-tight"
+          >
+            {t.news.title}
+          </motion.h2>
+          {t.news.subtitle && (
+            <p className="text-center text-sm text-white/70 -mt-8 mb-10">
+              {t.news.subtitle}
+            </p>
+          )}
+          <BlogCarousel />
+        </div>
+      </section>
+    ),
+  };
+
+  const footerSections: Record<string, JSX.Element> = {
+    contact: (
+      <div data-admin-section="contact">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8">
+          <img
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_white-oudH0EnuPhJanLlxguzBXMippVasLU.svg"
+            alt="SKALLARS Logo"
+            className="h-10 mb-4 md:mb-0"
+          />
+          <div className="flex space-x-4">
+            <a href="#" className="hover:text-gray-300">
+              <Linkedin />
+            </a>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div>
+            <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
+            {t.contact.subtitle && (
+              <p className="text-xs text-gray-300 mb-3">{t.contact.subtitle}</p>
+            )}
+            <p>{t.contact.address}</p>
+            <p>{t.contact.phone}</p>
+            <a href={`mailto:${t.contact.email}`} className="hover:underline">
+              {t.contact.email}
+            </a>
+            <p className="text-sm text-gray-300 mt-2">{t.contact.workingHours}</p>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-4">{t.navigation.services}</h3>
+            <ul className="space-y-2">
+              <li>
+                <a href="#" className="hover:underline">
+                  {t.services.items.corporate.title}
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:underline">
+                  {t.services.items.contracts.title}
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:underline">
+                  {t.services.items.litigation.title}
+                </a>
+              </li>
+              <li>
+                <a href="#" className="hover:underline">
+                  {t.services.items.employment.title}
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
+            <ul className="space-y-2">
+              {t.footer.solutionsItems.map((item) => (
+                <li key={item}>
+                  <a href="#" className="hover:underline">
+                    {item}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-4">{t.news.title}</h3>
+            <form className="flex flex-col space-y-2">
+              <input
+                type="email"
+                placeholder={t.footer.newsletterPlaceholder}
+                className="px-4 py-2 bg-gray-800 rounded"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-[#210059] text-white rounded hover:bg-[#210059]/80"
+              >
+                {t.footer.newsletterCta}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    ),
+    footer: (
+      <div data-admin-section="footer" className="mt-8 pt-8 border-t border-gray-800 text-center">
+        <p>{t.footer.copyright}</p>
+      </div>
+    ),
+  };
+
+  const showFooter = orderedKeys.some((key) => (key === 'contact' || key === 'footer') && isEnabled(key));
+
   return (
     <div className="min-h-screen">
       <AdminInlinePreviewBar />
       {/* Header moved to global SiteHeader in layout */}
 
       <main>
-        <section
-          id="home"
-          className={`min-h-screen flex items-center justify-center relative overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
-          data-admin-section="hero"
-        >
-          {/* Spirograph pinned to hero section */}
-          <Spirograph />
-          <div className="container mx-auto px-4 py-20 relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-              className="text-sm uppercase tracking-[0.35em] text-muted-foreground mb-6"
-            >
-              {t.hero.title}
-            </motion.div>
-            <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: 'easeOut' }}
-              className="text-7xl md:text-8xl font-extrabold mb-6 text-foreground tracking-tight"
-            >
-              {t.hero.subtitle}
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
-              className="text-2xl text-muted-foreground max-w-3xl"
-            >
-              {t.hero.description}
-            </motion.p>
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
-              className="mt-8"
-            >
-              <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
-                {t.hero.cta}
-              </a>
-            </motion.div>
-          </div>
-        </section>
-
-        <section id="team" className={`py-24 bg-transparent reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="team">
-          <div className="container mx-auto px-4">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.6 }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-              className="text-5xl font-extrabold mb-12 text-center text-foreground tracking-tight"
-            >
-              {t.team.title}
-            </motion.h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {team.map((member) => (
-                <div
-                  key={member.id}
-                  className="bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group"
-                >
-                  <div className="w-64 h-64 mx-auto mb-6 relative">
-                    <div className="w-full h-full rounded-lg overflow-hidden border-4 border-white shadow-md">
-                      <img
-                        src={member.photo_url || "/placeholder-avatar.jpg"}
-                        alt={member.name}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        style={{
-                          objectPosition: `${'photo_position_x' in member ? member.photo_position_x : 50}% ${'photo_position_y' in member ? member.photo_position_y : 50}%`
-                        }}
-                      />
-                    </div>
-                    {member.linkedin_url && (
-                      <a
-                        href={member.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute bottom-2 right-2 bg-[#0077b5] text-white p-2 rounded-lg shadow-sm hover:scale-110 transition-transform"
-                      >
-                        <Linkedin01Icon size={20} />
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="text-center">
-                    {member.icon && (
-                      <div className="text-2xl mb-2" aria-hidden="true">
-                        {member.icon}
-                      </div>
-                    )}
-                    <h4 className="text-xl font-semibold mb-1 text-foreground group-hover:text-accent transition-colors">
-                      {member.name}
-                    </h4>
-                    <p className="text-muted-foreground mb-4 font-medium text-sm">
-                      {language === 'sk' ? member.role_sk : member.role_en}
-                    </p>
-                    {(language === 'sk' ? member.bio_sk : member.bio_en) && (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {language === 'sk' ? member.bio_sk : member.bio_en}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Contact info logic simplified as DB doesn't have phone/email yet? 
-                      Wait, the schema in migration had `name`, `role`, `photo`. 
-                      The user mentioned "linked to linkedin links".
-                      Existing static data had phone/email but DB schema didn't include them in my previous step?
-                      Let's check schema. `team_members` has: name, role_sk, role_en, company, photo_url, linkedin_url.
-                      It does NOT have phone/email. I will omit them or use placeholders if data is missing, 
-                      or just stick to LinkedIn as the primary contact method if that's what the DB supports.
-                      
-                      Actually, usually these are public profiles. 
-                      Ill add a generic "Contact" button or just the LinkedIn.
-                      User specifically asked for "Linkedin badges... linked to linkedin links".
-                   */}
-
-                  {/* Description/Bio is also missing from DB schema I defined in guide?
-                       Checking guide... schema: id, name, role_sk, role_en, company, photo_url, linkedin_url.
-                       So no bio/description either.
-                       I will stick to Name, Role, and LinkedIn.
-                   */}
-
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ... Service Section ... */}
-        <section
-          id="services"
-          ref={servicesRef}
-          className={`py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
-          data-admin-section="services"
-        >
-          <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="flex flex-col lg:flex-row">
-              <div
-                ref={stickyRef}
-                className="lg:w-1/3 pr-8 lg:sticky lg:top-24 lg:self-start"
-                style={{ height: "fit-content" }}
-              >
-                <h2 className="text-4xl font-bold mb-6 text-foreground">
-                  {t.services.title}
-                </h2>
-                <p className="text-xl text-muted-foreground mb-6">
-                  {t.services.subtitle}
-                </p>
-                <div className="relative h-64 rounded-lg overflow-hidden ring-1 ring-border shadow-md">
-                  {images.map((src, index) => (
-                    <img
-                      key={src}
-                      src={src}
-                      alt={`Legal service image ${index + 1}`}
-                      className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${index === currentImageIndex
-                        ? "opacity-100"
-                        : "opacity-0"
-                        }`}
-                    />
-                  ))}
-                  <div className="absolute inset-0 bg-primary/10 mix-blend-multiply" />
-                </div>
-              </div>
-              <div className="lg:w-2/3 mt-8 lg:mt-0">
-                <div className="grid grid-cols-1 gap-8">
-                  {legalServices.map((service, index) => (
-                    <div
-                      key={index}
-                      ref={(el) => {
-                        serviceRefs.current[index] = el;
-                      }}
-                      data-index={index}
-                      className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border border-transparent hover:border-secondary/20"
-                    >
-                      <Check className="text-accent flex-shrink-0 mt-1" />
-                      <div>
-                        <h3 className="text-xl font-semibold mb-2 text-foreground">
-                          {service.title}
-                        </h3>
-                        <p className="text-muted-foreground">{service.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <GlobalNetworkSection id="countries" />
-
-        <section id="clients" className={`py-20 bg-white reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="clients">
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row items-center justify-between">
-              <div className="md:w-1/2 mb-10 md:mb-0">
-                <h3 className="text-sm font-medium text-[var(--mint-400)] mb-2 uppercase tracking-wide">
-                  {t.clients.title}
-                </h3>
-                <h2 className="text-3xl font-medium text-[#210059] mb-4 tracking-tight">
-                  {t.clients.subtitle}
-                </h2>
-              </div>
-              <div className="md:w-1/2 relative h-32 overflow-hidden">
-                <div
-                  className="absolute inset-0 flex items-center justify-between transition-transform duration-500 ease-in-out"
-                  style={{
-                    transform: `translateX(-${currentClientIndex * 33.33}%)`,
-                  }}
-                >
-                  {clients.map((client, index) => (
-                    <div key={index} className="w-1/3 px-4 flex-shrink-0">
-                      <img
-                        src={client.logo_url}
-                        alt={`${client.name} logo`}
-                        className="max-w-full h-auto mx-auto"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className={`py-24 bg-gradient-to-b from-[#210059] to-gray-900 text-white reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="news">
-          <div className="container mx-auto px-4">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.6 }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-              className="text-5xl font-extrabold mb-12 text-center tracking-tight"
-            >
-              {t.news.title}
-            </motion.h2>
-            {t.news.subtitle && (
-              <p className="text-center text-sm text-white/70 -mt-8 mb-10">
-                {t.news.subtitle}
-              </p>
-            )}
-            <BlogCarousel />
-          </div>
-        </section>
+        {orderedKeys.map((key) => {
+          if (key === 'contact' || key === 'footer') return null;
+          if (!isEnabled(key)) return null;
+          const node = mainSections[key];
+          if (!node) return null;
+          return <React.Fragment key={key}>{node}</React.Fragment>;
+        })}
       </main>
 
-      <footer id="contact" className={`bg-[#110C19] text-white py-10 relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="footer">
-        <div className="absolute inset-0 bg-pattern opacity-10 pointer-events-none mix-blend-soft-light" />
-        <div className="container mx-auto px-4 relative z-10" data-admin-section="contact">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-8">
-            <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo_white-oudH0EnuPhJanLlxguzBXMippVasLU.svg"
-              alt="SKALLARS Logo"
-              className="h-10 mb-4 md:mb-0"
-            />
-            <div className="flex space-x-4">
-              <a href="#" className="hover:text-gray-300">
-                <Linkedin />
-              </a>
+      {showFooter && (
+        <footer id="contact" className={`bg-[#110C19] text-white py-10 relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}>
+          <div className="absolute inset-0 bg-pattern opacity-10 pointer-events-none mix-blend-soft-light" />
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="space-y-10">
+              {orderedKeys.map((key) => {
+                if (key !== 'contact' && key !== 'footer') return null;
+                if (!isEnabled(key)) return null;
+                const node = footerSections[key];
+                if (!node) return null;
+                return <React.Fragment key={`footer-${key}`}>{node}</React.Fragment>;
+              })}
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
-              {t.contact.subtitle && (
-                <p className="text-xs text-gray-300 mb-3">{t.contact.subtitle}</p>
-              )}
-              <p>{t.contact.address}</p>
-              <p>{t.contact.phone}</p>
-              <a href={`mailto:${t.contact.email}`} className="hover:underline">
-                {t.contact.email}
-              </a>
-              <p className="text-sm text-gray-300 mt-2">{t.contact.workingHours}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">{t.navigation.services}</h3>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="hover:underline">
-                    {t.services.items.corporate.title}
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:underline">
-                    {t.services.items.contracts.title}
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:underline">
-                    {t.services.items.litigation.title}
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="hover:underline">
-                    {t.services.items.employment.title}
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
-              <ul className="space-y-2">
-                {t.footer.solutionsItems.map((item) => (
-                  <li key={item}>
-                    <a href="#" className="hover:underline">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">{t.news.title}</h3>
-              <form className="flex flex-col space-y-2">
-                <input
-                  type="email"
-                  placeholder={t.footer.newsletterPlaceholder}
-                  className="px-4 py-2 bg-gray-800 rounded"
-                />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#210059] text-white rounded hover:bg-[#210059]/80"
-                >
-                  {t.footer.newsletterCta}
-                </button>
-              </form>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-gray-800 text-center">
-            <p>
-              {t.footer.copyright}
-            </p>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }

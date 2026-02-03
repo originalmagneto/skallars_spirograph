@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon } from "hugeicons-react";
+import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon } from "hugeicons-react";
 
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
@@ -15,6 +15,7 @@ import ArticlesManager from "@/components/admin/ArticlesManager";
 import AILab from "@/components/admin/AILab";
 import AISettings from "@/components/admin/AISettings";
 import ClientLogosManager from "@/components/admin/ClientLogosManager";
+import PageLayoutManager from "@/components/admin/PageLayoutManager";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -45,6 +46,12 @@ export default function AdminPage() {
                     <TabsTrigger value="content" className="gap-2">
                         <TextIcon size={14} />
                         Content
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
+                    <TabsTrigger value="layout" className="gap-2">
+                        <LayoutGridIcon size={14} />
+                        Layout
                     </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -89,6 +96,10 @@ export default function AdminPage() {
 
             <TabsContent value="content">
                 <ContentManager />
+            </TabsContent>
+
+            <TabsContent value="layout">
+                <PageLayoutManager />
             </TabsContent>
 
             <TabsContent value="team">
