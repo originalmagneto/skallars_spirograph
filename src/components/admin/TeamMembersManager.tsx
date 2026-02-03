@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, UserIcon, Upload01Icon, Linkedin01Icon, SaveEnergy01Icon } from 'hugeicons-react';
+import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, UserIcon, Upload01Icon, Linkedin01Icon, SaveEnergy01Icon, CropIcon, Image01Icon } from 'hugeicons-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -19,6 +19,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
+import ImageCropperModal from '@/components/admin/ImageCropperModal';
 
 interface TeamMember {
     id: string;
@@ -81,6 +83,11 @@ const TeamMembersManager = () => {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
     const [settingsForm, setSettingsForm] = useState<TeamSettings>(defaultSettings);
+    const [cropState, setCropState] = useState<{
+        url: string;
+        label?: string;
+        onApply: (url: string) => void;
+    } | null>(null);
 
     const { data: members, isLoading } = useQuery({
         queryKey: ['team-members'],
@@ -171,6 +178,18 @@ const TeamMembersManager = () => {
                 .from('images')
                 .getPublicUrl(filePath);
 
+            try {
+                await supabase.from('media_library').insert({
+                    title: `Team Photo ${new Date().toLocaleDateString()}`,
+                    file_path: filePath,
+                    public_url: urlData.publicUrl,
+                    bucket: 'images',
+                    tags: ['team'],
+                });
+            } catch (error) {
+                console.warn('Could not insert into media library:', error);
+            }
+
             return urlData.publicUrl;
         } catch (error: any) {
             toast.error('Failed to upload photo: ' + error.message);
@@ -252,6 +271,7 @@ const TeamMembersManager = () => {
         onCancel: () => void;
         isNew?: boolean;
     }) => {
+        const [showLibrary, setShowLibrary] = useState(false);
         const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
             if (file) {
@@ -294,6 +314,45 @@ const TeamMembersManager = () => {
                                     {uploading ? 'Uploading...' : 'Change Photo'}
                                 </Button>
                             </label>
+                            <div className="flex w-full gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setShowLibrary((prev) => !prev)}
+                                >
+                                    <Image01Icon size={14} className="mr-1" />
+                                    Browse Library
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    disabled={!values.photo_url}
+                                    onClick={() => {
+                                        if (!values.photo_url) return;
+                                        setCropState({
+                                            url: values.photo_url,
+                                            label: values.name || 'Team photo',
+                                            onApply: (url) => onChange({ ...values, photo_url: url }),
+                                        });
+                                    }}
+                                >
+                                    <CropIcon size={14} className="mr-1" />
+                                    Crop
+                                </Button>
+                            </div>
+                            {showLibrary && (
+                                <MediaLibraryPicker
+                                    onSelect={(url) => {
+                                        onChange({ ...values, photo_url: url });
+                                        setShowLibrary(false);
+                                    }}
+                                    onClose={() => setShowLibrary(false)}
+                                />
+                            )}
                         </div>
 
                         {/* Position Sliders */}
@@ -654,6 +713,22 @@ const TeamMembersManager = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {cropState && (
+                <ImageCropperModal
+                    open
+                    imageUrl={cropState.url}
+                    initialAspect="square"
+                    aspectOptions={['square']}
+                    label={cropState.label}
+                    tags={['team']}
+                    onClose={() => setCropState(null)}
+                    onComplete={(url) => {
+                        cropState.onApply(url);
+                        setCropState(null);
+                    }}
+                />
+            )}
         </div>
     );
 };

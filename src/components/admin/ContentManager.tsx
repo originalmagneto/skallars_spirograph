@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
+import ImageCropperModal from '@/components/admin/ImageCropperModal';
 
 interface SiteContent {
     id?: string;
@@ -76,6 +77,12 @@ const ContentManager = () => {
     const [previewMode, setPreviewMode] = useState<'published' | 'draft'>('published');
     const [libraryKey, setLibraryKey] = useState<string | null>(null);
     const [historyKey, setHistoryKey] = useState<string | null>(null);
+    const [cropState, setCropState] = useState<{
+        key: string;
+        url: string;
+        section?: string;
+        label?: string;
+    } | null>(null);
     const { language } = useLanguage();
     const { user } = useAuth();
     const searchParams = useSearchParams();
@@ -1020,6 +1027,22 @@ const ContentManager = () => {
                                                             >
                                                                 Browse Library
                                                             </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                disabled={!editForm.value_sk}
+                                                                onClick={() => {
+                                                                    if (!editForm.value_sk) return;
+                                                                    setCropState({
+                                                                        key: item.key,
+                                                                        url: editForm.value_sk,
+                                                                        section: item.section,
+                                                                        label: item.label || item.key,
+                                                                    });
+                                                                }}
+                                                            >
+                                                                Crop Image
+                                                            </Button>
                                                         </div>
                                                         <p className="text-[10px] text-muted-foreground">Image URL will be used for all languages.</p>
                                                         {libraryKey === item.key && (
@@ -1193,6 +1216,27 @@ const ContentManager = () => {
                 <div className="text-center py-8 text-muted-foreground">
                     No content found matching "{searchQuery}"
                 </div>
+            )}
+
+            {cropState && (
+                <ImageCropperModal
+                    open
+                    imageUrl={cropState.url}
+                    initialAspect="landscape"
+                    aspectOptions={['square', 'landscape']}
+                    label={cropState.label}
+                    tags={cropState.section ? [cropState.section] : []}
+                    onClose={() => setCropState(null)}
+                    onComplete={(url) => {
+                        setEditForm({
+                            value_sk: url,
+                            value_en: url,
+                            value_de: url,
+                            value_cn: url,
+                        });
+                        setCropState(null);
+                    }}
+                />
             )}
         </div>
     );

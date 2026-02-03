@@ -46,8 +46,10 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 
 ## Phase 2.1: Media + History (Moved from Phase 1)
 - Introduce **media library** with tags + search for all images. ✅
-- Add **image upload tools** for `site_content` graphics and section assets (crop later).
+- Add **image upload tools** for `site_content` graphics and section assets (crop later). ✅
 - Add **content history** (versioning + restore) for published `site_content`. ✅
+- Add **crop tools** (square + landscape) for Team/Clients/Content image fields. ✅
+- Allow **Team + Clients** to pick images from the Media Library. ✅
 
 ## Phase 3: AI Article Studio (Targeted Adjustments)
 - Add **research mode** controls: Quick vs Deep with clear time/quality tradeoff.

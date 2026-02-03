@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, Image01Icon, Upload01Icon, Link01Icon, SaveEnergy01Icon } from 'hugeicons-react';
+import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, Image01Icon, Upload01Icon, Link01Icon, SaveEnergy01Icon, CropIcon } from 'hugeicons-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -18,6 +18,8 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
+import ImageCropperModal from '@/components/admin/ImageCropperModal';
 
 interface Client {
     id: string;
@@ -58,6 +60,11 @@ const ClientLogosManager = () => {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
     const [settingsForm, setSettingsForm] = useState<ClientSettings>(defaultSettings);
+    const [cropState, setCropState] = useState<{
+        url: string;
+        label?: string;
+        onApply: (url: string) => void;
+    } | null>(null);
 
     const { data: clients, isLoading } = useQuery({
         queryKey: ['clients'],
@@ -141,6 +148,18 @@ const ClientLogosManager = () => {
                 .from('images')
                 .getPublicUrl(filePath);
 
+            try {
+                await supabase.from('media_library').insert({
+                    title: `Client Logo ${new Date().toLocaleDateString()}`,
+                    file_path: filePath,
+                    public_url: urlData.publicUrl,
+                    bucket: 'images',
+                    tags: ['clients'],
+                });
+            } catch (error) {
+                console.warn('Could not insert into media library:', error);
+            }
+
             return urlData.publicUrl;
         } catch (error: any) {
             toast.error('Failed to upload logo: ' + error.message);
@@ -215,6 +234,7 @@ const ClientLogosManager = () => {
         onCancel: () => void;
         isNew?: boolean;
     }) => {
+        const [showLibrary, setShowLibrary] = useState(false);
         const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
             const file = e.target.files?.[0];
             if (file) {
@@ -251,6 +271,45 @@ const ClientLogosManager = () => {
                                     </span>
                                 </Button>
                             </label>
+                            <div className="flex w-full gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setShowLibrary((prev) => !prev)}
+                                >
+                                    <Image01Icon size={14} className="mr-1" />
+                                    Browse Library
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    disabled={!values.logo_url}
+                                    onClick={() => {
+                                        if (!values.logo_url) return;
+                                        setCropState({
+                                            url: values.logo_url,
+                                            label: values.name || 'Client logo',
+                                            onApply: (url) => onChange({ ...values, logo_url: url }),
+                                        });
+                                    }}
+                                >
+                                    <CropIcon size={14} className="mr-1" />
+                                    Crop
+                                </Button>
+                            </div>
+                            {showLibrary && (
+                                <MediaLibraryPicker
+                                    onSelect={(url) => {
+                                        onChange({ ...values, logo_url: url });
+                                        setShowLibrary(false);
+                                    }}
+                                    onClose={() => setShowLibrary(false)}
+                                />
+                            )}
                         </div>
                     </div>
 
@@ -471,6 +530,22 @@ const ClientLogosManager = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {cropState && (
+                <ImageCropperModal
+                    open
+                    imageUrl={cropState.url}
+                    initialAspect="landscape"
+                    aspectOptions={['landscape', 'square']}
+                    label={cropState.label}
+                    tags={['clients']}
+                    onClose={() => setCropState(null)}
+                    onComplete={(url) => {
+                        cropState.onApply(url);
+                        setCropState(null);
+                    }}
+                />
+            )}
         </div>
     );
 };
