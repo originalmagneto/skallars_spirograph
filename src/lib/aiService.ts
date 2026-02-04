@@ -162,6 +162,41 @@ const normalizeArticleHtml = (html: string) => {
     return paragraphs.join('\n');
 };
 
+const slugifyHeading = (text: string) => {
+    const normalized = text
+        .toLowerCase()
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/[^\p{L}\p{N}\s-]/gu, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    return encodeURIComponent(normalized || text.toLowerCase().trim());
+};
+
+const addHeadingAnchors = (html: string) => {
+    if (!html) return html;
+    const used: Record<string, number> = {};
+    return html.replace(/<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi, (match, level, attrs, inner) => {
+        if (/id=/.test(attrs) || /anchor-link/.test(inner)) return match;
+        const textOnly = inner.replace(/<[^>]+>/g, '').trim();
+        if (!textOnly) return match;
+        let slug = slugifyHeading(textOnly);
+        const count = used[slug] || 0;
+        used[slug] = count + 1;
+        if (count > 0) slug = `${slug}-${count + 1}`;
+
+        const classMatch = attrs.match(/class="([^"]*)"/i);
+        const existingClass = classMatch ? classMatch[1] : '';
+        const baseClass = `ghost-heading ghost-heading-${level} ghost-heading-group group flex items-center`;
+        const mergedClass = existingClass ? `${existingClass} ${baseClass}` : baseClass;
+        const cleanedAttrs = attrs.replace(/class="[^"]*"/i, '').trim();
+        const classAttr = ` class="${mergedClass.trim()}"`;
+        const idAttr = ` id="${slug}"`;
+        const anchor = `<a href="#${slug}" class="ghost-anchor-link anchor-link ml-2 text-primary opacity-0 group-hover:opacity-100">#</a>`;
+        return `<h${level}${cleanedAttrs ? ' ' + cleanedAttrs : ''}${idAttr}${classAttr}>${inner}${anchor}</h${level}>`;
+    });
+};
+
 const countWords = (html: string) => {
     const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
     if (!text) return 0;
@@ -693,10 +728,10 @@ export async function generateAIArticle(
             enhanceArticleFormatting(parsedContent.content_de || '', languageLabels.de, signal),
             enhanceArticleFormatting(parsedContent.content_cn || '', languageLabels.cn, signal),
         ]);
-        parsedContent.content_sk = enhancements[0] || parsedContent.content_sk;
-        parsedContent.content_en = enhancements[1] || parsedContent.content_en;
-        parsedContent.content_de = enhancements[2] || parsedContent.content_de;
-        parsedContent.content_cn = enhancements[3] || parsedContent.content_cn;
+        parsedContent.content_sk = addHeadingAnchors(enhancements[0] || parsedContent.content_sk || '');
+        parsedContent.content_en = addHeadingAnchors(enhancements[1] || parsedContent.content_en || '');
+        parsedContent.content_de = addHeadingAnchors(enhancements[2] || parsedContent.content_de || '');
+        parsedContent.content_cn = addHeadingAnchors(enhancements[3] || parsedContent.content_cn || '');
 
         const appendSources = (sourceItems: Array<{ url: string; title?: string }>) => {
             if (!sourceItems.length) return;

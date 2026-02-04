@@ -138,7 +138,10 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
               prose-blockquote:bg-[#f7f3ff] prose-blockquote:rounded-md
               prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:not-italic
               prose-img:rounded-xl prose-img:shadow-lg prose-img:my-8
-              prose-sup:text-[0.7em] prose-sup:text-gray-500 prose-sup:font-semibold"
+              prose-sup:text-[0.7em] prose-sup:text-gray-500 prose-sup:font-semibold
+              [&_.ghost-anchor-link]:text-primary [&_.ghost-anchor-link]:opacity-0
+              [&_h2.group:hover_.ghost-anchor-link]:opacity-100
+              [&_h3.group:hover_.ghost-anchor-link]:opacity-100"
                         dangerouslySetInnerHTML={{ __html: content }}
                     />
 

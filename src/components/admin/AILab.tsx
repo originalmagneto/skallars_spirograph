@@ -1153,7 +1153,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                         prose-blockquote:border-l-4 prose-blockquote:border-[#210059]/30
                                         prose-blockquote:bg-[#f7f3ff] prose-blockquote:rounded-md
                                         prose-blockquote:px-4 prose-blockquote:py-3 prose-blockquote:not-italic
-                                        prose-sup:text-[0.7em] prose-sup:text-muted-foreground"
+                                        prose-sup:text-[0.7em] prose-sup:text-muted-foreground
+                                        [&_.ghost-anchor-link]:text-primary [&_.ghost-anchor-link]:opacity-0
+                                        [&_h2.group:hover_.ghost-anchor-link]:opacity-100
+                                        [&_h3.group:hover_.ghost-anchor-link]:opacity-100"
                                         dangerouslySetInnerHTML={{
                                             __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
                                         }}
