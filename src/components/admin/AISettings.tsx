@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { FloppyDiskIcon, Key01Icon, Tick01Icon, Cancel01Icon, Loading01Icon } from 'hugeicons-react';
 import AIUsageStats from './AIUsageStats';
@@ -25,6 +26,8 @@ const AISettings = () => {
     const [imageKeyValid, setImageKeyValid] = useState<boolean | null>(null);
     const [availableModels, setAvailableModels] = useState<GeminiModel[]>([]);
     const [availableImageModels, setAvailableImageModels] = useState<GeminiModel[]>([]);
+    const [useCustomImageModel, setUseCustomImageModel] = useState(false);
+    const [customImageModel, setCustomImageModel] = useState('');
 
     useEffect(() => {
         fetchSettings();
@@ -39,6 +42,10 @@ const AISettings = () => {
 
             if (error) throw error;
             setSettings(data || []);
+            const storedImageModel = data?.find(s => s.key === 'gemini_image_model')?.value;
+            if (storedImageModel) {
+                setCustomImageModel(storedImageModel);
+            }
 
             // If we have an API key, try to verify it
             const apiKey = data?.find(s => s.key === 'gemini_api_key')?.value;
@@ -131,6 +138,13 @@ const AISettings = () => {
 
             setAvailableModels(contentModels);
             setAvailableImageModels(imageModels);
+
+            const currentImageModel = settings.find((s) => s.key === 'gemini_image_model')?.value;
+            if (currentImageModel && imageModels.length > 0) {
+                const match = imageModels.some((model) => model.name === currentImageModel);
+                setUseCustomImageModel(!match);
+                if (!match) setCustomImageModel(currentImageModel);
+            }
 
             if (showToast) {
                 const textCount = contentModels.length;
@@ -365,12 +379,16 @@ const AISettings = () => {
                             </div>
 
                             {/* Image Model Selection */}
-                            {(availableImageModels.length > 0) && (
-                                <div className="space-y-2 pt-3 border-t">
-                                    <Label className="text-sm">Select Image Generation Model</Label>
+                            <div className="space-y-3 pt-3 border-t">
+                                <Label className="text-sm">Image Generation Model</Label>
+                                {availableImageModels.length > 0 && (
                                     <Select
-                                        value={settings.find(s => s.key === 'gemini_image_model')?.value || ''}
-                                        onValueChange={(v) => handleUpdate('gemini_image_model', v)}
+                                        value={useCustomImageModel ? '' : (settings.find(s => s.key === 'gemini_image_model')?.value || '')}
+                                        onValueChange={(v) => {
+                                            setUseCustomImageModel(false);
+                                            handleUpdate('gemini_image_model', v);
+                                        }}
+                                        disabled={useCustomImageModel}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Choose an Image model..." />
@@ -391,21 +409,42 @@ const AISettings = () => {
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-xs text-muted-foreground">
-                                        For "Pro" image mode. Uses the Image API key if provided, otherwise the main key.
-                                    </p>
+                                )}
+                                <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+                                    <div>
+                                        <Label className="text-xs">Use custom model name</Label>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Enable this if your model isn’t in the list.
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={useCustomImageModel || availableImageModels.length === 0}
+                                        onCheckedChange={(checked) => {
+                                            setUseCustomImageModel(checked);
+                                            if (!checked && customImageModel) {
+                                                handleUpdate('gemini_image_model', customImageModel);
+                                            }
+                                        }}
+                                        disabled={availableImageModels.length === 0}
+                                    />
                                 </div>
-                            )}
-
-                            <div className="space-y-2 pt-3 border-t">
-                                <Label className="text-sm">Custom Image Model Name (Optional)</Label>
-                                <Input
-                                    value={settings.find(s => s.key === 'gemini_image_model')?.value || ''}
-                                    onChange={(e) => handleUpdate('gemini_image_model', e.target.value)}
-                                    placeholder="imagen-3.0-generate-001 or gemini-2.5-flash-image"
-                                />
+                                {(useCustomImageModel || availableImageModels.length === 0) && (
+                                    <div className="space-y-2">
+                                        <Input
+                                            value={customImageModel}
+                                            onChange={(e) => {
+                                                setCustomImageModel(e.target.value);
+                                                handleUpdate('gemini_image_model', e.target.value);
+                                            }}
+                                            placeholder="imagen-3.0-generate-001 or gemini-2.5-flash-image"
+                                        />
+                                        <p className="text-xs text-muted-foreground">
+                                            Paste any valid Gemini/Imagen model name to override the dropdown.
+                                        </p>
+                                    </div>
+                                )}
                                 <p className="text-xs text-muted-foreground">
-                                    Paste any valid Gemini/Imagen model name to override the dropdown.
+                                    For "Pro" image mode. Uses the Image API key if provided, otherwise the main key.
                                 </p>
                             </div>
                         </div>

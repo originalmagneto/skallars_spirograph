@@ -83,11 +83,11 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **analytics events table + API** for custom events. ✅
 
 ## Phase 7: Admin IA + Workflow Simplification (In Progress)
-- Split admin into **two workspaces**: Site Editor vs Publishing & AI.
-- Replace the mega-tab bar with a **left sidebar** grouped by workflow.
-- Ensure **URL deep links** reflect tab/workspace selection.
-- Consolidate article workflows into **Article Studio** (AI Lab → Draft → Media → Publish).
-- Unify AI settings into **one source of truth** with clear override UX.
+- Split admin into **two workspaces**: Site Editor vs Publishing & AI. ✅
+- Replace the mega-tab bar with a **left sidebar** grouped by workflow. ✅
+- Ensure **URL deep links** reflect tab/workspace selection. ✅
+- Consolidate article workflows into **Article Studio** (AI Lab → Draft → Media → Publish). ✅
+- Unify AI settings into **one source of truth** with clear override UX. ✅
 
 ## Phase 8: Social Distribution (LinkedIn) (Planned)
 - Add **LinkedIn OAuth** per user with secure token storage.
