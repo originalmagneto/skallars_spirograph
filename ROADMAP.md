@@ -43,7 +43,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
 - Add **live preview** with “before/after” diff for reviewers. ✅
 - Add **SEO editor** (meta title/desc/keywords) for articles. ✅
-- Add **SEO editor** (OpenGraph, structured data) per page.
+- Add **SEO editor** (OpenGraph, structured data) per page. ✅
 
 ## Phase 2.1: Media + History (Moved from Phase 1)
 - Introduce **media library** with tags + search for all images. ✅

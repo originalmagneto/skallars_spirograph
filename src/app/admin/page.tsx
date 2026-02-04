@@ -14,6 +14,7 @@ import UserManagement from "@/components/admin/UserManagement";
 import ArticlesManager from "@/components/admin/ArticlesManager";
 import AILab from "@/components/admin/AILab";
 import AISettings from "@/components/admin/AISettings";
+import PageSEOSettings from "@/components/admin/PageSEOSettings";
 import ClientLogosManager from "@/components/admin/ClientLogosManager";
 import PageLayoutManager from "@/components/admin/PageLayoutManager";
 import ServiceItemsManager from "@/components/admin/ServiceItemsManager";
@@ -174,7 +175,10 @@ export default function AdminPage() {
             </TabsContent>
 
             <TabsContent value="settings">
-                <AISettings />
+                <div className="space-y-6">
+                    <AISettings />
+                    <PageSEOSettings />
+                </div>
             </TabsContent>
 
             <TabsContent value="users">

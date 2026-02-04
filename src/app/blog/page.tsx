@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { MOCK_POSTS } from '@/lib/mockPosts';
+import { fetchSeoSettings, getBaseUrlFromHeaders } from '@/lib/seoSettings';
 
 export const revalidate = 30; // refresh frequently for mock/demo
 
@@ -9,6 +11,42 @@ function getBaseUrl() {
   const protocol = h.get('x-forwarded-proto') ?? 'http';
   const host = h.get('x-forwarded-host') ?? h.get('host');
   return `${protocol}://${host}`;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const defaults = {
+    title: 'Blog | Skallars',
+    description: 'Latest legal updates, commentary, and insights from Skallars.',
+  };
+  const settings = await fetchSeoSettings([
+    'seo_blog_title',
+    'seo_blog_description',
+    'seo_blog_og_image',
+  ]);
+
+  const baseUrl = getBaseUrlFromHeaders();
+  const title = settings.seo_blog_title || defaults.title;
+  const description = settings.seo_blog_description || defaults.description;
+  const ogImage = settings.seo_blog_og_image;
+
+  return {
+    metadataBase: new URL(baseUrl),
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      url: `${baseUrl}/blog`,
+      images: ogImage ? [ogImage] : undefined,
+    },
+    twitter: {
+      card: ogImage ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+  };
 }
 
 async function getPosts() {
@@ -74,5 +112,4 @@ export default async function BlogIndexPage() {
     </div>
   );
 }
-
 
