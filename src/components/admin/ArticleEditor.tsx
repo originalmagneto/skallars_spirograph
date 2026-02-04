@@ -223,10 +223,25 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         mutationFn: async () => {
             if (!user) throw new Error('Not authenticated');
 
+            const resolveLatestFormData = () => {
+                if (editorMode !== 'visual' || !editorRef.current) return formData;
+                const key = `content_${activeTab}` as keyof ArticleFormData;
+                const html = editorRef.current.innerHTML;
+                if (html && html !== formData[key]) {
+                    return { ...formData, [key]: html };
+                }
+                return formData;
+            };
+
+            const latestFormData = resolveLatestFormData();
+            if (latestFormData !== formData) {
+                setFormData(latestFormData);
+            }
+
             const articleData = {
-                ...formData,
+                ...latestFormData,
                 author_id: user.id,
-                published_at: formData.is_published ? new Date().toISOString() : null,
+                published_at: latestFormData.is_published ? new Date().toISOString() : null,
             };
 
             let newArticleId = articleId;
