@@ -67,7 +67,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 ## Phase 4: AI Image Studio (Only After Content Editing Is Strong)
 - Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets. ✅
 - Add **batch generation** with previews, history, and comparisons. ✅
-- Add **in-app editor** (crop, focal point, color adjustments, text overlay).
+- Add **in-app editor** (crop, focal point, color adjustments, text overlay). ✅
 - Add **template-based social images** for blog and announcements.
 - Store **generation metadata** (prompt, model, seed) and allow regeneration. ✅
 

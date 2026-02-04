@@ -736,7 +736,7 @@ export default function ImageStudio() {
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => item.url && setCropTarget(item)} disabled={!item.url}>
                         <Image01Icon size={14} className="mr-1" />
-                        Crop
+                        Edit
                       </Button>
                     </div>
                   </div>
@@ -802,6 +802,9 @@ export default function ImageStudio() {
       <ImageCropperModal
         open={!!cropTarget}
         imageUrl={cropTarget?.url || ""}
+        enableEnhancements
+        enableTextOverlay
+        defaultOverlayText=""
         onClose={() => setCropTarget(null)}
         onComplete={() => setCropTarget(null)}
         label="Image Studio Crop"
