@@ -74,7 +74,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 ## Phase 5: Publishing Workflow + Analytics
 - Add **approval workflow** (review, approve, publish, schedule). ✅
 - Add **scheduled publishing** and **content calendars**. ✅ (scheduling UI + API gating)
-- Add **engagement analytics** for articles and content blocks.
+- Add **engagement analytics** for articles and content blocks. ✅ (articles; block tracking placeholder)
 - Add **audit logs** for admin actions and AI usage. ✅ (article audit logs)
 
 ## Enablers and Infrastructure

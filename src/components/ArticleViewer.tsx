@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GeneratedArticle } from '@/lib/aiService'; // Reusing interface or similar structure
@@ -10,6 +11,24 @@ interface ArticleViewerProps {
 
 export default function ArticleViewer({ post }: ArticleViewerProps) {
     const { language, t } = useLanguage();
+
+    useEffect(() => {
+        if (!post?.id) return;
+        try {
+            const key = `article_viewed_${post.id}`;
+            const last = window.localStorage.getItem(key);
+            const now = Date.now();
+            if (last && now - Number(last) < 1000 * 60 * 30) return;
+            window.localStorage.setItem(key, String(now));
+        } catch {
+            // ignore storage errors
+        }
+        fetch('/api/analytics/article-view', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ articleId: post.id, slug: post.slug }),
+        }).catch(() => {});
+    }, [post?.id, post?.slug]);
 
     // Helper to get content based on language with fallback
     const getField = (field: 'title' | 'content' | 'excerpt' | 'disclaimer') => {
