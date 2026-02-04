@@ -212,6 +212,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         linkedinStatus?.scopes?.includes('w_organization_social') ||
         linkedinStatus?.scopes?.includes('r_organization_social')
     );
+    const latestLinkedInShare = linkedinLogs.find((log) => log.status === 'success');
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -1439,6 +1440,21 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         )}
                         {linkedinTarget === 'organization' && linkedinOrganizations.length > 0 && (
                             <span>{linkedinOrganizations.length} orgs available</span>
+                        )}
+                        {latestLinkedInShare?.created_at && (
+                            <span className="flex items-center gap-2">
+                                Last shared {new Date(latestLinkedInShare.created_at).toLocaleString()}
+                                {latestLinkedInShare.share_url && (
+                                    <a
+                                        href={latestLinkedInShare.share_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary hover:text-primary/80 underline"
+                                    >
+                                        View post
+                                    </a>
+                                )}
+                            </span>
                         )}
                     </div>
                 )}

@@ -45,13 +45,14 @@ interface Article {
 
 export default function ArticlesManager() {
     const queryClient = useQueryClient();
-    const { isAdmin } = useAuth();
+    const { isAdmin, session } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'scheduled' | 'published'>('all');
     const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
+    const [linkedinSummary, setLinkedinSummary] = useState<Record<string, { sharedAt: string; url: string | null }>>({});
 
     useEffect(() => {
         const editId = searchParams.get('edit');
@@ -83,6 +84,48 @@ export default function ArticlesManager() {
             return data as Article[];
         },
     });
+
+    useEffect(() => {
+        if (!session?.access_token) {
+            setLinkedinSummary({});
+            return;
+        }
+        if (!articles || articles.length === 0) {
+            setLinkedinSummary({});
+            return;
+        }
+        const ids = articles.map((article) => article.id).filter(Boolean);
+        if (ids.length === 0) {
+            setLinkedinSummary({});
+            return;
+        }
+        const controller = new AbortController();
+        const loadSummary = async () => {
+            try {
+                const res = await fetch(`/api/linkedin/logs-summary?ids=${encodeURIComponent(ids.join(','))}`, {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                    signal: controller.signal,
+                });
+                const data = await res.json();
+                if (!res.ok || !Array.isArray(data.summaries)) {
+                    return;
+                }
+                const next: Record<string, { sharedAt: string; url: string | null }> = {};
+                data.summaries.forEach((item: any) => {
+                    if (!item?.article_id) return;
+                    next[item.article_id] = {
+                        sharedAt: item.last_shared_at,
+                        url: item.share_url || null,
+                    };
+                });
+                setLinkedinSummary(next);
+            } catch {
+                // ignore
+            }
+        };
+        loadSummary();
+        return () => controller.abort();
+    }, [session?.access_token, articles]);
 
     // Delete mutation
     const deleteMutation = useMutation({
@@ -238,7 +281,7 @@ export default function ArticlesManager() {
 
                             {/* Article Info */}
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
                                     <h3 className="font-medium truncate">{article.title_sk || article.title_en || 'Untitled'}</h3>
                                     {(() => {
                                         const status = getStatus(article);
@@ -251,13 +294,27 @@ export default function ArticlesManager() {
                                             </Badge>
                                         );
                                     })()}
+                                    {linkedinSummary[article.id] && (
+                                        <Badge variant="secondary">
+                                            <span className="flex items-center gap-1">
+                                                <Share2 size={12} /> LinkedIn
+                                            </span>
+                                        </Badge>
+                                    )}
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate">
                                     /{article.slug}
                                 </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {article.scheduled_at ? `Scheduled: ${new Date(article.scheduled_at).toLocaleString()}` : new Date(article.created_at).toLocaleDateString()}
-                                </p>
+                                <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-3">
+                                    <span>
+                                        {article.scheduled_at ? `Scheduled: ${new Date(article.scheduled_at).toLocaleString()}` : new Date(article.created_at).toLocaleDateString()}
+                                    </span>
+                                    {linkedinSummary[article.id]?.sharedAt && (
+                                        <span>
+                                            LinkedIn: {new Date(linkedinSummary[article.id].sharedAt).toLocaleDateString()}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Actions */}
