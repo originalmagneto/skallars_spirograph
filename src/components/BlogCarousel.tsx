@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { MOCK_POSTS } from '@/lib/mockPosts';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { trackEvent } from '@/lib/analytics';
 
 type PostPreview = {
   id: string;
@@ -236,6 +237,13 @@ export default function BlogCarousel() {
             href="/blog"
             className="inline-block px-4 py-2 rounded-full font-semibold shadow-md transition-transform duration-200 hover:scale-[1.02]"
             style={{ backgroundColor: '#210059', color: '#FFFFFF', textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}
+            onClick={() => {
+              trackEvent({
+                eventType: 'blog_view_all_click',
+                page: 'home',
+                href: '/blog',
+              });
+            }}
           >
             {t.news.viewAll}
           </Link>

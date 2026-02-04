@@ -77,6 +77,11 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **engagement analytics** for articles and content blocks. ✅ (articles; block tracking placeholder)
 - Add **audit logs** for admin actions and AI usage. ✅ (article audit logs)
 
+## Phase 6: Publishing Calendar + Engagement Tracking
+- Add **Publishing Calendar** view with scheduled + review queues. ✅
+- Add **engagement event tracking** (CTA clicks, view-all clicks). ✅
+- Add **analytics events table + API** for custom events. ✅
+
 ## Enablers and Infrastructure
 - Define **Supabase schema migrations** for new content blocks, media metadata, revisions, and AI research logs.
 - Add **RLS policies** for admin/editor/user roles.

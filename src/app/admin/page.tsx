@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { File01Icon, UserMultipleIcon, TextIcon, Location01Icon, AiMagicIcon, Settings01Icon, LayoutGridIcon, ListViewIcon, NewsIcon, Mail01Icon, FileBlockIcon, Image01Icon } from "hugeicons-react";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, CalendarDays } from "lucide-react";
 
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
@@ -26,6 +26,7 @@ import MediaLibraryManager from "@/components/admin/MediaLibraryManager";
 import SectionTemplatesPanel from "@/components/admin/SectionTemplatesPanel";
 import ImageStudio from "@/components/admin/ImageStudio";
 import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
+import PublishingCalendar from "@/components/admin/PublishingCalendar";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -107,6 +108,12 @@ export default function AdminPage() {
                     </TabsTrigger>
                 )}
                 {isAdmin && (
+                    <TabsTrigger value="calendar" className="gap-2">
+                        <CalendarDays size={14} />
+                        Calendar
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
                     <TabsTrigger value="team" className="gap-2">
                         <UserMultipleIcon size={14} />
                         Team
@@ -183,6 +190,10 @@ export default function AdminPage() {
 
             <TabsContent value="analytics">
                 <AnalyticsDashboard />
+            </TabsContent>
+
+            <TabsContent value="calendar">
+                <PublishingCalendar />
             </TabsContent>
 
             <TabsContent value="team">

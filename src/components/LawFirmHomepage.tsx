@@ -23,6 +23,7 @@ import BlogCarousel from './BlogCarousel';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import AdminInlinePreviewBar from './AdminInlinePreviewBar';
+import { trackEvent } from '@/lib/analytics';
 
 // Dynamically import the Spirograph component with no SSR
 const Spirograph = dynamic(() => import('./Spirograph'), {
@@ -787,6 +788,15 @@ export default function LawFirmHomepage() {
                 target={block.button_external ? '_blank' : undefined}
                 rel={block.button_external ? 'noopener noreferrer' : undefined}
                 className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent"
+                onClick={() => {
+                  trackEvent({
+                    eventType: 'callout_click',
+                    page: 'home',
+                    blockId: block.id,
+                    label: buttonLabel,
+                    href: buttonUrl,
+                  });
+                }}
               >
                 {buttonLabel}
               </a>
