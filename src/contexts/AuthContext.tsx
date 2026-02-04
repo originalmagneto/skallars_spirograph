@@ -66,6 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const fetchRoles = useCallback(async (userId: string) => {
+        const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
+        if (cachedRole) {
+            setIsAdmin(cachedRole === 'admin');
+            setIsEditor(cachedRole === 'editor' || cachedRole === 'admin');
+        }
+
         try {
             const { data, error } = await withTimeout(
                 supabase
@@ -108,10 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch {
                 // Ignore RPC failures and continue fallback.
             }
-            const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
             if (cachedRole) {
-                setIsAdmin(cachedRole === 'admin');
-                setIsEditor(cachedRole === 'editor' || cachedRole === 'admin');
                 return;
             }
 
@@ -119,10 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsEditor(false);
         } catch (error) {
             console.error('Error fetching roles:', error);
-            const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
             if (cachedRole) {
-                setIsAdmin(cachedRole === 'admin');
-                setIsEditor(cachedRole === 'editor' || cachedRole === 'admin');
                 return;
             }
             setIsAdmin(false);
