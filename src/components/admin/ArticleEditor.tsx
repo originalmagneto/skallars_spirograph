@@ -79,7 +79,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const isNew = !articleId || articleId === 'new';
     const router = useRouter();
     const queryClient = useQueryClient();
-    const { user, isAdmin, isEditor } = useAuth();
+    const { user, session, isAdmin, isEditor } = useAuth();
 
     const factChecklistDefaults: Array<{ key: string; label: string }> = [
         { key: 'facts_verified', label: 'Facts and figures verified against sources' },
@@ -164,6 +164,19 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [overrideImageModel, setOverrideImageModel] = useState('');
     const [imageGenerating, setImageGenerating] = useState(false);
     const [generatedImages, setGeneratedImages] = useState<Array<{ url: string; provider: 'gemini' | 'turbo' }>>([]);
+    const [linkedinStatus, setLinkedinStatus] = useState<{
+        connected: boolean;
+        member_name?: string | null;
+        member_urn?: string | null;
+        expires_at?: string | null;
+        expired?: boolean;
+    } | null>(null);
+    const [linkedinLoading, setLinkedinLoading] = useState(false);
+    const [linkedinMessage, setLinkedinMessage] = useState('');
+    const [linkedinTarget, setLinkedinTarget] = useState<'member' | 'organization'>('member');
+    const [linkedinOrganizations, setLinkedinOrganizations] = useState<Array<{ urn: string; name: string }>>([]);
+    const [linkedinOrganizationUrn, setLinkedinOrganizationUrn] = useState('');
+    const [linkedinSharing, setLinkedinSharing] = useState(false);
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -280,6 +293,45 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         };
         loadImageSettings();
     }, []);
+
+    useEffect(() => {
+        if (!session?.access_token) return;
+        const loadStatus = async () => {
+            setLinkedinLoading(true);
+            try {
+                const res = await fetch('/api/linkedin/status', {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    setLinkedinStatus(data);
+                } else {
+                    setLinkedinStatus({ connected: false });
+                }
+            } catch {
+                setLinkedinStatus({ connected: false });
+            } finally {
+                setLinkedinLoading(false);
+            }
+        };
+        loadStatus();
+    }, [session?.access_token]);
+
+    useEffect(() => {
+        if (linkedinMessage.trim()) return;
+        const title = getCurrentTitle();
+        const excerpt = getCurrentExcerpt();
+        if (title || excerpt) {
+            setLinkedinMessage([title, excerpt].filter(Boolean).join('\n\n'));
+        }
+    }, [formData.title_sk, formData.title_en, formData.title_de, formData.title_cn, formData.excerpt_sk, formData.excerpt_en, formData.excerpt_de, formData.excerpt_cn]);
+
+    useEffect(() => {
+        if (linkedinTarget !== 'organization') return;
+        if (!linkedinStatus?.connected) return;
+        if (linkedinOrganizations.length > 0) return;
+        loadLinkedInOrganizations();
+    }, [linkedinTarget, linkedinStatus?.connected]);
 
     // Auto-generate slug from Slovak title
     useEffect(() => {
@@ -497,6 +549,120 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error(error.message || 'Image generation failed');
         } finally {
             setImageGenerating(false);
+        }
+    };
+
+    const getArticleUrl = () => {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+        return formData.slug ? `${siteUrl}/blog/${formData.slug}` : '';
+    };
+
+    const handleLinkedInConnect = async () => {
+        if (!session?.access_token) {
+            toast.error('Missing session. Please sign in again.');
+            return;
+        }
+        try {
+            const res = await fetch('/api/linkedin/auth', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ redirectTo: window.location.href }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data?.url) {
+                throw new Error(data?.error || 'Failed to start LinkedIn connection.');
+            }
+            window.location.href = data.url;
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to connect LinkedIn.');
+        }
+    };
+
+    const handleLinkedInDisconnect = async () => {
+        if (!session?.access_token) return;
+        try {
+            await fetch('/api/linkedin/disconnect', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            setLinkedinStatus({ connected: false });
+            setLinkedinOrganizations([]);
+            setLinkedinOrganizationUrn('');
+            toast.success('LinkedIn disconnected.');
+        } catch {
+            toast.error('Failed to disconnect LinkedIn.');
+        }
+    };
+
+    const loadLinkedInOrganizations = async () => {
+        if (!session?.access_token) return;
+        try {
+            const res = await fetch('/api/linkedin/organizations', {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.organizations)) {
+                setLinkedinOrganizations(data.organizations);
+                if (data.organizations.length === 1) {
+                    setLinkedinOrganizationUrn(data.organizations[0].urn);
+                }
+            } else {
+                toast.error(data?.error || 'Failed to load LinkedIn organizations.');
+            }
+        } catch {
+            toast.error('Failed to load LinkedIn organizations.');
+        }
+    };
+
+    const handleLinkedInShare = async () => {
+        if (!session?.access_token) {
+            toast.error('Missing session. Please sign in again.');
+            return;
+        }
+        if (!articleId || isNew) {
+            toast.error('Save the article before sharing.');
+            return;
+        }
+        const linkUrl = getArticleUrl();
+        if (!linkUrl) {
+            toast.error('Article slug missing. Please save a slug first.');
+            return;
+        }
+        if (linkedinTarget === 'organization' && !linkedinOrganizationUrn) {
+            toast.error('Select a LinkedIn organization.');
+            return;
+        }
+
+        setLinkedinSharing(true);
+        try {
+            const res = await fetch('/api/linkedin/share', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    articleId,
+                    linkUrl,
+                    title: getCurrentTitle(),
+                    excerpt: getCurrentExcerpt(),
+                    message: linkedinMessage,
+                    shareTarget: linkedinTarget,
+                    organizationUrn: linkedinOrganizationUrn || null,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.error || 'LinkedIn share failed.');
+            }
+            toast.success('Shared on LinkedIn!');
+        } catch (error: any) {
+            toast.error(error?.message || 'LinkedIn share failed.');
+        } finally {
+            setLinkedinSharing(false);
         }
     };
 
@@ -1041,6 +1207,148 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+            </div>
+
+            {/* LinkedIn Share */}
+            <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <Label className="text-sm font-semibold">LinkedIn Share</Label>
+                        <p className="text-xs text-muted-foreground">
+                            Connect your LinkedIn account and share this article.
+                        </p>
+                    </div>
+                    {linkedinLoading ? (
+                        <Button size="sm" variant="outline" disabled>
+                            Checking...
+                        </Button>
+                    ) : linkedinStatus?.connected ? (
+                        <Button size="sm" variant="outline" onClick={handleLinkedInDisconnect}>
+                            Disconnect
+                        </Button>
+                    ) : (
+                        <Button size="sm" onClick={handleLinkedInConnect}>
+                            Connect LinkedIn
+                        </Button>
+                    )}
+                </div>
+
+                {linkedinStatus?.connected && (
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <span>Connected as {linkedinStatus.member_name || 'LinkedIn Member'}</span>
+                        {linkedinStatus.expires_at && (
+                            <span>
+                                Token expires {new Date(linkedinStatus.expires_at).toLocaleString()}
+                            </span>
+                        )}
+                        {linkedinStatus.expired && (
+                            <span className="text-destructive">Token expired — reconnect.</span>
+                        )}
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Share As</Label>
+                            <Select
+                                value={linkedinTarget}
+                                onValueChange={(value) => setLinkedinTarget(value as 'member' | 'organization')}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select share target" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="member">Personal Profile</SelectItem>
+                                    <SelectItem value="organization">Company Page</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {linkedinTarget === 'organization' && (
+                            <div className="space-y-2">
+                                <Label>Organization</Label>
+                                {linkedinOrganizations.length > 0 ? (
+                                    <Select
+                                        value={linkedinOrganizationUrn}
+                                        onValueChange={setLinkedinOrganizationUrn}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select organization" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {linkedinOrganizations.map((org) => (
+                                                <SelectItem key={org.urn} value={org.urn}>
+                                                    {org.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <Input
+                                        value={linkedinOrganizationUrn}
+                                        onChange={(e) => setLinkedinOrganizationUrn(e.target.value)}
+                                        placeholder="urn:li:organization:123456"
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
+                    <div className="space-y-2">
+                        <Label>LinkedIn Post Text</Label>
+                        <Textarea
+                            value={linkedinMessage}
+                            onChange={(e) => setLinkedinMessage(e.target.value)}
+                            rows={3}
+                            placeholder="Add your LinkedIn intro..."
+                        />
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
+                    <div className="rounded-lg border bg-white p-3 space-y-2">
+                        <div className="text-xs text-muted-foreground">Preview</div>
+                        <div className="flex flex-col gap-3">
+                            {formData.cover_image_url && (
+                                <img
+                                    src={formData.cover_image_url}
+                                    alt="LinkedIn preview"
+                                    width={1200}
+                                    height={630}
+                                    className="w-full h-40 object-cover rounded-md"
+                                />
+                            )}
+                            <div className="space-y-1">
+                                <div className="text-sm font-semibold">{getCurrentTitle() || 'Untitled Article'}</div>
+                                <div className="text-xs text-muted-foreground line-clamp-2">
+                                    {getCurrentExcerpt() || 'Add an excerpt to improve the preview.'}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                    {getArticleUrl() || 'Save a slug to generate the article link.'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Button
+                            onClick={handleLinkedInShare}
+                            disabled={linkedinSharing || !getArticleUrl() || linkedinStatus?.expired}
+                        >
+                            {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
+                        </Button>
+                        {(!articleId || isNew) && (
+                            <span className="text-xs text-muted-foreground">
+                                Save the article before sharing.
+                            </span>
+                        )}
                     </div>
                 )}
             </div>

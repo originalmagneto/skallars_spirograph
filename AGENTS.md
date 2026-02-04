@@ -33,6 +33,9 @@ Skallars Spirograph is a Next.js 14 (App Router) site for a law office with a Su
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only; optional for `/api/blog` to bypass RLS while still filtering published articles)
+- `LINKEDIN_CLIENT_ID` (server-only)
+- `LINKEDIN_CLIENT_SECRET` (server-only)
+- `LINKEDIN_REDIRECT_URI` (server-only; must match LinkedIn app settings)
 
 ## Supabase Data Model (as used in code)
 Tables referenced in app code:
@@ -46,6 +49,9 @@ Tables referenced in app code:
 - `ai_usage_logs` (token tracking and usage records).
 - `ai_generation_logs` (AI generation diagnostics).
 - `admin_access_logs` (admin permission diagnostics).
+- `linkedin_accounts` (per-user OAuth tokens + LinkedIn member info).
+- `linkedin_oauth_states` (short-lived OAuth state for connect flow).
+- `linkedin_share_logs` (share status + errors).
 - `team_members` (team bios and photos).
 - `clients` (client logos).
 - `map_cities` (global network map).
