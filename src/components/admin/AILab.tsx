@@ -1141,10 +1141,18 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     </div>
 
                                     <div
-                                        className="prose prose-sm dark:prose-invert max-w-none
-                                        prose-headings:mt-6 prose-headings:mb-3
-                                        prose-p:mt-3 prose-p:leading-relaxed
-                                        prose-ul:mt-3 prose-li:mt-1
+                                        className="prose prose-base max-w-none
+                                        prose-headings:font-bold prose-headings:text-[#210059] prose-headings:tracking-tight
+                                        prose-h2:mt-8 prose-h2:mb-3 prose-h3:mt-6 prose-h3:mb-2
+                                        prose-p:mt-3 prose-p:leading-relaxed prose-p:text-gray-600
+                                        prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
+                                        prose-strong:text-[#210059] prose-strong:font-semibold
+                                        prose-em:text-gray-700
+                                        prose-li:mt-2 prose-li:text-gray-600
+                                        prose-ul:mt-4 prose-ol:mt-4
+                                        prose-blockquote:border-l-4 prose-blockquote:border-[#210059]/30
+                                        prose-blockquote:bg-[#f7f3ff] prose-blockquote:rounded-md
+                                        prose-blockquote:px-4 prose-blockquote:py-3 prose-blockquote:not-italic
                                         prose-sup:text-[0.7em] prose-sup:text-muted-foreground"
                                         dangerouslySetInnerHTML={{
                                             __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'

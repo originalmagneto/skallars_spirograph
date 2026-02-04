@@ -1072,6 +1072,41 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
     };
 
+    const handleEnhanceFormatting = async () => {
+        const inputText = getCurrentContent();
+        if (!inputText?.trim()) {
+            toast.error('Please add article content first.');
+            return;
+        }
+        setEditLoading(true);
+        setEditTarget('content');
+        setEditMode('rewrite');
+        try {
+            const output = await generateAIEdit(inputText, {
+                mode: 'rewrite',
+                customInstruction: `Reformat into a richly structured article for readability.
+Rules:
+1. Preserve all facts, numbers, names, and URLs exactly. Do not add new facts or sources.
+2. Keep the language as ${languageLabel()}.
+3. Use semantic HTML only. No markdown.
+4. Start with a short lead paragraph.
+5. Use <h2> for main sections (at least 4 for long pieces) and <h3> for subsections (at least 2 when appropriate).
+6. Include at least one list (<ul> or <ol>) where it improves clarity.
+7. Add one <blockquote> that quotes a sentence from the existing text.
+8. Use <em> for emphasis on 2–4 phrases.
+9. Paragraphs should be short (2–4 sentences).
+10. Keep any existing sources section and links intact.`,
+                languageLabel: languageLabel(),
+            });
+            setEditOutput(output);
+            toast.success('Formatting enhancement ready to review.');
+        } catch (error: any) {
+            toast.error(error.message || 'Formatting enhancement failed.');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
     const applyEditorialEdit = () => {
         if (!editOutput.trim()) return;
         updateField(editTarget, editOutput);
@@ -2045,6 +2080,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 <div className="flex items-center gap-2">
                     <Button size="sm" onClick={handleEditorialEdit} disabled={editLoading}>
                         {editLoading ? 'Editing...' : 'Generate AI Edit'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleEnhanceFormatting} disabled={editLoading}>
+                        Enhance Formatting
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
                         Clear Output
