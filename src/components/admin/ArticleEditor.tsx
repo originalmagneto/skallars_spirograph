@@ -184,6 +184,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [linkedinOrganizationUrn, setLinkedinOrganizationUrn] = useState('');
     const [linkedinSharing, setLinkedinSharing] = useState(false);
     const [linkedinShareMode, setLinkedinShareMode] = useState<'article' | 'image'>('article');
+    const [linkedinShareModeTouched, setLinkedinShareModeTouched] = useState(false);
     const [linkedinImageUrl, setLinkedinImageUrl] = useState('');
     const [linkedinLogs, setLinkedinLogs] = useState<Array<{
         id: string;
@@ -468,6 +469,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         if (!formData.cover_image_url) return;
         setLinkedinImageUrl((prev) => prev || formData.cover_image_url);
     }, [formData.cover_image_url]);
+
+    useEffect(() => {
+        if (linkedinShareModeTouched) return;
+        if (!formData.cover_image_url) return;
+        setLinkedinShareMode('image');
+    }, [formData.cover_image_url, linkedinShareModeTouched]);
 
     useEffect(() => {
         if (linkedinTarget !== 'organization') return;
@@ -1494,7 +1501,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                             <Label>Share Type</Label>
                             <Select
                                 value={linkedinShareMode}
-                                onValueChange={(value) => setLinkedinShareMode(value as 'article' | 'image')}
+                                onValueChange={(value) => {
+                                    setLinkedinShareMode(value as 'article' | 'image');
+                                    setLinkedinShareModeTouched(true);
+                                }}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select share type" />
@@ -1506,6 +1516,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                             </Select>
                             <p className="text-[10px] text-muted-foreground">
                                 Image posts upload the image and append the article link to the text.
+                                LinkedIn may omit preview images for API link posts.
                             </p>
                         </div>
 
