@@ -16,25 +16,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const articleId = searchParams.get('articleId');
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userData.user.id)
+      .maybeSingle();
 
-    let query = supabase
-      .from('linkedin_share_queue')
-      .select('id, status, share_target, share_mode, visibility, scheduled_at, error_message, created_at')
-      .eq('user_id', userData.user.id)
-      .order('scheduled_at', { ascending: true })
-      .limit(20);
-
-    if (articleId) {
-      query = query.eq('article_id', articleId);
+    if (error) {
+      return NextResponse.json({ error: error.message || 'Role lookup failed.' }, { status: 500 });
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-
-    return NextResponse.json({ scheduled: data || [] });
+    return NextResponse.json({ role: profile?.role || 'user' });
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to load scheduled shares.' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Role lookup failed.' }, { status: 500 });
   }
 }

@@ -94,8 +94,9 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Define **LinkedIn app setup** steps + required permissions (Organization + Member posting). ✅
 - Add **LinkedIn OAuth** per user with secure token storage + refresh.
 - Add **LinkedIn post preview** (image + headline + excerpt). ✅
-- Allow **share now / schedule** with per-user accounts. (Share now ✅, scheduling UI ✅, cron runner pending)
+- Allow **share now / schedule** with per-user accounts. (Share now ✅, scheduling UI ✅, cron runner ✅)
 - Track share status + errors in a **share log**. ✅
+- Support **image shares** (LinkedIn asset upload). ✅
 
 ## Enablers and Infrastructure
 - Define **Supabase schema migrations** for new content blocks, media metadata, revisions, and AI research logs.

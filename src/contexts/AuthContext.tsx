@@ -118,6 +118,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
+            // Server-side fallback (service role) to avoid client RLS timeouts
+            if (session?.access_token) {
+                try {
+                    const res = await withTimeout(
+                        fetch('/api/admin/role', {
+                            headers: { Authorization: `Bearer ${session.access_token}` },
+                        }),
+                        8000,
+                        'Server role check'
+                    );
+                    if (res.ok) {
+                        const data = await res.json();
+                        const role = data?.role || 'user';
+                        setIsAdmin(role === 'admin');
+                        setIsEditor(role === 'editor' || role === 'admin');
+                        writeRoleCache(userId, role);
+                        return;
+                    }
+                } catch {
+                    // ignore server fallback errors
+                }
+            }
+
             setIsAdmin(false);
             setIsEditor(false);
         } catch (error) {
@@ -128,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAdmin(false);
             setIsEditor(false);
         }
-    }, []);
+    }, [session?.access_token]);
 
     const refreshRoles = useCallback(async () => {
         if (user?.id) {

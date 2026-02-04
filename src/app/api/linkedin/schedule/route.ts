@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
     const shareTarget = payload?.shareTarget === 'organization' ? 'organization' : 'member';
     const organizationUrn = payload?.organizationUrn || null;
     const visibility = payload?.visibility || 'PUBLIC';
+    const shareMode = payload?.shareMode === 'image' ? 'image' : 'article';
+    const imageUrl = payload?.imageUrl || null;
 
     if (!scheduledAt) {
       return NextResponse.json({ error: 'Missing scheduledAt.' }, { status: 400 });
@@ -39,7 +41,9 @@ export async function POST(req: NextRequest) {
         user_id: userData.user.id,
         article_id: articleId,
         share_target: shareTarget,
+        share_mode: shareMode,
         organization_urn: organizationUrn,
+        image_url: imageUrl,
         visibility,
         message,
         scheduled_at: scheduledDate.toISOString(),

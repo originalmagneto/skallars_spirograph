@@ -4,9 +4,17 @@
 
 [build.environment]
   NEXT_TELEMETRY_DISABLED = "1"
-  NEXT_PUBLIC_SITE_URL = "https://skallars-spirograph.netlify.app"
+  NEXT_PUBLIC_SITE_URL = "https://skallars-spirograph-test.netlify.app"
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[functions]]
+  name = "linkedin-scheduler"
+  schedule = "*/10 * * * *"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

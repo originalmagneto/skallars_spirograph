@@ -112,6 +112,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 setAccessOverride(false);
                 setAccessCheckMessage('No admin/editor role detected.');
             }
+
+            // Server fallback (service role) in case client RLS/network issues
+            if (user?.id) {
+                try {
+                    const sessionRes = await supabase.auth.getSession();
+                    const token = sessionRes.data.session?.access_token;
+                    if (token) {
+                        const fallbackRes = await withTimeout(
+                            fetch('/api/admin/role', {
+                                headers: { Authorization: `Bearer ${token}` },
+                            }),
+                            8000,
+                            'Server role check'
+                        );
+                        if (fallbackRes.ok) {
+                            const fallbackData = await fallbackRes.json();
+                            const role = fallbackData?.role;
+                            if (role === 'admin' || role === 'editor') {
+                                setAccessOverride(true);
+                                setAccessCheckMessage(`Server role confirmed (${role}).`);
+                            }
+                        }
+                    }
+                } catch {
+                    // ignore fallback errors
+                }
+            }
         } catch (error: any) {
             // Ignore RPC errors; fallback to context state.
             setAccessCheckMessage(error?.message || 'Access check failed. Please re-login.');

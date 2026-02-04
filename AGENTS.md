@@ -127,6 +127,10 @@ Storage buckets referenced:
 ## Content Drafts
 - Schema update: `supabase/site_content_drafts.sql`
 
+## LinkedIn SQL
+- Initial tables: `supabase/linkedin_schema.sql`, `supabase/linkedin_share_queue.sql`
+- Upgrade (adds image share columns): `supabase/linkedin_share_queue_upgrade.sql`
+
 ## Current Gaps (Known)
 - Content editing is field-based, not a full CMS or page builder.
 - Article editor is plain text/markdown; no rich text editor or image blocks.

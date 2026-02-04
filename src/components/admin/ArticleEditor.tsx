@@ -177,6 +177,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [linkedinOrganizations, setLinkedinOrganizations] = useState<Array<{ urn: string; name: string }>>([]);
     const [linkedinOrganizationUrn, setLinkedinOrganizationUrn] = useState('');
     const [linkedinSharing, setLinkedinSharing] = useState(false);
+    const [linkedinShareMode, setLinkedinShareMode] = useState<'article' | 'image'>('article');
+    const [linkedinImageUrl, setLinkedinImageUrl] = useState('');
     const [linkedinLogs, setLinkedinLogs] = useState<Array<{
         id: string;
         status: string;
@@ -192,6 +194,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         id: string;
         status: string;
         share_target: string | null;
+        share_mode?: string | null;
         visibility: string | null;
         scheduled_at: string;
         error_message: string | null;
@@ -346,6 +349,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             setLinkedinMessage([title, excerpt].filter(Boolean).join('\n\n'));
         }
     }, [formData.title_sk, formData.title_en, formData.title_de, formData.title_cn, formData.excerpt_sk, formData.excerpt_en, formData.excerpt_de, formData.excerpt_cn]);
+
+    useEffect(() => {
+        if (!formData.cover_image_url) return;
+        setLinkedinImageUrl((prev) => prev || formData.cover_image_url);
+    }, [formData.cover_image_url]);
 
     useEffect(() => {
         if (linkedinTarget !== 'organization') return;
@@ -700,6 +708,14 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error('Select a LinkedIn organization.');
             return;
         }
+        if (linkedinShareMode === 'image' && !linkedinImageUrl) {
+            toast.error('Add an image URL for LinkedIn.');
+            return;
+        }
+        if (linkedinShareMode === 'image' && !linkedinImageUrl) {
+            toast.error('Add an image URL for LinkedIn.');
+            return;
+        }
 
         setLinkedinSharing(true);
         try {
@@ -717,6 +733,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     message: linkedinMessage,
                     shareTarget: linkedinTarget,
                     organizationUrn: linkedinOrganizationUrn || null,
+                    shareMode: linkedinShareMode,
+                    imageUrl: linkedinShareMode === 'image' ? linkedinImageUrl : null,
                 }),
             });
             const data = await res.json();
@@ -764,6 +782,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     message: linkedinMessage,
                     shareTarget: linkedinTarget,
                     organizationUrn: linkedinOrganizationUrn || null,
+                    shareMode: linkedinShareMode,
+                    imageUrl: linkedinShareMode === 'image' ? linkedinImageUrl : null,
                 }),
             });
             const data = await res.json();
@@ -1397,6 +1417,25 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                             </Select>
                         </div>
 
+                        <div className="space-y-2">
+                            <Label>Share Type</Label>
+                            <Select
+                                value={linkedinShareMode}
+                                onValueChange={(value) => setLinkedinShareMode(value as 'article' | 'image')}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select share type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="article">Link preview</SelectItem>
+                                    <SelectItem value="image">Image post</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p className="text-[10px] text-muted-foreground">
+                                Image posts upload the image and append the article link to the text.
+                            </p>
+                        </div>
+
                         {linkedinTarget === 'organization' && (
                             <div className="space-y-2">
                                 <Label>Organization</Label>
@@ -1428,6 +1467,27 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     </div>
                 )}
 
+                {linkedinStatus?.connected && linkedinShareMode === 'image' && (
+                    <div className="space-y-2">
+                        <Label>Image URL</Label>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <Input
+                                value={linkedinImageUrl}
+                                onChange={(e) => setLinkedinImageUrl(e.target.value)}
+                                placeholder="https://..."
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setLinkedinImageUrl(formData.cover_image_url || '')}
+                                disabled={!formData.cover_image_url}
+                            >
+                                Use Cover Image
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 {linkedinStatus?.connected && (
                     <div className="space-y-2">
                         <Label>LinkedIn Post Text</Label>
@@ -1444,9 +1504,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     <div className="rounded-lg border bg-white p-3 space-y-2">
                         <div className="text-xs text-muted-foreground">Preview</div>
                         <div className="flex flex-col gap-3">
-                            {formData.cover_image_url && (
+                            {(linkedinShareMode === 'image' ? linkedinImageUrl || formData.cover_image_url : formData.cover_image_url) && (
                                 <img
-                                    src={formData.cover_image_url}
+                                    src={linkedinShareMode === 'image'
+                                        ? (linkedinImageUrl || formData.cover_image_url)
+                                        : formData.cover_image_url}
                                     alt="LinkedIn preview"
                                     width={1200}
                                     height={630}
@@ -1470,7 +1532,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     <div className="flex flex-wrap items-center gap-3">
                         <Button
                             onClick={handleLinkedInShare}
-                            disabled={linkedinSharing || !getArticleUrl() || linkedinStatus?.expired}
+                            disabled={
+                                linkedinSharing ||
+                                linkedinStatus?.expired ||
+                                (linkedinShareMode === 'article' ? !getArticleUrl() : !linkedinImageUrl)
+                            }
                         >
                             {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
                         </Button>
@@ -1513,7 +1579,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                                 className="w-full"
                                 variant="outline"
                                 onClick={handleLinkedInSchedule}
-                                disabled={!linkedinScheduleAt || !articleId || isNew}
+                                disabled={
+                                    !linkedinScheduleAt ||
+                                    !articleId ||
+                                    isNew ||
+                                    (linkedinShareMode === 'image' && !linkedinImageUrl)
+                                }
                             >
                                 Schedule
                             </Button>
@@ -1602,7 +1673,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                                             )}
                                         </div>
                                         <div className="text-muted-foreground">
-                                            {item.share_target || 'member'} · {item.visibility || 'PUBLIC'}
+                                            {item.share_target || 'member'} · {item.visibility || 'PUBLIC'} · {item.share_mode === 'image' ? 'image' : 'link'}
                                         </div>
                                     </div>
                                 ))}
