@@ -25,43 +25,106 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isEditor, setIsEditor] = useState(false);
     const roleRetryRef = useRef(0);
+    const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
+    const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+
+    const readRoleCache = (userId: string) => {
+        try {
+            const raw = window.localStorage.getItem(ROLE_CACHE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw) as { userId: string; role: string; ts: number };
+            if (!parsed || parsed.userId !== userId) return null;
+            if (Date.now() - parsed.ts > ROLE_CACHE_TTL_MS) return null;
+            return parsed.role as string;
+        } catch {
+            return null;
+        }
+    };
+
+    const writeRoleCache = (userId: string, role: string) => {
+        try {
+            window.localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify({ userId, role, ts: Date.now() }));
+        } catch {
+            // Ignore cache failures
+        }
+    };
+
+    const withTimeout = async <T,>(promise: PromiseLike<T>, ms: number, label: string) => {
+        const wrapped = Promise.resolve(promise);
+        return await new Promise<T>((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error(`${label} timed out`)), ms);
+            wrapped
+                .then((value) => {
+                    clearTimeout(timer);
+                    resolve(value);
+                })
+                .catch((err) => {
+                    clearTimeout(timer);
+                    reject(err);
+                });
+        });
+    };
 
     const fetchRoles = useCallback(async (userId: string) => {
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', userId)
-                .single();
+            const { data, error } = await withTimeout(
+                supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', userId)
+                    .single(),
+                8000,
+                'Profile role check'
+            );
 
             if (!error && data?.role) {
                 const role = data.role;
                 setIsAdmin(role === 'admin');
                 setIsEditor(role === 'editor' || role === 'admin');
+                writeRoleCache(userId, role);
                 return;
             }
 
             // Fallback: role check via security-definer RPC (if available)
             try {
-                const { data: isAdminRpc, error: adminRpcError } = await supabase
-                    .rpc('is_profile_admin', { _user_id: userId });
+                const { data: isAdminRpc, error: adminRpcError } = await withTimeout(
+                    supabase.rpc('is_profile_admin', { _user_id: userId }),
+                    8000,
+                    'Admin RPC check'
+                );
 
                 if (!adminRpcError && typeof isAdminRpc === 'boolean') {
-                    const { data: isEditorRpc } = await supabase
-                        .rpc('is_profile_editor', { _user_id: userId });
+                    const { data: isEditorRpc } = await withTimeout(
+                        supabase.rpc('is_profile_editor', { _user_id: userId }),
+                        8000,
+                        'Editor RPC check'
+                    );
 
                     setIsAdmin(isAdminRpc);
                     setIsEditor(Boolean(isEditorRpc || isAdminRpc));
+                    writeRoleCache(userId, isAdminRpc ? 'admin' : (isEditorRpc ? 'editor' : 'user'));
                     return;
                 }
             } catch {
                 // Ignore RPC failures and continue fallback.
+            }
+            const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
+            if (cachedRole) {
+                setIsAdmin(cachedRole === 'admin');
+                setIsEditor(cachedRole === 'editor' || cachedRole === 'admin');
+                return;
             }
 
             setIsAdmin(false);
             setIsEditor(false);
         } catch (error) {
             console.error('Error fetching roles:', error);
+            const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
+            if (cachedRole) {
+                setIsAdmin(cachedRole === 'admin');
+                setIsEditor(cachedRole === 'editor' || cachedRole === 'admin');
+                return;
+            }
             setIsAdmin(false);
             setIsEditor(false);
         }
