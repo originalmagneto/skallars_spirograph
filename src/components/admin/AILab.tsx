@@ -35,6 +35,7 @@ import { generateAIArticle, generateAIOutline, generateAIResearchPack, Generated
 import { fetchAISettings } from '@/lib/aiSettings';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatArticleHtml } from '@/lib/articleFormat';
 
 type AILabProps = {
     redirectTab?: string;
@@ -1158,7 +1159,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                         [&_h2.group:hover_.ghost-anchor-link]:opacity-100
                                         [&_h3.group:hover_.ghost-anchor-link]:opacity-100"
                                         dangerouslySetInnerHTML={{
-                                            __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
+                                            __html: formatArticleHtml((generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>')
                                         }}
                                     />
 

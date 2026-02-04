@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GeneratedArticle } from '@/lib/aiService'; // Reusing interface or similar structure
+import { formatArticleHtml } from '@/lib/articleFormat';
 
 interface ArticleViewerProps {
     post: any; // Using any to accommodate Supabase structure with language fields
@@ -52,7 +53,8 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
     };
 
     const title = getField('title');
-    const content = getField('content');
+    const rawContent = getField('content');
+    const content = useMemo(() => formatArticleHtml(rawContent), [rawContent]);
     const featureImage = post.cover_image_url || post.feature_image;
     const disclaimer = getField('disclaimer');
     const tags: string[] = Array.isArray(post.tags) ? post.tags : [];
