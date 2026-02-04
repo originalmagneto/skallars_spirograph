@@ -12,8 +12,7 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-[[functions]]
-  name = "linkedin-scheduler"
+[functions."linkedin-scheduler"]
   schedule = "*/10 * * * *"
 
 [[plugins]]

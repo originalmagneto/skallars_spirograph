@@ -16,6 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [accessCheckMessage, setAccessCheckMessage] = useState<string>('');
     const [diagnostics, setDiagnostics] = useState<string>('');
     const [isDiagnosticsRunning, setIsDiagnosticsRunning] = useState(false);
+    const [allowLimitedAccess, setAllowLimitedAccess] = useState(false);
     const autoDiagnosticsRanRef = useRef(false);
     const diagnosticsTimeoutRef = useRef<number | null>(null);
     const refreshTimeoutRef = useRef<number | null>(null);
@@ -352,10 +353,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     if (!user) return null;
 
-    const canManage = isAdmin || isEditor || accessOverride === true;
+    const canManage = isAdmin || isEditor || accessOverride === true || allowLimitedAccess;
 
     if (!canManage) {
         const isChecking = accessChecking || accessCheckMessage.toLowerCase().includes('checking') || accessCheckMessage.toLowerCase().includes('timed out');
+        const canContinueLimited = accessCheckMessage.toLowerCase().includes('timed out');
         return (
             <div className="min-h-screen bg-white">
                 <header className="border-b bg-white">
@@ -394,6 +396,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <AiMagicIcon size={18} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
                             {isRefreshing ? 'Checking...' : 'Refresh Permissions'}
                         </Button>
+                        {canContinueLimited && (
+                            <Button
+                                onClick={() => {
+                                    setAllowLimitedAccess(true);
+                                    setAccessCheckMessage('Limited access enabled. Role verification timed out.');
+                                }}
+                                variant="outline"
+                                className="w-full h-11"
+                            >
+                                Continue in Limited Mode
+                            </Button>
+                        )}
                         <Button onClick={runDiagnostics} disabled={isDiagnosticsRunning} variant="outline" className="w-full h-11">
                             {isDiagnosticsRunning ? 'Running Diagnostics...' : 'Run Diagnostics'}
                         </Button>
@@ -447,6 +461,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </header>
             <main className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-8">
+                {allowLimitedAccess && !isAdmin && !isEditor && (
+                    <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        Limited access mode: role verification timed out. Some actions may fail until permissions are confirmed.
+                    </div>
+                )}
                 {children}
             </main>
         </div>
