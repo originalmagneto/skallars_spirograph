@@ -39,7 +39,8 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **drag-and-drop ordering** inside Blocks (items list). ✅
 - Make **Services sticky images** editable via content overrides (non-hero). ✅
 - Make **Contact image** editable via content overrides (footer contact block). ✅
-- Support **reorderable blocks** and **section templates** (Hero, Services, Team, Testimonials, Contact).
+- Support **reorderable blocks** (now available in Blocks manager). ✅
+- Support **section templates** (Hero, Services, Team, Testimonials, Contact).
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
 - Add **live preview** with “before/after” diff for reviewers. ✅
 - Add **SEO editor** (meta title/desc/keywords) for articles. ✅

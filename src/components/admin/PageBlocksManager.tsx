@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, FileBlockIcon } from 'hugeicons-react';
+import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, FileBlockIcon, ArrowUp01Icon, ArrowDown01Icon } from 'hugeicons-react';
 import PageBlockItemsManager from './PageBlockItemsManager';
 
 interface PageBlock {
@@ -32,6 +32,11 @@ interface PageBlock {
   button_url?: string | null;
   button_external?: boolean;
   enabled: boolean;
+}
+
+interface BlockOrderRow {
+  section_key: string;
+  sort_order: number;
 }
 
 const emptyBlock: PageBlock = {
@@ -74,6 +79,23 @@ export default function PageBlocksManager() {
         return [] as PageBlock[];
       }
       return data as PageBlock[];
+    },
+  });
+
+  const { data: blockOrderRows } = useQuery({
+    queryKey: ['page-blocks-order'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('page_sections')
+        .select('section_key, sort_order')
+        .eq('page', 'home')
+        .like('section_key', 'block:%')
+        .order('sort_order', { ascending: true });
+      if (error) {
+        console.warn('Could not fetch block order:', error);
+        return [] as BlockOrderRow[];
+      }
+      return data as BlockOrderRow[];
     },
   });
 
@@ -159,6 +181,39 @@ export default function PageBlocksManager() {
     onError: (error: any) => toast.error(error.message),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: async (nextBlocks: PageBlock[]) => {
+      const orders = (blockOrderRows || [])
+        .map((row) => row.sort_order)
+        .filter((val) => typeof val === 'number')
+        .sort((a, b) => a - b);
+      const slots = orders.length === nextBlocks.length
+        ? orders
+        : nextBlocks.map((_, idx) => idx + 1);
+
+      const payload = nextBlocks
+        .map((block, idx) => {
+          if (!block.id) return null;
+          return {
+            page: 'home',
+            section_key: `block:${block.id}`,
+            sort_order: slots[idx],
+          };
+        })
+        .filter((row): row is { page: string; section_key: string; sort_order: number } => Boolean(row));
+
+      const { error } = await supabase
+        .from('page_sections')
+        .upsert(payload, { onConflict: 'page,section_key' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['page-blocks-order'] });
+      queryClient.invalidateQueries({ queryKey: ['page-sections'] });
+    },
+    onError: (error: any) => toast.error(error.message),
+  });
+
   const startEdit = (block: PageBlock) => {
     setEditingId(block.id || null);
     setEditForm({ ...block });
@@ -173,6 +228,27 @@ export default function PageBlocksManager() {
   };
 
   if (isLoading) return <div className="p-4 text-muted-foreground">Loading blocks...</div>;
+
+  const blockOrderMap = new Map((blockOrderRows || []).map((row) => {
+    const id = row.section_key.split(':')[1];
+    return [id, row.sort_order];
+  }));
+
+  const blocksSorted = (blocks || [])
+    .slice()
+    .sort((a, b) => {
+      const orderA = a.id ? (blockOrderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+      const orderB = b.id ? (blockOrderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
+      return orderA - orderB;
+    });
+
+  const moveBlock = (index: number, direction: 'up' | 'down') => {
+    const next = [...blocksSorted];
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= next.length) return;
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+    reorderMutation.mutate(next);
+  };
 
   return (
     <div className="space-y-6">
@@ -201,7 +277,7 @@ export default function PageBlocksManager() {
       )}
 
       <div className="space-y-3">
-        {(blocks || []).map((block) => (
+        {blocksSorted.map((block, index) => (
           <div key={block.id} className="border rounded-lg px-4 py-3 bg-white">
             <div className="flex items-center justify-between">
               <div>
@@ -209,6 +285,14 @@ export default function PageBlocksManager() {
                 <div className="text-xs text-muted-foreground">{block.block_type}</div>
               </div>
               <div className="flex items-center gap-2">
+                <div className="flex flex-col">
+                  <Button size="icon" variant="ghost" onClick={() => moveBlock(index, 'up')} disabled={index === 0}>
+                    <ArrowUp01Icon size={14} />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => moveBlock(index, 'down')} disabled={index === blocksSorted.length - 1}>
+                    <ArrowDown01Icon size={14} />
+                  </Button>
+                </div>
                 <Switch checked={block.enabled} onCheckedChange={(v) => updateMutation.mutate({ ...block, enabled: v })} />
                 <Button size="sm" variant="outline" onClick={() => startEdit(block)}>
                   <PencilEdit01Icon size={14} className="mr-1" />
