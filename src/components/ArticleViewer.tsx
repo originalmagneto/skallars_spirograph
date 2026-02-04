@@ -114,7 +114,8 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
               prose-strong:text-[#210059] prose-strong:font-bold
               prose-li:mt-2 prose-li:text-gray-600
               prose-ul:mt-4 prose-ol:mt-4
-              prose-img:rounded-xl prose-img:shadow-lg prose-img:my-8"
+              prose-img:rounded-xl prose-img:shadow-lg prose-img:my-8
+              prose-sup:text-[0.7em] prose-sup:text-gray-500 prose-sup:font-semibold"
                         dangerouslySetInnerHTML={{ __html: content }}
                     />
 

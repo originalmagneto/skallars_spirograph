@@ -1146,7 +1146,8 @@ const AILab = () => {
                                         className="prose prose-sm dark:prose-invert max-w-none
                                         prose-headings:mt-6 prose-headings:mb-3
                                         prose-p:mt-3 prose-p:leading-relaxed
-                                        prose-ul:mt-3 prose-li:mt-1"
+                                        prose-ul:mt-3 prose-li:mt-1
+                                        prose-sup:text-[0.7em] prose-sup:text-muted-foreground"
                                         dangerouslySetInnerHTML={{
                                             __html: (generatedContent as any)[`content_${activeTab}`] || '<p>No content generated for this language.</p>'
                                         }}

@@ -145,6 +145,23 @@ ${rawContent}`;
     return parsed;
 };
 
+const normalizeArticleHtml = (html: string) => {
+    if (!html) return '';
+    const trimmed = html.trim();
+    if (!trimmed) return '';
+    const hasBlockTags = /<(p|h1|h2|h3|h4|ul|ol|li|blockquote|table|figure)\b/i.test(trimmed);
+    if (hasBlockTags) return trimmed;
+
+    const paragraphs = trimmed
+        .replace(/\r/g, '')
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean)
+        .map((block) => `<p>${block.replace(/\n+/g, '<br />')}</p>`);
+
+    return paragraphs.join('\n');
+};
+
 const STYLE_GUIDES: Record<string, string> = {
     'Deep Dive': `
 - **Structure**: Comprehensive analysis. Introduction -> Background -> Key Issues/Analysis -> Strategic Implications -> Conclusion.
@@ -339,6 +356,14 @@ ${toneBlock}
    - **Emphasis**: Use \`<strong>\` for key terms.
    - **Structure**: Break long text into readable chunks with frequent subheadings.
    - **Prohibited**: Do NOT use markdown characters like \`#\`, \`**\`, or \`- \` inside the JSON strings. Use HTML only.
+5. **Structure Requirements**:
+   - Minimum **4** \`<h2>\` sections and at least **1** \`<h3>\` subsection.
+   - Include at least **one** bullet list where it improves readability.
+   - Paragraphs should be short (2–4 sentences).
+6. **Citations**:
+   - When referencing facts, add inline citations like \`<sup>[1]</sup>\`.
+   - End the article with a **Sources & References** section using \`<h3>\` + \`<ol>\`.
+   - Each source must be a clickable \`<a>\` tag.
 
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
@@ -597,12 +622,18 @@ export async function generateAIArticle(
             parsedContent = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
         }
 
+        // Normalize HTML formatting for each language before appending sources
+        parsedContent.content_sk = normalizeArticleHtml(parsedContent.content_sk || '');
+        parsedContent.content_en = normalizeArticleHtml(parsedContent.content_en || '');
+        parsedContent.content_de = normalizeArticleHtml(parsedContent.content_de || '');
+        parsedContent.content_cn = normalizeArticleHtml(parsedContent.content_cn || '');
+
         const appendSources = (sourceItems: Array<{ url: string; title?: string }>) => {
             if (!sourceItems.length) return;
             const hasSources = ['content_sk', 'content_en', 'content_de', 'content_cn']
                 .some((field) => String((parsedContent as any)[field] || '').includes('Sources & References'));
             if (!hasSources) {
-                const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ul>${sourceItems.map((s) => `<li><a href="${s.url}" target="_blank">${s.title || s.url}</a></li>`).join('')}</ul>`;
+                const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ol>${sourceItems.map((s) => `<li><a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.title || s.url}</a></li>`).join('')}</ol>`;
                 parsedContent.content_sk = (parsedContent.content_sk || '') + sourcesHtml;
                 parsedContent.content_en = (parsedContent.content_en || '') + sourcesHtml;
                 parsedContent.content_de = (parsedContent.content_de || '') + sourcesHtml;
