@@ -39,11 +39,13 @@ export async function GET(req: NextRequest) {
     const from = (page - 1) * effectiveLimit;
     const to = from + effectiveLimit - 1;
 
+    const nowIso = new Date().toISOString();
     // Fetch articles from Supabase
     const { data: posts, error, count } = await supabase
       .from('articles')
       .select('*', { count: 'exact' })
       .eq('is_published', true)
+      .or(`published_at.is.null,published_at.lte.${nowIso}`)
       .order('published_at', { ascending: false })
       .range(from, to);
 

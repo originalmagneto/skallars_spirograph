@@ -37,6 +37,9 @@ interface Article {
     cover_image_url: string;
     is_published: boolean;
     published_at: string | null;
+    status?: string | null;
+    scheduled_at?: string | null;
+    submitted_at?: string | null;
     created_at: string;
 }
 
@@ -46,6 +49,7 @@ export default function ArticlesManager() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'scheduled' | 'published'>('all');
     const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
 
@@ -96,11 +100,27 @@ export default function ArticlesManager() {
     });
 
     // Filter articles by search query
-    const filteredArticles = articles?.filter(article =>
-        article.title_sk.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.title_en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.slug.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    const filteredArticles = articles?.filter(article => {
+        const matchesSearch =
+            article.title_sk.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            article.title_en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            article.slug.toLowerCase().includes(searchQuery.toLowerCase());
+
+        if (!matchesSearch) return false;
+        if (statusFilter === 'all') return true;
+        const status = article.status || (article.is_published ? 'published' : 'draft');
+        return status === statusFilter;
+    }) || [];
+
+    const getStatus = (article: Article) => article.status || (article.is_published ? 'published' : 'draft');
+    const statusBadge = (status: string) => {
+        switch (status) {
+            case 'published': return { label: 'Published', variant: 'default' as const };
+            case 'scheduled': return { label: 'Scheduled', variant: 'secondary' as const };
+            case 'review': return { label: 'In Review', variant: 'secondary' as const };
+            default: return { label: 'Draft', variant: 'secondary' as const };
+        }
+    };
 
     // Show editor view
     if (editingArticleId || isCreating) {
@@ -150,10 +170,23 @@ export default function ArticlesManager() {
                         className="pl-9"
                     />
                 </div>
-                <Button onClick={() => setIsCreating(true)}>
-                    <Plus size={16} className="mr-2" />
-                    New Article
-                </Button>
+                <div className="flex items-center gap-2">
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                        className="h-9 rounded-md border px-3 text-sm bg-white"
+                    >
+                        <option value="all">All statuses</option>
+                        <option value="draft">Draft</option>
+                        <option value="review">In Review</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="published">Published</option>
+                    </select>
+                    <Button onClick={() => setIsCreating(true)}>
+                        <Plus size={16} className="mr-2" />
+                        New Article
+                    </Button>
+                </div>
             </div>
 
             {/* Articles List */}
@@ -199,23 +232,23 @@ export default function ArticlesManager() {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
                                     <h3 className="font-medium truncate">{article.title_sk || article.title_en || 'Untitled'}</h3>
-                                    <Badge variant={article.is_published ? 'default' : 'secondary'}>
-                                        {article.is_published ? (
-                                            <span className="flex items-center gap-1">
-                                                <Eye size={12} /> Published
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-1">
-                                                <EyeOff size={12} /> Draft
-                                            </span>
-                                        )}
-                                    </Badge>
+                                    {(() => {
+                                        const status = getStatus(article);
+                                        const { label, variant } = statusBadge(status);
+                                        return (
+                                            <Badge variant={variant}>
+                                                <span className="flex items-center gap-1">
+                                                    {status === 'published' ? <Eye size={12} /> : <EyeOff size={12} />} {label}
+                                                </span>
+                                            </Badge>
+                                        );
+                                    })()}
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate">
                                     /{article.slug}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    {new Date(article.created_at).toLocaleDateString()}
+                                    {article.scheduled_at ? `Scheduled: ${new Date(article.scheduled_at).toLocaleString()}` : new Date(article.created_at).toLocaleDateString()}
                                 </p>
                             </div>
 

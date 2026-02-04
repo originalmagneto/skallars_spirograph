@@ -18,11 +18,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   try {
+    const nowIso = new Date().toISOString();
     const { data: post, error } = await supabase
       .from('articles')
       .select('*')
       .eq('slug', slug)
       .eq('is_published', true)
+      .or(`published_at.is.null,published_at.lte.${nowIso}`)
       .single();
 
     if (error || !post) {
@@ -52,4 +54,3 @@ export async function GET(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-

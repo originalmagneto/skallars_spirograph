@@ -72,10 +72,10 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Store **generation metadata** (prompt, model, seed) and allow regeneration. ✅
 
 ## Phase 5: Publishing Workflow + Analytics
-- Add **approval workflow** (review, approve, publish, schedule).
-- Add **scheduled publishing** and **content calendars**.
+- Add **approval workflow** (review, approve, publish, schedule). ✅
+- Add **scheduled publishing** and **content calendars**. ✅ (scheduling UI + API gating)
 - Add **engagement analytics** for articles and content blocks.
-- Add **audit logs** for admin actions and AI usage.
+- Add **audit logs** for admin actions and AI usage. ✅ (article audit logs)
 
 ## Enablers and Infrastructure
 - Define **Supabase schema migrations** for new content blocks, media metadata, revisions, and AI research logs.

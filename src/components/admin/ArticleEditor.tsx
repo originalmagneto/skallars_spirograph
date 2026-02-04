@@ -55,6 +55,12 @@ interface ArticleFormData {
     content_cn: string;
     cover_image_url: string;
     is_published: boolean;
+    published_at?: string | null;
+    status: string;
+    scheduled_at: string | null;
+    submitted_at: string | null;
+    approved_at: string | null;
+    approved_by: string | null;
     compliance_disclaimer_sk: string;
     compliance_disclaimer_en: string;
     compliance_disclaimer_de: string;
@@ -118,6 +124,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         content_cn: '',
         cover_image_url: '',
         is_published: false,
+        published_at: null,
+        status: 'draft',
+        scheduled_at: null,
+        submitted_at: null,
+        approved_at: null,
+        approved_by: null,
         compliance_disclaimer_sk: '',
         compliance_disclaimer_en: '',
         compliance_disclaimer_de: '',
@@ -139,6 +151,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [tagsInput, setTagsInput] = useState('');
     const editorRef = useRef<HTMLDivElement | null>(null);
     const [seoFieldsAvailable, setSeoFieldsAvailable] = useState(true);
+    const [workflowFieldsAvailable, setWorkflowFieldsAvailable] = useState(true);
     const [imagePrompt, setImagePrompt] = useState('');
     const [imageStyle, setImageStyle] = useState('Editorial Photo');
     const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
@@ -170,6 +183,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     // Populate form with existing article data
     useEffect(() => {
         if (article) {
+            const derivedStatus = article.status || (article.is_published ? 'published' : 'draft');
             setFormData({
                 title_sk: article.title_sk || '',
                 title_en: article.title_en || '',
@@ -198,6 +212,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 content_cn: article.content_cn || '',
                 cover_image_url: article.cover_image_url || '',
                 is_published: article.is_published || false,
+                published_at: article.published_at || null,
+                status: derivedStatus,
+                scheduled_at: article.scheduled_at || null,
+                submitted_at: article.submitted_at || null,
+                approved_at: article.approved_at || null,
+                approved_by: article.approved_by || null,
                 compliance_disclaimer_sk: article.compliance_disclaimer_sk || '',
                 compliance_disclaimer_en: article.compliance_disclaimer_en || '',
                 compliance_disclaimer_de: article.compliance_disclaimer_de || '',
@@ -227,6 +247,23 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             }
         };
         checkSeoColumns();
+    }, []);
+
+    useEffect(() => {
+        const checkWorkflowColumns = async () => {
+            try {
+                const { error } = await supabase
+                    .from('articles')
+                    .select('status, scheduled_at')
+                    .limit(1);
+                if (error && /does not exist/i.test(error.message)) {
+                    setWorkflowFieldsAvailable(false);
+                }
+            } catch {
+                // ignore
+            }
+        };
+        checkWorkflowColumns();
     }, []);
 
     useEffect(() => {
@@ -274,7 +311,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     // Save mutation
     const saveMutation = useMutation({
-        mutationFn: async () => {
+        mutationFn: async (override?: Partial<ArticleFormData>) => {
             if (!user) throw new Error('Not authenticated');
 
             const resolveLatestFormData = () => {
@@ -292,10 +329,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 setFormData(latestFormData);
             }
 
+            const mergedData = { ...latestFormData, ...(override || {}) };
+            const publishedAt = mergedData.is_published
+                ? (mergedData.published_at || new Date().toISOString())
+                : null;
+
             const articleData = {
-                ...latestFormData,
+                ...mergedData,
                 author_id: user.id,
-                published_at: latestFormData.is_published ? new Date().toISOString() : null,
+                published_at: publishedAt,
             };
 
             let newArticleId = articleId;
@@ -591,6 +633,56 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         setFormData(prev => ({ ...prev, [key]: value }));
     };
 
+    const logArticleAction = async (action: string, status?: string) => {
+        if (!user || !articleId) return;
+        try {
+            await supabase.from('article_audit_logs').insert({
+                article_id: articleId,
+                action,
+                status,
+                performed_by: user.id,
+            });
+        } catch {
+            // ignore logging failures
+        }
+    };
+
+    const toLocalInput = (value: string | null) => {
+        if (!value) return '';
+        const date = new Date(value);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
+
+    const fromLocalInput = (value: string) => {
+        if (!value) return null;
+        const date = new Date(value);
+        return date.toISOString();
+    };
+
+    const handleWorkflowUpdate = async (next: Partial<ArticleFormData>, actionLabel: string) => {
+        await saveMutation.mutateAsync(next);
+        await logArticleAction(actionLabel, next.status ?? formData.status);
+    };
+
+    const statusLabel = (status: string) => {
+        switch (status) {
+            case 'review': return 'In Review';
+            case 'scheduled': return 'Scheduled';
+            case 'published': return 'Published';
+            default: return 'Draft';
+        }
+    };
+
+    const statusBadgeClass = (status: string) => {
+        switch (status) {
+            case 'published': return 'bg-emerald-100 text-emerald-700';
+            case 'scheduled': return 'bg-amber-100 text-amber-700';
+            case 'review': return 'bg-blue-100 text-blue-700';
+            default: return 'bg-muted text-muted-foreground';
+        }
+    };
+
     const languageLabel = () => {
         if (activeTab === 'sk') return 'Slovak (SK)';
         if (activeTab === 'en') return 'English (EN)';
@@ -639,26 +731,82 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         {isNew ? 'New Article' : 'Edit Article'}
                     </h2>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        {formData.is_published ? (
-                            <Eye size={16} className="text-green-600" />
-                        ) : (
-                            <EyeOff size={16} className="text-muted-foreground" />
-                        )}
-                        <Label htmlFor="published" className="text-sm">
-                            {formData.is_published ? 'Published' : 'Draft'}
-                        </Label>
-                        <Switch
-                            id="published"
-                            checked={formData.is_published}
-                            onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_published: checked }))}
-                        />
-                    </div>
-                    <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+                <div className="flex flex-wrap items-center gap-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(formData.status)}`}>
+                        {statusLabel(formData.status)}
+                    </span>
+                    {workflowFieldsAvailable && (
+                        <div className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground">Schedule</Label>
+                            <Input
+                                type="datetime-local"
+                                value={toLocalInput(formData.scheduled_at)}
+                                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_at: fromLocalInput(e.target.value) }))}
+                                className="h-9 w-[190px]"
+                            />
+                        </div>
+                    )}
+                    <Button onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
                         <Save size={16} className="mr-2" />
                         {saveMutation.isPending ? 'Saving...' : 'Save'}
                     </Button>
+                    {!isNew && (
+                        <>
+                            <Button
+                                variant="outline"
+                                disabled={saveMutation.isPending}
+                                onClick={() => handleWorkflowUpdate({
+                                    status: 'draft',
+                                    is_published: false,
+                                    scheduled_at: null,
+                                    submitted_at: null,
+                                }, 'save_draft')}
+                            >
+                                Save Draft
+                            </Button>
+                            {isEditor && !isAdmin && (
+                                <Button
+                                    variant="outline"
+                                    disabled={saveMutation.isPending}
+                                    onClick={() => handleWorkflowUpdate({
+                                        status: 'review',
+                                        is_published: false,
+                                        submitted_at: new Date().toISOString(),
+                                    }, 'submit_review')}
+                                >
+                                    Submit for Review
+                                </Button>
+                            )}
+                            {isAdmin && (
+                                <>
+                                    <Button
+                                        variant="default"
+                                        disabled={saveMutation.isPending}
+                                        onClick={() => handleWorkflowUpdate({
+                                            status: 'published',
+                                            is_published: true,
+                                            published_at: new Date().toISOString(),
+                                            approved_at: new Date().toISOString(),
+                                            approved_by: user?.id ?? null,
+                                        }, 'publish_now')}
+                                    >
+                                        Publish Now
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        disabled={saveMutation.isPending || !formData.scheduled_at}
+                                        onClick={() => handleWorkflowUpdate({
+                                            status: 'scheduled',
+                                            is_published: true,
+                                            published_at: formData.scheduled_at,
+                                        }, 'schedule_publish')}
+                                    >
+                                        Schedule
+                                    </Button>
+                                </>
+                            )}
+                        </>
+                    )}
 
                     {/* Delete Button */}
                     {!isNew && isAdmin && (
@@ -689,6 +837,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     )}
                 </div>
             </div>
+
+            {!workflowFieldsAvailable && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">
+                    Workflow fields are not available in the database. Run `supabase/articles_workflow.sql` to enable approvals + scheduling.
+                </div>
+            )}
 
             {/* Cover Image */}
             <div className="space-y-2">
