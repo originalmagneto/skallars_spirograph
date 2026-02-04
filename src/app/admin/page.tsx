@@ -28,6 +28,7 @@ import SectionTemplatesPanel from "@/components/admin/SectionTemplatesPanel";
 import ImageStudio from "@/components/admin/ImageStudio";
 import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
 import PublishingCalendar from "@/components/admin/PublishingCalendar";
+import ArticleStudio from "@/components/admin/ArticleStudio";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -67,6 +68,7 @@ export default function AdminPage() {
                 {
                     title: "Articles",
                     items: [
+                        { value: "article-studio", label: "Article Studio", icon: AiMagicIcon, adminOnly: true },
                         { value: "articles", label: "Articles", icon: File01Icon, adminOnly: false },
                         { value: "calendar", label: "Calendar", icon: CalendarDays, adminOnly: true },
                         { value: "analytics", label: "Analytics", icon: BarChart3, adminOnly: true },
@@ -251,6 +253,10 @@ export default function AdminPage() {
 
                     <TabsContent value="articles">
                         <ArticlesManager />
+                    </TabsContent>
+
+                    <TabsContent value="article-studio">
+                        <ArticleStudio />
                     </TabsContent>
 
                     <TabsContent value="clients">

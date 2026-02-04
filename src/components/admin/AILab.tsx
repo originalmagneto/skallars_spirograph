@@ -35,7 +35,12 @@ import { generateAIArticle, generateAIOutline, generateAIResearchPack, Generated
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
-const AILab = () => {
+type AILabProps = {
+    redirectTab?: string;
+    onDraftSaved?: (articleId: string) => void;
+};
+
+const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const { user } = useAuth();
     const router = useRouter();
     const [prompt, setPrompt] = useState('');
@@ -662,7 +667,9 @@ const AILab = () => {
 
             toast.success('Article saved as draft!');
             void logSaveEvent('success', { articleId });
-            const targetUrl = `/admin?tab=articles&edit=${articleId}`;
+            const targetTab = redirectTab || 'articles';
+            const targetUrl = `/admin?workspace=publishing&tab=${targetTab}&edit=${articleId}`;
+            onDraftSaved?.(articleId);
             router.push(targetUrl);
             setTimeout(() => {
                 if (window.location.pathname !== '/admin' || !window.location.search.includes('edit=')) {
