@@ -162,6 +162,57 @@ const normalizeArticleHtml = (html: string) => {
     return paragraphs.join('\n');
 };
 
+const countWords = (html: string) => {
+    const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!text) return 0;
+    return text.split(' ').length;
+};
+
+const shouldEnhanceFormatting = (html: string) => {
+    if (!html) return false;
+    const words = countWords(html);
+    if (words < 180) return false;
+    const hasH2 = /<h2\b/i.test(html);
+    const hasH3 = /<h3\b/i.test(html);
+    const hasList = /<(ul|ol)\b/i.test(html);
+    const hasQuote = /<blockquote\b/i.test(html);
+    const hasEm = /<em\b/i.test(html);
+    let missing = 0;
+    if (!hasH2) missing += 1;
+    if (!hasH3) missing += 1;
+    if (!hasList) missing += 1;
+    if (!hasQuote) missing += 1;
+    if (!hasEm) missing += 1;
+    return missing >= 2;
+};
+
+const enhanceArticleFormatting = async (html: string, languageLabel: string, signal?: AbortSignal) => {
+    if (!shouldEnhanceFormatting(html)) return html;
+    const instruction = `Reformat the HTML into a richly structured article for readability.
+Rules:
+1. Preserve all facts, numbers, names, and URLs exactly. Do not add new facts or sources.
+2. Keep the language as ${languageLabel}.
+3. Use semantic HTML only. No markdown.
+4. Start with a short lead paragraph.
+5. Use <h2> for main sections (at least 4 for long pieces) and <h3> for subsections (at least 2 when appropriate).
+6. Include at least one list (<ul> or <ol>) where it improves clarity.
+7. Add one <blockquote> that quotes a sentence from the existing text.
+8. Use <em> for emphasis on 2–4 phrases.
+9. Paragraphs should be short (2–4 sentences).
+10. Keep any existing sources section and links intact.`;
+    try {
+        const edited = await generateAIEdit(html, {
+            mode: 'rewrite',
+            customInstruction: instruction,
+            languageLabel,
+            signal,
+        });
+        return edited || html;
+    } catch {
+        return html;
+    }
+};
+
 const STYLE_GUIDES: Record<string, string> = {
     'Deep Dive': `
 - **Structure**: Comprehensive analysis. Introduction -> Background -> Key Issues/Analysis -> Strategic Implications -> Conclusion.
@@ -353,7 +404,8 @@ ${toneBlock}
    - **Headings**: Use \`<h2>\` for main sections and \`<h3>\` for subsections.
    - **Paragraphs**: Wrap all body text in \`<p>\` tags.
    - **Lists**: Use \`<ul>\` with \`<li>\` for bullet points.
-   - **Emphasis**: Use \`<strong>\` for key terms.
+   - **Emphasis**: Use \`<strong>\` for key terms and \`<em>\` for subtle emphasis.
+   - **Quotes**: Include at least one \`<blockquote>\` using a sentence from the article.
    - **Structure**: Break long text into readable chunks with frequent subheadings.
    - **Prohibited**: Do NOT use markdown characters like \`#\`, \`**\`, or \`- \` inside the JSON strings. Use HTML only.
 5. **Structure Requirements**:
@@ -627,6 +679,24 @@ export async function generateAIArticle(
         parsedContent.content_en = normalizeArticleHtml(parsedContent.content_en || '');
         parsedContent.content_de = normalizeArticleHtml(parsedContent.content_de || '');
         parsedContent.content_cn = normalizeArticleHtml(parsedContent.content_cn || '');
+
+        // Enhance formatting if the output is too plain
+        const languageLabels: Record<string, string> = {
+            sk: 'Slovak (SK)',
+            en: 'English (EN)',
+            de: 'German (DE)',
+            cn: 'Chinese (CN)',
+        };
+        const enhancements = await Promise.all([
+            enhanceArticleFormatting(parsedContent.content_sk || '', languageLabels.sk, signal),
+            enhanceArticleFormatting(parsedContent.content_en || '', languageLabels.en, signal),
+            enhanceArticleFormatting(parsedContent.content_de || '', languageLabels.de, signal),
+            enhanceArticleFormatting(parsedContent.content_cn || '', languageLabels.cn, signal),
+        ]);
+        parsedContent.content_sk = enhancements[0] || parsedContent.content_sk;
+        parsedContent.content_en = enhancements[1] || parsedContent.content_en;
+        parsedContent.content_de = enhancements[2] || parsedContent.content_de;
+        parsedContent.content_cn = enhancements[3] || parsedContent.content_cn;
 
         const appendSources = (sourceItems: Array<{ url: string; title?: string }>) => {
             if (!sourceItems.length) return;

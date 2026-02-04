@@ -54,6 +54,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     getFirstField(post, 'excerpt') ||
     '';
   const image = post.cover_image_url || post.feature_image || undefined;
+  const imageUrl = image
+    ? (image.startsWith('http') ? image : `${baseUrl}${image.startsWith('/') ? '' : '/'}${image}`)
+    : undefined;
   const canonical = `${baseUrl}/blog/${post.slug || slug}`;
 
   return {
@@ -65,13 +68,25 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       description,
       type: 'article',
       url: canonical,
-      images: image ? [image] : undefined,
+      images: imageUrl
+        ? [
+            {
+              url: imageUrl,
+              width: 1200,
+              height: 630,
+              alt: title,
+            },
+          ]
+        : undefined,
     },
     twitter: {
-      card: image ? 'summary_large_image' : 'summary',
+      card: imageUrl ? 'summary_large_image' : 'summary',
       title,
       description,
-      images: image ? [image] : undefined,
+      images: imageUrl ? [imageUrl] : undefined,
+    },
+    alternates: {
+      canonical,
     },
   };
 }
@@ -92,6 +107,9 @@ export default async function BlogPostPage({ params }: Params) {
     getFirstField(post, 'excerpt') ||
     '';
   const image = post.cover_image_url || post.feature_image || undefined;
+  const imageUrl = image
+    ? (image.startsWith('http') ? image : `${baseUrl}${image.startsWith('/') ? '' : '/'}${image}`)
+    : undefined;
   const publishedAt = post.published_at || post.created_at;
   const modifiedAt = post.updated_at || publishedAt;
 
@@ -100,7 +118,7 @@ export default async function BlogPostPage({ params }: Params) {
     "@type": "Article",
     headline: title,
     description,
-    image: image ? [image] : undefined,
+    image: imageUrl ? [imageUrl] : undefined,
     datePublished: publishedAt,
     dateModified: modifiedAt,
     mainEntityOfPage: {
@@ -127,4 +145,3 @@ export default async function BlogPostPage({ params }: Params) {
     </>
   );
 }
-
