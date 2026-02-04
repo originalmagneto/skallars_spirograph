@@ -341,6 +341,91 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         loadStatus();
     }, [session?.access_token]);
 
+    const getCurrentTitle = () => {
+        switch (activeTab) {
+            case 'sk': return formData.title_sk;
+            case 'en': return formData.title_en;
+            case 'de': return formData.title_de;
+            case 'cn': return formData.title_cn;
+            default: return formData.title_sk;
+        }
+    };
+
+    const getCurrentExcerpt = () => {
+        switch (activeTab) {
+            case 'sk': return formData.excerpt_sk;
+            case 'en': return formData.excerpt_en;
+            case 'de': return formData.excerpt_de;
+            case 'cn': return formData.excerpt_cn;
+            default: return formData.excerpt_sk;
+        }
+    };
+
+    const getCurrentMetaTitle = () => {
+        switch (activeTab) {
+            case 'sk': return formData.meta_title_sk;
+            case 'en': return formData.meta_title_en;
+            case 'de': return formData.meta_title_de;
+            case 'cn': return formData.meta_title_cn;
+            default: return formData.meta_title_sk;
+        }
+    };
+
+    const getCurrentMetaDescription = () => {
+        switch (activeTab) {
+            case 'sk': return formData.meta_description_sk;
+            case 'en': return formData.meta_description_en;
+            case 'de': return formData.meta_description_de;
+            case 'cn': return formData.meta_description_cn;
+            default: return formData.meta_description_sk;
+        }
+    };
+
+    const getCurrentMetaKeywords = () => {
+        switch (activeTab) {
+            case 'sk': return formData.meta_keywords_sk;
+            case 'en': return formData.meta_keywords_en;
+            case 'de': return formData.meta_keywords_de;
+            case 'cn': return formData.meta_keywords_cn;
+            default: return formData.meta_keywords_sk;
+        }
+    };
+
+    const getCurrentContent = () => {
+        switch (activeTab) {
+            case 'sk': return formData.content_sk;
+            case 'en': return formData.content_en;
+            case 'de': return formData.content_de;
+            case 'cn': return formData.content_cn;
+            default: return formData.content_sk;
+        }
+    };
+
+    const getCurrentDisclaimer = () => {
+        switch (activeTab) {
+            case 'sk': return formData.compliance_disclaimer_sk;
+            case 'en': return formData.compliance_disclaimer_en;
+            case 'de': return formData.compliance_disclaimer_de;
+            case 'cn': return formData.compliance_disclaimer_cn;
+            default: return formData.compliance_disclaimer_sk;
+        }
+    };
+
+    const updateField = (field: 'title' | 'excerpt' | 'content', value: string) => {
+        const key = `${field}_${activeTab}` as keyof ArticleFormData;
+        setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const updateMetaField = (field: 'meta_title' | 'meta_description' | 'meta_keywords', value: string) => {
+        const key = `${field}_${activeTab}` as keyof ArticleFormData;
+        setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const updateDisclaimer = (value: string) => {
+        const key = `compliance_disclaimer_${activeTab}` as keyof ArticleFormData;
+        setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
     useEffect(() => {
         if (linkedinMessage.trim()) return;
         const title = getCurrentTitle();
@@ -838,88 +923,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         );
     }
 
-    const getCurrentTitle = () => {
-        switch (activeTab) {
-            case 'sk': return formData.title_sk;
-            case 'en': return formData.title_en;
-            case 'de': return formData.title_de;
-            case 'cn': return formData.title_cn;
-            default: return formData.title_sk;
-        }
-    };
-
-    const getCurrentExcerpt = () => {
-        switch (activeTab) {
-            case 'sk': return formData.excerpt_sk;
-            case 'en': return formData.excerpt_en;
-            case 'de': return formData.excerpt_de;
-            case 'cn': return formData.excerpt_cn;
-            default: return formData.excerpt_sk;
-        }
-    };
-
-    const getCurrentMetaTitle = () => {
-        switch (activeTab) {
-            case 'sk': return formData.meta_title_sk;
-            case 'en': return formData.meta_title_en;
-            case 'de': return formData.meta_title_de;
-            case 'cn': return formData.meta_title_cn;
-            default: return formData.meta_title_sk;
-        }
-    };
-
-    const getCurrentMetaDescription = () => {
-        switch (activeTab) {
-            case 'sk': return formData.meta_description_sk;
-            case 'en': return formData.meta_description_en;
-            case 'de': return formData.meta_description_de;
-            case 'cn': return formData.meta_description_cn;
-            default: return formData.meta_description_sk;
-        }
-    };
-
-    const getCurrentMetaKeywords = () => {
-        switch (activeTab) {
-            case 'sk': return formData.meta_keywords_sk;
-            case 'en': return formData.meta_keywords_en;
-            case 'de': return formData.meta_keywords_de;
-            case 'cn': return formData.meta_keywords_cn;
-            default: return formData.meta_keywords_sk;
-        }
-    };
-
-    const getCurrentContent = () => {
-        switch (activeTab) {
-            case 'sk': return formData.content_sk;
-            case 'en': return formData.content_en;
-            case 'de': return formData.content_de;
-            case 'cn': return formData.content_cn;
-            default: return formData.content_sk;
-        }
-    };
-
     const displayImageProvider = useGlobalImageSettings ? globalImageProvider : overrideImageProvider;
     const displayImageModel = useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel);
-
-    const getCurrentDisclaimer = () => {
-        switch (activeTab) {
-            case 'sk': return formData.compliance_disclaimer_sk;
-            case 'en': return formData.compliance_disclaimer_en;
-            case 'de': return formData.compliance_disclaimer_de;
-            case 'cn': return formData.compliance_disclaimer_cn;
-            default: return formData.compliance_disclaimer_sk;
-        }
-    };
-
-    const updateField = (field: 'title' | 'excerpt' | 'content', value: string) => {
-        const key = `${field}_${activeTab}` as keyof ArticleFormData;
-        setFormData(prev => ({ ...prev, [key]: value }));
-    };
-
-    const updateMetaField = (field: 'meta_title' | 'meta_description' | 'meta_keywords', value: string) => {
-        const key = `${field}_${activeTab}` as keyof ArticleFormData;
-        setFormData(prev => ({ ...prev, [key]: value }));
-    };
 
     const parseTagsInput = (value: string) => {
         return value
@@ -933,11 +938,6 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         editorRef.current.focus();
         document.execCommand(command, false, value);
         updateField('content', editorRef.current.innerHTML);
-    };
-
-    const updateDisclaimer = (value: string) => {
-        const key = `compliance_disclaimer_${activeTab}` as keyof ArticleFormData;
-        setFormData(prev => ({ ...prev, [key]: value }));
     };
 
     const logArticleAction = async (action: string, status?: string) => {
