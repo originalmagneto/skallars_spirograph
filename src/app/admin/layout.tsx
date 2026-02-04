@@ -22,6 +22,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const refreshTimeoutRef = useRef<number | null>(null);
     const accessRetryRef = useRef(0);
     const [accessChecking, setAccessChecking] = useState(false);
+    const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
+    const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+
+    const readRoleCache = (userId: string) => {
+        try {
+            const raw = window.localStorage.getItem(ROLE_CACHE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw) as { userId: string; role: string; ts: number };
+            if (!parsed || parsed.userId !== userId) return null;
+            if (Date.now() - parsed.ts > ROLE_CACHE_TTL_MS) return null;
+            return parsed.role as string;
+        } catch {
+            return null;
+        }
+    };
 
     const handleSignOut = async () => {
         await signOut();
@@ -158,6 +173,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         if (!user?.id) return;
         checkAccessViaRpc();
     }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        if (isAdmin || isEditor || accessOverride === true) return;
+        const cachedRole = readRoleCache(user.id);
+        if (cachedRole === 'admin' || cachedRole === 'editor') {
+            setAccessOverride(true);
+            setAccessCheckMessage(`Cached role confirmed (${cachedRole}).`);
+        }
+    }, [user?.id, isAdmin, isEditor, accessOverride]);
 
     const handleRefresh = async () => {
         setIsRefreshing(true);
