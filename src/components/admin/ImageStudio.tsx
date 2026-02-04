@@ -20,7 +20,7 @@ import {
   AiMagicIcon,
   Image01Icon,
   Copy01Icon,
-  Save01Icon,
+  FloppyDiskIcon,
   Settings01Icon,
   Cancel01Icon,
 } from "hugeicons-react";
@@ -65,6 +65,7 @@ const STYLE_PRESETS = [
 ];
 
 const MOOD_TAGS = ["Trust", "Precision", "Innovation", "Stability", "Discretion", "Growth", "Protection"];
+const NEGATIVE_PRESETS = ["No text overlay", "No people", "No logos", "No watermarks", "No busy background"];
 
 const SOCIAL_TEMPLATES = [
   {
@@ -290,6 +291,17 @@ export default function ImageStudio() {
     setMoodTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   };
 
+  const appendNegative = (value: string) => {
+    if (!value) return;
+    const existing = negativePrompt.trim();
+    if (!existing) {
+      setNegativePrompt(value);
+      return;
+    }
+    if (existing.toLowerCase().includes(value.toLowerCase())) return;
+    setNegativePrompt(`${existing}; ${value}`);
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) {
       toast.error("Please enter a prompt first.");
@@ -328,25 +340,30 @@ export default function ImageStudio() {
           createdAt: new Date().toISOString(),
         };
         setGenerated((prev) => [item, ...prev]);
-        await supabase.from("image_generations").insert({
-          batch_id: batchId,
-          prompt: finalPrompt,
-          negative_prompt: negativePrompt || null,
-          style_preset: stylePreset,
-          model: resolvedModel,
-          engine: resolvedEngine,
-          aspect_ratio: aspectPreset,
-          width: aspectConfig.width,
-          height: aspectConfig.height,
-          seed,
-          image_url: url,
-          status: "success",
-          created_by: user?.id ?? null,
-          metadata: {
-            mood: moodTags,
-            palette: palette || null,
-          },
-        }).catch(() => {});
+        try {
+          const { error } = await supabase.from("image_generations").insert({
+            batch_id: batchId,
+            prompt: finalPrompt,
+            negative_prompt: negativePrompt || null,
+            style_preset: stylePreset,
+            model: resolvedModel,
+            engine: resolvedEngine,
+            aspect_ratio: aspectPreset,
+            width: aspectConfig.width,
+            height: aspectConfig.height,
+            seed,
+            image_url: url,
+            status: "success",
+            created_by: user?.id ?? null,
+            metadata: {
+              mood: moodTags,
+              palette: palette || null,
+            },
+          });
+          if (error) throw error;
+        } catch {
+          // non-blocking logging
+        }
       } catch (error: any) {
         const message = error?.message || "Generation failed.";
         const failedItem: GeneratedItem = {
@@ -362,21 +379,26 @@ export default function ImageStudio() {
           error: message,
         };
         setGenerated((prev) => [failedItem, ...prev]);
-        await supabase.from("image_generations").insert({
-          batch_id: batchId,
-          prompt: finalPrompt,
-          negative_prompt: negativePrompt || null,
-          style_preset: stylePreset,
-          model: resolvedModel,
-          engine: resolvedEngine,
-          aspect_ratio: aspectPreset,
-          width: aspectConfig.width,
-          height: aspectConfig.height,
-          seed,
-          status: "error",
-          error_message: message,
-          created_by: user?.id ?? null,
-        }).catch(() => {});
+        try {
+          const { error } = await supabase.from("image_generations").insert({
+            batch_id: batchId,
+            prompt: finalPrompt,
+            negative_prompt: negativePrompt || null,
+            style_preset: stylePreset,
+            model: resolvedModel,
+            engine: resolvedEngine,
+            aspect_ratio: aspectPreset,
+            width: aspectConfig.width,
+            height: aspectConfig.height,
+            seed,
+            status: "error",
+            error_message: message,
+            created_by: user?.id ?? null,
+          });
+          if (error) throw error;
+        } catch {
+          // non-blocking logging
+        }
       }
     }
     setGenerating(false);
@@ -566,6 +588,13 @@ export default function ImageStudio() {
                 onChange={(e) => setNegativePrompt(e.target.value)}
                 placeholder="e.g. no text overlay, no people"
               />
+              <div className="flex flex-wrap gap-2 pt-1">
+                {NEGATIVE_PRESETS.map((preset) => (
+                  <Button key={preset} type="button" size="sm" variant="outline" onClick={() => appendNegative(preset)}>
+                    {preset}
+                  </Button>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -624,7 +653,7 @@ export default function ImageStudio() {
               </div>
             </div>
 
-            <div className="border rounded-lg p-3 space-y-3">
+              <div className="border rounded-lg p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-semibold flex items-center gap-2">
                   <Settings01Icon size={14} />
@@ -731,14 +760,40 @@ export default function ImageStudio() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            {resolvedEngine === "gemini" && !(settings.gemini_image_api_key || settings.gemini_api_key) && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                Gemini image key not configured. Add it in Settings or switch to Turbo.
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
               <Button onClick={handleGenerate} disabled={generating}>
                 <AiMagicIcon size={16} className="mr-2" />
                 {generating ? "Generating..." : "Generate Images"}
               </Button>
+              <Button
+                variant="outline"
+                disabled={generating}
+                onClick={() => {
+                  setPrompt("");
+                  setNegativePrompt("");
+                  setExtraNotes("");
+                  setOverlayDraftText("");
+                  setMoodTags([]);
+                  setPalette("");
+                  toast.success("Prompt cleared");
+                }}
+              >
+                Clear
+              </Button>
               <div className="text-xs text-muted-foreground">
                 Engine: {resolvedEngine.toUpperCase()} · {aspectConfig.width}×{aspectConfig.height}
               </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/30 p-3 text-xs space-y-2">
+              <div className="font-semibold text-muted-foreground">Prompt Preview</div>
+              <pre className="whitespace-pre-wrap text-[11px] text-muted-foreground">{finalPrompt || "Start typing to preview the final prompt."}</pre>
             </div>
           </CardContent>
         </Card>
@@ -827,7 +882,7 @@ export default function ImageStudio() {
                     <div className="text-[11px] text-muted-foreground line-clamp-2">{item.prompt}</div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => saveToLibrary(item)} disabled={!item.url}>
-                        <Save01Icon size={14} className="mr-1" />
+                        <FloppyDiskIcon size={14} className="mr-1" />
                         Save
                       </Button>
                       <Button size="sm" variant="ghost" onClick={() => item.url && setCropTarget(item)} disabled={!item.url}>
