@@ -32,6 +32,18 @@ interface ArticleFormData {
     title_en: string;
     title_de: string;
     title_cn: string;
+    meta_title_sk: string;
+    meta_title_en: string;
+    meta_title_de: string;
+    meta_title_cn: string;
+    meta_description_sk: string;
+    meta_description_en: string;
+    meta_description_de: string;
+    meta_description_cn: string;
+    meta_keywords_sk: string;
+    meta_keywords_en: string;
+    meta_keywords_de: string;
+    meta_keywords_cn: string;
     slug: string;
     excerpt_sk: string;
     excerpt_en: string;
@@ -83,6 +95,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         title_en: '',
         title_de: '',
         title_cn: '',
+        meta_title_sk: '',
+        meta_title_en: '',
+        meta_title_de: '',
+        meta_title_cn: '',
+        meta_description_sk: '',
+        meta_description_en: '',
+        meta_description_de: '',
+        meta_description_cn: '',
+        meta_keywords_sk: '',
+        meta_keywords_en: '',
+        meta_keywords_de: '',
+        meta_keywords_cn: '',
         slug: '',
         excerpt_sk: '',
         excerpt_en: '',
@@ -114,6 +138,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
     const [tagsInput, setTagsInput] = useState('');
     const editorRef = useRef<HTMLDivElement | null>(null);
+    const [seoFieldsAvailable, setSeoFieldsAvailable] = useState(true);
     const [imagePrompt, setImagePrompt] = useState('');
     const [imageStyle, setImageStyle] = useState('Editorial Photo');
     const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
@@ -150,6 +175,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 title_en: article.title_en || '',
                 title_de: article.title_de || '',
                 title_cn: article.title_cn || '',
+                meta_title_sk: article.meta_title_sk || '',
+                meta_title_en: article.meta_title_en || '',
+                meta_title_de: article.meta_title_de || '',
+                meta_title_cn: article.meta_title_cn || '',
+                meta_description_sk: article.meta_description_sk || '',
+                meta_description_en: article.meta_description_en || '',
+                meta_description_de: article.meta_description_de || '',
+                meta_description_cn: article.meta_description_cn || '',
+                meta_keywords_sk: article.meta_keywords_sk || '',
+                meta_keywords_en: article.meta_keywords_en || '',
+                meta_keywords_de: article.meta_keywords_de || '',
+                meta_keywords_cn: article.meta_keywords_cn || '',
                 slug: article.slug || '',
                 excerpt_sk: article.excerpt_sk || '',
                 excerpt_en: article.excerpt_en || '',
@@ -174,6 +211,23 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             setTagsInput(Array.isArray(article.tags) ? article.tags.join(', ') : '');
         }
     }, [article]);
+
+    useEffect(() => {
+        const checkSeoColumns = async () => {
+            try {
+                const { error } = await supabase
+                    .from('articles')
+                    .select('meta_title_sk')
+                    .limit(1);
+                if (error && /does not exist/i.test(error.message)) {
+                    setSeoFieldsAvailable(false);
+                }
+            } catch {
+                // ignore
+            }
+        };
+        checkSeoColumns();
+    }, []);
 
     useEffect(() => {
         const loadImageSettings = async () => {
@@ -455,6 +509,36 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
     };
 
+    const getCurrentMetaTitle = () => {
+        switch (activeTab) {
+            case 'sk': return formData.meta_title_sk;
+            case 'en': return formData.meta_title_en;
+            case 'de': return formData.meta_title_de;
+            case 'cn': return formData.meta_title_cn;
+            default: return formData.meta_title_sk;
+        }
+    };
+
+    const getCurrentMetaDescription = () => {
+        switch (activeTab) {
+            case 'sk': return formData.meta_description_sk;
+            case 'en': return formData.meta_description_en;
+            case 'de': return formData.meta_description_de;
+            case 'cn': return formData.meta_description_cn;
+            default: return formData.meta_description_sk;
+        }
+    };
+
+    const getCurrentMetaKeywords = () => {
+        switch (activeTab) {
+            case 'sk': return formData.meta_keywords_sk;
+            case 'en': return formData.meta_keywords_en;
+            case 'de': return formData.meta_keywords_de;
+            case 'cn': return formData.meta_keywords_cn;
+            default: return formData.meta_keywords_sk;
+        }
+    };
+
     const getCurrentContent = () => {
         switch (activeTab) {
             case 'sk': return formData.content_sk;
@@ -479,6 +563,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     };
 
     const updateField = (field: 'title' | 'excerpt' | 'content', value: string) => {
+        const key = `${field}_${activeTab}` as keyof ArticleFormData;
+        setFormData(prev => ({ ...prev, [key]: value }));
+    };
+
+    const updateMetaField = (field: 'meta_title' | 'meta_description' | 'meta_keywords', value: string) => {
         const key = `${field}_${activeTab}` as keyof ArticleFormData;
         setFormData(prev => ({ ...prev, [key]: value }));
     };
@@ -963,6 +1052,61 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         className="font-mono text-sm"
                     />
                 )}
+            </div>
+
+            {/* SEO Metadata */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                    <Label className="text-sm font-semibold">SEO Metadata</Label>
+                    {seoFieldsAvailable && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                                updateMetaField('meta_title', getCurrentTitle());
+                                updateMetaField('meta_description', getCurrentExcerpt());
+                                if (!getCurrentMetaKeywords()) {
+                                    updateMetaField('meta_keywords', formData.tags.join(', '));
+                                }
+                            }}
+                        >
+                            Use Title + Excerpt
+                        </Button>
+                    )}
+                </div>
+                {!seoFieldsAvailable && (
+                    <div className="text-xs text-destructive">
+                        SEO fields are not available in the database. Run `supabase/articles_meta_fields.sql` in Supabase to enable them.
+                    </div>
+                )}
+                <div className="space-y-2">
+                    <Label>Meta Title</Label>
+                    <Input
+                        value={getCurrentMetaTitle()}
+                        onChange={(e) => updateMetaField('meta_title', e.target.value)}
+                        placeholder="SEO title (max ~60 chars)"
+                        disabled={!seoFieldsAvailable}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Meta Description</Label>
+                    <Textarea
+                        value={getCurrentMetaDescription()}
+                        onChange={(e) => updateMetaField('meta_description', e.target.value)}
+                        placeholder="SEO description (max ~160 chars)"
+                        rows={3}
+                        disabled={!seoFieldsAvailable}
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Meta Keywords</Label>
+                    <Input
+                        value={getCurrentMetaKeywords()}
+                        onChange={(e) => updateMetaField('meta_keywords', e.target.value)}
+                        placeholder="comma-separated keywords"
+                        disabled={!seoFieldsAvailable}
+                    />
+                </div>
             </div>
 
             {/* Editorial Tools */}
