@@ -66,6 +66,53 @@ const STYLE_PRESETS = [
 
 const MOOD_TAGS = ["Trust", "Precision", "Innovation", "Stability", "Discretion", "Growth", "Protection"];
 
+const SOCIAL_TEMPLATES = [
+  {
+    id: "blog-cover",
+    name: "Blog Cover",
+    description: "Wide editorial hero image with space for headline.",
+    aspect: "16:9",
+    style: "Editorial",
+    mood: ["Trust", "Precision"],
+    palette: "deep navy, warm neutrals",
+    basePrompt: "Create a professional editorial cover image for a law firm article. Emphasize sophistication and clarity.",
+    negative: "No embedded text, no logos",
+  },
+  {
+    id: "linkedin-post",
+    name: "LinkedIn Card",
+    description: "Social share card with clear focal area.",
+    aspect: "1.91:1",
+    style: "Social Card",
+    mood: ["Stability", "Growth"],
+    palette: "cool gray, soft blue accents",
+    basePrompt: "Design a modern corporate social card background for a legal update.",
+    negative: "No text, no people",
+  },
+  {
+    id: "announcement",
+    name: "Announcement",
+    description: "Square or tall layout for announcements.",
+    aspect: "1:1",
+    style: "Modern Corporate",
+    mood: ["Innovation", "Trust"],
+    palette: "midnight blue, silver highlights",
+    basePrompt: "Create an announcement graphic background that feels premium and trustworthy.",
+    negative: "No text overlay",
+  },
+  {
+    id: "event-invite",
+    name: "Event Invite",
+    description: "Tall layout with space for event details.",
+    aspect: "3:4",
+    style: "Minimal",
+    mood: ["Discretion", "Precision"],
+    palette: "soft ivory, muted slate",
+    basePrompt: "Minimalist backdrop for a legal event invite, calm and refined.",
+    negative: "No text, no busy patterns",
+  },
+];
+
 const ASPECT_PRESETS: Record<string, { label: string; width: number; height: number }> = {
   "1:1": { label: "Square 1:1", width: 1024, height: 1024 },
   "16:9": { label: "Landscape 16:9", width: 1280, height: 720 },
@@ -144,6 +191,7 @@ export default function ImageStudio() {
   const [moodTags, setMoodTags] = useState<string[]>([]);
   const [palette, setPalette] = useState("");
   const [extraNotes, setExtraNotes] = useState("");
+  const [overlayDraftText, setOverlayDraftText] = useState("");
   const [aspectPreset, setAspectPreset] = useState("16:9");
   const [customWidth, setCustomWidth] = useState("");
   const [customHeight, setCustomHeight] = useState("");
@@ -225,15 +273,18 @@ export default function ImageStudio() {
   }, [resolvedEngine, useCustomModel, modelOverride, settings.gemini_image_model]);
 
   const finalPrompt = useMemo(() => {
+    const overlayHint = overlayDraftText.trim()
+      ? "Leave clear negative space for headline text. Do not render any text."
+      : "";
     return buildPrompt({
       basePrompt: prompt,
       stylePreset,
       mood: moodTags,
       palette,
       negative: negativePrompt,
-      extra: extraNotes,
+      extra: [extraNotes, overlayHint].filter(Boolean).join(" ").trim(),
     });
-  }, [prompt, stylePreset, moodTags, palette, negativePrompt, extraNotes]);
+  }, [prompt, stylePreset, moodTags, palette, negativePrompt, extraNotes, overlayDraftText]);
 
   const toggleMood = (tag: string) => {
     setMoodTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
@@ -373,6 +424,17 @@ export default function ImageStudio() {
     .map((id) => generated.find((item) => item.id === id))
     .filter(Boolean) as GeneratedItem[];
 
+  const applyTemplate = (template: typeof SOCIAL_TEMPLATES[number]) => {
+    setPrompt(template.basePrompt);
+    setStylePreset(template.style);
+    setMoodTags(template.mood);
+    setPalette(template.palette);
+    setNegativePrompt(template.negative);
+    setAspectPreset(template.aspect);
+    setOverlayDraftText("");
+    toast.success(`Template applied: ${template.name}`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -398,6 +460,29 @@ export default function ImageStudio() {
             <CardDescription>Craft a clear, repeatable visual direction.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Social Templates</Label>
+                <span className="text-[11px] text-muted-foreground">One-click layout presets</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {SOCIAL_TEMPLATES.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => applyTemplate(template)}
+                    className="text-left rounded-lg border bg-white p-3 hover:border-primary/60 hover:shadow-sm transition"
+                  >
+                    <div className="text-sm font-semibold">{template.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{template.description}</div>
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      {template.aspect} · {template.style}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label className="text-xs">Core Prompt</Label>
               <Textarea
@@ -461,6 +546,17 @@ export default function ImageStudio() {
                 onChange={(e) => setExtraNotes(e.target.value)}
                 placeholder="Camera angle, lighting style, composition notes"
               />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Headline / Overlay Text (optional)</Label>
+              <Input
+                value={overlayDraftText}
+                onChange={(e) => setOverlayDraftText(e.target.value)}
+                placeholder="Used in editor overlay. Leave empty to skip."
+              />
+              <p className="text-[11px] text-muted-foreground">
+                If set, the prompt will reserve space for this text and the editor will preload it.
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -804,7 +900,7 @@ export default function ImageStudio() {
         imageUrl={cropTarget?.url || ""}
         enableEnhancements
         enableTextOverlay
-        defaultOverlayText=""
+        defaultOverlayText={overlayDraftText}
         onClose={() => setCropTarget(null)}
         onComplete={() => setCropTarget(null)}
         label="Image Studio Crop"
