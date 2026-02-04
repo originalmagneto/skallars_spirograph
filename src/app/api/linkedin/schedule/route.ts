@@ -35,6 +35,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid scheduledAt.' }, { status: 400 });
     }
 
+    if (shareTarget === 'organization') {
+      const { data: account } = await supabase
+        .from('linkedin_accounts')
+        .select('scopes')
+        .eq('user_id', userData.user.id)
+        .maybeSingle();
+      const scopes = Array.isArray(account?.scopes) ? account.scopes : [];
+      const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
+      if (!hasOrgScope) {
+        return NextResponse.json(
+          { error: 'Organization sharing is not enabled for this LinkedIn account.' },
+          { status: 403 }
+        );
+      }
+    }
+
     const { data, error } = await supabase
       .from('linkedin_share_queue')
       .insert({

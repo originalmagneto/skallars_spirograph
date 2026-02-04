@@ -1,14 +1,25 @@
 const LINKEDIN_AUTH_URL = 'https://www.linkedin.com/oauth/v2/authorization';
 const LINKEDIN_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 
-export const LINKEDIN_SCOPES = [
+export const LINKEDIN_BASE_SCOPES = [
   'openid',
   'profile',
   'email',
   'w_member_social',
+];
+
+export const LINKEDIN_ORG_SCOPES = [
   'r_organization_social',
   'w_organization_social',
-].join(' ');
+];
+
+export const getLinkedInScopes = () => {
+  const enableOrgScopes = process.env.LINKEDIN_ENABLE_ORG_SCOPES === 'true';
+  return (enableOrgScopes
+    ? [...LINKEDIN_BASE_SCOPES, ...LINKEDIN_ORG_SCOPES]
+    : LINKEDIN_BASE_SCOPES
+  ).join(' ');
+};
 
 export function getLinkedInConfig() {
   const clientId = process.env.LINKEDIN_CLIENT_ID;
@@ -28,7 +39,7 @@ export function buildLinkedInAuthUrl(state: string) {
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: LINKEDIN_SCOPES,
+    scope: getLinkedInScopes(),
     state,
   });
 

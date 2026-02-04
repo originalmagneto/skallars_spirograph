@@ -97,12 +97,20 @@ export async function POST(req: NextRequest) {
 
     const { data: account } = await supabase
       .from('linkedin_accounts')
-      .select('access_token, expires_at, member_urn')
+      .select('access_token, expires_at, member_urn, scopes')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (!account?.access_token) {
       return NextResponse.json({ error: 'LinkedIn account not connected.' }, { status: 400 });
+    }
+    const scopes = Array.isArray(account.scopes) ? account.scopes : [];
+    const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
+    if (shareTarget === 'organization' && !hasOrgScope) {
+      return NextResponse.json(
+        { error: 'Organization sharing is not enabled for this LinkedIn account.' },
+        { status: 403 }
+      );
     }
 
     if (account.expires_at) {

@@ -18,12 +18,20 @@ export async function GET(req: NextRequest) {
 
     const { data: account } = await supabase
       .from('linkedin_accounts')
-      .select('access_token, expires_at')
+      .select('access_token, expires_at, scopes')
       .eq('user_id', userData.user.id)
       .maybeSingle();
 
     if (!account?.access_token) {
       return NextResponse.json({ error: 'LinkedIn account not connected.' }, { status: 400 });
+    }
+    const scopes = Array.isArray(account.scopes) ? account.scopes : [];
+    const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
+    if (!hasOrgScope) {
+      return NextResponse.json(
+        { error: 'Organization scopes not enabled for this LinkedIn account.' },
+        { status: 403 }
+      );
     }
 
     const response = await fetch(

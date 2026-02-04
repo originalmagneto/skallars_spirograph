@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { exchangeLinkedInCode, LINKEDIN_SCOPES } from '@/lib/linkedinApi';
+import { exchangeLinkedInCode, getLinkedInScopes } from '@/lib/linkedinApi';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +19,15 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
+  const oauthError = url.searchParams.get('error');
+  const oauthErrorDescription = url.searchParams.get('error_description');
+
+  if (oauthError) {
+    const reason = oauthErrorDescription || oauthError;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+    const redirectUrl = `${siteUrl}/admin?tab=article-studio&linkedin=error&reason=${encodeURIComponent(reason)}`;
+    return NextResponse.redirect(redirectUrl);
+  }
 
   if (!code || !state) {
     return NextResponse.redirect(resolveRedirect(null));
@@ -68,7 +77,8 @@ export async function GET(req: NextRequest) {
     const expiresAtIso = tokenData.expires_in
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
       : null;
-    const scopes = tokenData.scope ? tokenData.scope.split(' ') : LINKEDIN_SCOPES.split(' ');
+    const fallbackScopes = getLinkedInScopes().split(' ');
+    const scopes = tokenData.scope ? tokenData.scope.split(' ') : fallbackScopes;
 
     const { error: upsertError } = await supabase
       .from('linkedin_accounts')

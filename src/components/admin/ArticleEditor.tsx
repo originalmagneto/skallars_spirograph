@@ -82,6 +82,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const queryClient = useQueryClient();
     const { user, session, isAdmin, isEditor } = useAuth();
     const panelParam = searchParams.get('panel');
+    const linkedinParam = searchParams.get('linkedin');
+    const linkedinReason = searchParams.get('reason');
 
     const factChecklistDefaults: Array<{ key: string; label: string }> = [
         { key: 'facts_verified', label: 'Facts and figures verified against sources' },
@@ -173,6 +175,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         member_urn?: string | null;
         expires_at?: string | null;
         expired?: boolean;
+        scopes?: string[];
     } | null>(null);
     const [linkedinLoading, setLinkedinLoading] = useState(false);
     const [linkedinMessage, setLinkedinMessage] = useState('');
@@ -204,6 +207,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         created_at: string;
     }>>([]);
     const [linkedinScheduledLoading, setLinkedinScheduledLoading] = useState(false);
+
+    const hasOrgScope = Boolean(
+        linkedinStatus?.scopes?.includes('w_organization_social') ||
+        linkedinStatus?.scopes?.includes('r_organization_social')
+    );
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -439,6 +447,23 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     }, [formData.title_sk, formData.title_en, formData.title_de, formData.title_cn, formData.excerpt_sk, formData.excerpt_en, formData.excerpt_de, formData.excerpt_cn]);
 
     useEffect(() => {
+        if (!linkedinParam) return;
+        if (linkedinParam === 'error') {
+            const reason = linkedinReason || 'LinkedIn authorization failed.';
+            toast.error(reason);
+        }
+        if (linkedinParam === 'connected') {
+            toast.success('LinkedIn connected.');
+        }
+    }, [linkedinParam, linkedinReason]);
+
+    useEffect(() => {
+        if (linkedinTarget === 'organization' && !hasOrgScope) {
+            setLinkedinTarget('member');
+        }
+    }, [linkedinTarget, hasOrgScope]);
+
+    useEffect(() => {
         if (!formData.cover_image_url) return;
         setLinkedinImageUrl((prev) => prev || formData.cover_image_url);
     }, [formData.cover_image_url]);
@@ -446,9 +471,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     useEffect(() => {
         if (linkedinTarget !== 'organization') return;
         if (!linkedinStatus?.connected) return;
+        if (!hasOrgScope) return;
         if (linkedinOrganizations.length > 0) return;
         loadLinkedInOrganizations();
-    }, [linkedinTarget, linkedinStatus?.connected]);
+    }, [linkedinTarget, linkedinStatus?.connected, hasOrgScope]);
 
     const loadLinkedInLogs = async () => {
         if (!session?.access_token || !articleId || isNew) return;
@@ -807,8 +833,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error('Select a LinkedIn organization.');
             return;
         }
-        if (linkedinShareMode === 'image' && !linkedinImageUrl) {
-            toast.error('Add an image URL for LinkedIn.');
+        if (linkedinTarget === 'organization' && !hasOrgScope) {
+            toast.error('Company page sharing requires LinkedIn organization scopes.');
             return;
         }
         if (linkedinShareMode === 'image' && !linkedinImageUrl) {
@@ -864,6 +890,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
         if (linkedinTarget === 'organization' && !linkedinOrganizationUrn) {
             toast.error('Select a LinkedIn organization.');
+            return;
+        }
+        if (linkedinTarget === 'organization' && !hasOrgScope) {
+            toast.error('Company page sharing requires LinkedIn organization scopes.');
             return;
         }
 
@@ -1426,9 +1456,16 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="member">Personal Profile</SelectItem>
-                                    <SelectItem value="organization">Company Page</SelectItem>
+                                    <SelectItem value="organization" disabled={!hasOrgScope}>
+                                        Company Page
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
+                            {!hasOrgScope && (
+                                <p className="text-[10px] text-muted-foreground">
+                                    Company page sharing requires LinkedIn organization scopes and approval.
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
