@@ -35,12 +35,21 @@ export default function ArticleStudio() {
                         Generate, refine, and publish articles from one workspace.
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    onClick={() => router.push("/admin?workspace=publishing&tab=articles")}
-                >
-                    Open Articles List
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        variant="outline"
+                        onClick={() => router.push("/admin?workspace=publishing&tab=articles")}
+                    >
+                        Open Articles List
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.push("/admin?workspace=publishing&tab=ai-lab")}
+                    >
+                        Advanced AI Lab
+                    </Button>
+                </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">

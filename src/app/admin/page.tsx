@@ -77,7 +77,7 @@ export default function AdminPage() {
                 {
                     title: "AI Tools",
                     items: [
-                        { value: "ai-lab", label: "AI Lab", icon: AiMagicIcon, adminOnly: true },
+                        { value: "ai-lab", label: "AI Lab (Advanced)", icon: AiMagicIcon, adminOnly: true, hidden: true },
                         { value: "image-studio", label: "Image Studio", icon: AiMagicIcon, adminOnly: true },
                     ],
                 },
@@ -183,8 +183,9 @@ export default function AdminPage() {
                         <div key={section.title} className="rounded-xl border bg-white p-4 space-y-2">
                             <div className="text-xs uppercase text-muted-foreground">{section.title}</div>
                             <TabsList className="flex flex-col items-stretch gap-2 h-auto bg-transparent p-0">
-                                {section.items
+                {section.items
                                     .filter((item) => (item.adminOnly ? isAdmin : true))
+                                    .filter((item) => !item.hidden || item.value === activeTab)
                                     .map((item) => {
                                         const Icon = item.icon;
                                         return (
