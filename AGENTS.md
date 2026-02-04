@@ -32,6 +32,7 @@ Skallars Spirograph is a Next.js 14 (App Router) site for a law office with a Su
 ## Environment Variables
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-only; optional for `/api/blog` to bypass RLS while still filtering published articles)
 
 ## Supabase Data Model (as used in code)
 Tables referenced in app code:

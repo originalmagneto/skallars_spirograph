@@ -206,114 +206,151 @@ export default function LawFirmHomepage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchData = async () => {
-      const { data: layoutData, error: layoutError } = await supabase
+      const layoutPromise = supabase
         .from('page_sections')
         .select('section_key, enabled, sort_order')
         .eq('page', 'home')
         .order('sort_order', { ascending: true });
 
-      if (!layoutError && layoutData && layoutData.length > 0) {
-        setSectionOrder(layoutData.map((row: any) => row.section_key));
-        const enabledMap: Record<string, boolean> = {};
-        layoutData.forEach((row: any) => {
-          enabledMap[row.section_key] = row.enabled;
-        });
-        setSectionEnabled(enabledMap);
-      }
-
-      const { data: serviceData } = await supabase
+      const servicePromise = supabase
         .from('service_items')
         .select('*')
         .order('sort_order', { ascending: true });
-      if (serviceData) setServiceItems(serviceData);
 
-      // Clients
-      const { data: clientData } = await supabase
+      const clientPromise = supabase
         .from('clients')
         .select('*')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
-      if (clientData) setClients(clientData);
 
-      const { data: clientSettingsData } = await supabase
+      const clientSettingsPromise = supabase
         .from('client_settings')
         .select('*')
         .order('updated_at', { ascending: false })
         .limit(1);
-      if (clientSettingsData?.[0]) {
-        setClientSettings({
-          autoplay: clientSettingsData[0].autoplay ?? true,
-          autoplay_interval_ms: clientSettingsData[0].autoplay_interval_ms ?? 3000,
-          visible_count: clientSettingsData[0].visible_count ?? 3,
-        });
-      }
 
-      // Team
-      const { data: teamData } = await supabase
+      const teamPromise = supabase
         .from('team_members')
         .select('*')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
-      if (teamData) setTeam(teamData);
 
-      const { data: teamSettingsData } = await supabase
+      const teamSettingsPromise = supabase
         .from('team_settings')
         .select('*')
         .order('updated_at', { ascending: false })
         .limit(1);
-      if (teamSettingsData?.[0]) {
-        setTeamSettings({
-          show_linkedin: teamSettingsData[0].show_linkedin ?? true,
-          show_icon: teamSettingsData[0].show_icon ?? true,
-          show_bio: teamSettingsData[0].show_bio ?? true,
-          columns_desktop: teamSettingsData[0].columns_desktop ?? 4,
-          columns_tablet: teamSettingsData[0].columns_tablet ?? 2,
-          columns_mobile: teamSettingsData[0].columns_mobile ?? 1,
-        });
-      }
 
-      const { data: footerSettingsData } = await supabase
+      const footerSettingsPromise = supabase
         .from('footer_settings')
         .select('*')
         .order('updated_at', { ascending: false })
         .limit(1);
-      if (footerSettingsData?.[0]) {
-        setFooterSettings({
-          show_newsletter: footerSettingsData[0].show_newsletter ?? true,
-          show_social: footerSettingsData[0].show_social ?? true,
-          show_solutions: footerSettingsData[0].show_solutions ?? true,
-          show_contact: footerSettingsData[0].show_contact ?? true,
-        });
-      }
 
-      const { data: footerLinksData } = await supabase
+      const footerLinksPromise = supabase
         .from('footer_links')
         .select('*')
         .order('section', { ascending: true })
         .order('sort_order', { ascending: true });
-      if (footerLinksData) {
-        setFooterLinks(footerLinksData);
-      }
 
-      const { data: pageBlocksData } = await supabase
+      const pageBlocksPromise = supabase
         .from('page_blocks')
         .select('*')
         .eq('page', 'home')
         .order('created_at', { ascending: true });
-      if (pageBlocksData) {
-        setPageBlocks(pageBlocksData);
-      }
 
-      const { data: pageBlockItemsData } = await supabase
+      const pageBlockItemsPromise = supabase
         .from('page_block_items')
         .select('*')
         .order('sort_order', { ascending: true });
-      if (pageBlockItemsData) {
-        setPageBlockItems(pageBlockItemsData);
-      }
+
+      void layoutPromise.then(({ data: layoutData, error: layoutError }) => {
+        if (cancelled) return;
+        if (!layoutError && layoutData && layoutData.length > 0) {
+          setSectionOrder(layoutData.map((row: any) => row.section_key));
+          const enabledMap: Record<string, boolean> = {};
+          layoutData.forEach((row: any) => {
+            enabledMap[row.section_key] = row.enabled;
+          });
+          setSectionEnabled(enabledMap);
+        }
+      });
+
+      void servicePromise.then(({ data: serviceData }) => {
+        if (!cancelled && serviceData) setServiceItems(serviceData);
+      });
+
+      void clientPromise.then(({ data: clientData }) => {
+        if (!cancelled && clientData) setClients(clientData);
+      });
+
+      void clientSettingsPromise.then(({ data: clientSettingsData }) => {
+        if (cancelled) return;
+        if (clientSettingsData?.[0]) {
+          setClientSettings({
+            autoplay: clientSettingsData[0].autoplay ?? true,
+            autoplay_interval_ms: clientSettingsData[0].autoplay_interval_ms ?? 3000,
+            visible_count: clientSettingsData[0].visible_count ?? 3,
+          });
+        }
+      });
+
+      void teamPromise.then(({ data: teamData }) => {
+        if (!cancelled && teamData) setTeam(teamData);
+      });
+
+      void teamSettingsPromise.then(({ data: teamSettingsData }) => {
+        if (cancelled) return;
+        if (teamSettingsData?.[0]) {
+          setTeamSettings({
+            show_linkedin: teamSettingsData[0].show_linkedin ?? true,
+            show_icon: teamSettingsData[0].show_icon ?? true,
+            show_bio: teamSettingsData[0].show_bio ?? true,
+            columns_desktop: teamSettingsData[0].columns_desktop ?? 4,
+            columns_tablet: teamSettingsData[0].columns_tablet ?? 2,
+            columns_mobile: teamSettingsData[0].columns_mobile ?? 1,
+          });
+        }
+      });
+
+      void footerSettingsPromise.then(({ data: footerSettingsData }) => {
+        if (cancelled) return;
+        if (footerSettingsData?.[0]) {
+          setFooterSettings({
+            show_newsletter: footerSettingsData[0].show_newsletter ?? true,
+            show_social: footerSettingsData[0].show_social ?? true,
+            show_solutions: footerSettingsData[0].show_solutions ?? true,
+            show_contact: footerSettingsData[0].show_contact ?? true,
+          });
+        }
+      });
+
+      void footerLinksPromise.then(({ data: footerLinksData }) => {
+        if (!cancelled && footerLinksData) {
+          setFooterLinks(footerLinksData);
+        }
+      });
+
+      void pageBlocksPromise.then(({ data: pageBlocksData }) => {
+        if (!cancelled && pageBlocksData) {
+          setPageBlocks(pageBlocksData);
+        }
+      });
+
+      void pageBlockItemsPromise.then(({ data: pageBlockItemsData }) => {
+        if (!cancelled && pageBlockItemsData) {
+          setPageBlockItems(pageBlockItemsData);
+        }
+      });
     };
+
     fetchData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Effect for auto-scrolling clients
