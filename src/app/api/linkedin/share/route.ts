@@ -138,12 +138,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const shareId = responseBody?.id as string | undefined;
+    const shareUrl = shareId ? `https://www.linkedin.com/feed/update/${shareId}` : null;
+
     await supabase.from('linkedin_share_logs').insert({
       user_id: userId,
       article_id: articleId,
       share_target: shareTarget,
       visibility,
       status: 'success',
+      share_url: shareUrl,
       provider_response: responseBody,
     });
 

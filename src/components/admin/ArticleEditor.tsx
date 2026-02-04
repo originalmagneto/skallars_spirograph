@@ -177,6 +177,16 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [linkedinOrganizations, setLinkedinOrganizations] = useState<Array<{ urn: string; name: string }>>([]);
     const [linkedinOrganizationUrn, setLinkedinOrganizationUrn] = useState('');
     const [linkedinSharing, setLinkedinSharing] = useState(false);
+    const [linkedinLogs, setLinkedinLogs] = useState<Array<{
+        id: string;
+        status: string;
+        share_target: string | null;
+        visibility: string | null;
+        share_url: string | null;
+        error_message: string | null;
+        created_at: string;
+    }>>([]);
+    const [linkedinLogsLoading, setLinkedinLogsLoading] = useState(false);
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -332,6 +342,28 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         if (linkedinOrganizations.length > 0) return;
         loadLinkedInOrganizations();
     }, [linkedinTarget, linkedinStatus?.connected]);
+
+    const loadLinkedInLogs = async () => {
+        if (!session?.access_token || !articleId || isNew) return;
+        setLinkedinLogsLoading(true);
+        try {
+            const res = await fetch(`/api/linkedin/logs?articleId=${articleId}`, {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.logs)) {
+                setLinkedinLogs(data.logs);
+            }
+        } catch {
+            // ignore
+        } finally {
+            setLinkedinLogsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadLinkedInLogs();
+    }, [session?.access_token, articleId, isNew]);
 
     // Auto-generate slug from Slovak title
     useEffect(() => {
@@ -659,6 +691,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 throw new Error(data?.error || 'LinkedIn share failed.');
             }
             toast.success('Shared on LinkedIn!');
+            loadLinkedInLogs();
         } catch (error: any) {
             toast.error(error?.message || 'LinkedIn share failed.');
         } finally {
@@ -1246,6 +1279,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         {linkedinStatus.expired && (
                             <span className="text-destructive">Token expired — reconnect.</span>
                         )}
+                        {linkedinTarget === 'organization' && linkedinOrganizations.length > 0 && (
+                            <span>{linkedinOrganizations.length} orgs available</span>
+                        )}
                     </div>
                 )}
 
@@ -1344,10 +1380,64 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         >
                             {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
                         </Button>
+                        <Button
+                            variant="outline"
+                            onClick={loadLinkedInLogs}
+                            disabled={linkedinLogsLoading || !articleId || isNew}
+                        >
+                            {linkedinLogsLoading ? 'Refreshing…' : 'Refresh Share Log'}
+                        </Button>
                         {(!articleId || isNew) && (
                             <span className="text-xs text-muted-foreground">
                                 Save the article before sharing.
                             </span>
+                        )}
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
+                    <div className="rounded-lg border bg-white p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs text-muted-foreground">Recent Shares</Label>
+                        </div>
+                        {linkedinLogs.length === 0 ? (
+                            <div className="text-xs text-muted-foreground">No shares logged yet.</div>
+                        ) : (
+                            <div className="space-y-2">
+                                {linkedinLogs.map((log) => (
+                                    <div
+                                        key={log.id}
+                                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+                                    >
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-semibold text-foreground">
+                                                {log.status === 'success' ? 'Shared' : 'Error'}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                {new Date(log.created_at).toLocaleString()}
+                                            </span>
+                                            {log.error_message && (
+                                                <span className="text-destructive">{log.error_message}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className="text-muted-foreground">
+                                                {log.share_target || 'member'} · {log.visibility || 'PUBLIC'}
+                                            </span>
+                                            {log.share_url && (
+                                                <a
+                                                    href={log.share_url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-primary underline"
+                                                >
+                                                    View on LinkedIn
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
                 )}
