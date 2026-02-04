@@ -937,15 +937,15 @@ export async function generateAIImage(
         return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
     }
 
-    // Pro mode: Use Gemini's Imagen (requires Gemini API key)
-    const apiKey = await getSetting('gemini_api_key');
+    // Pro mode: Use Gemini Image models (requires Gemini API key)
+    const apiKey = await getSetting('gemini_image_api_key') || await getSetting('gemini_api_key');
     if (!apiKey) {
         console.warn('Gemini API key not found, falling back to Turbo mode');
         return generateAIImage(prompt, { turbo: true });
     }
 
     const translatePromptToEnglish = async (text: string) => {
-        const apiKey = await getSetting('gemini_api_key');
+        const apiKey = await getSetting('gemini_api_key') || await getSetting('gemini_image_api_key');
         if (!apiKey) return text;
 
         const model = await getSetting('gemini_model') || 'gemini-2.0-flash';

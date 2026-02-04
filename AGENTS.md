@@ -41,7 +41,7 @@ Tables referenced in app code:
 - `site_content_drafts` (draft values + published state).
 - `articles` (title_*, excerpt_*, content_*, slug, cover_image_url, tags, is_published, published_at, author_id).
 - `tags`, `article_tags` (tagging for articles).
-- `settings` (gemini_api_key, gemini_model, gemini_image_model, image_model, image_count).
+- `settings` (gemini_api_key, gemini_image_api_key, gemini_model, gemini_image_model, image_model, image_count).
 - `ai_usage_logs` (token tracking and usage records).
 - `ai_generation_logs` (AI generation diagnostics).
 - `admin_access_logs` (admin permission diagnostics).
@@ -89,6 +89,7 @@ Storage buckets referenced:
   - Turbo: Pollinations (Flux) for fast, no-key images.
   - Pro: Gemini native image models use `generateContent` with `responseModalities` + `imageConfig`, Imagen models use `predict`; fallback to Turbo on failure.
   - Custom image model names can be set in AI Settings (`gemini_image_model`).
+  - Image generation can use a separate API key (`gemini_image_api_key`). Article Editor uses global defaults with an override toggle.
 
 ## Auth and Roles
 - Supabase Auth handles sessions; role is fetched from `profiles.role`.

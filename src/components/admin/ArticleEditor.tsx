@@ -118,8 +118,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [imageStyle, setImageStyle] = useState('Editorial Photo');
     const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
     const [imageCount, setImageCount] = useState(2);
-    const [imageProvider, setImageProvider] = useState<'gemini' | 'turbo'>('gemini');
-    const [imageModel, setImageModel] = useState('');
+    const [useGlobalImageSettings, setUseGlobalImageSettings] = useState(true);
+    const [globalImageProvider, setGlobalImageProvider] = useState<'gemini' | 'turbo'>('gemini');
+    const [globalImageModel, setGlobalImageModel] = useState('');
+    const [overrideImageProvider, setOverrideImageProvider] = useState<'gemini' | 'turbo'>('gemini');
+    const [overrideImageModel, setOverrideImageModel] = useState('');
     const [imageGenerating, setImageGenerating] = useState(false);
     const [generatedImages, setGeneratedImages] = useState<Array<{ url: string; provider: 'gemini' | 'turbo' }>>([]);
 
@@ -181,10 +184,13 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const imageMode = data?.find((s) => s.key === 'image_model')?.value;
             const geminiModel = data?.find((s) => s.key === 'gemini_image_model')?.value;
             if (imageMode) {
-                setImageProvider(imageMode === 'turbo' ? 'turbo' : 'gemini');
+                const provider = imageMode === 'turbo' ? 'turbo' : 'gemini';
+                setGlobalImageProvider(provider);
+                setOverrideImageProvider(provider);
             }
             if (geminiModel) {
-                setImageModel(geminiModel);
+                setGlobalImageModel(geminiModel);
+                setOverrideImageModel(geminiModel);
             }
         };
         loadImageSettings();
@@ -362,21 +368,23 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         setImageGenerating(true);
         setGeneratedImages([]);
         try {
+            const effectiveProvider = useGlobalImageSettings ? globalImageProvider : overrideImageProvider;
+            const effectiveModel = useGlobalImageSettings ? globalImageModel : overrideImageModel;
             const { width, height } = aspectSizes[imageAspect];
             const finalPrompt = `${imagePrompt}\nStyle: ${imageStyle}. Aspect ratio: ${imageAspect}.`;
             const results: Array<{ url: string; provider: 'gemini' | 'turbo' }> = [];
             for (let i = 0; i < imageCount; i += 1) {
                 const url = await generateAIImage(finalPrompt, {
-                    turbo: imageProvider === 'turbo',
+                    turbo: effectiveProvider === 'turbo',
                     width,
                     height,
                     aspectRatio: imageAspect,
-                    model: imageProvider === 'gemini' && imageModel ? imageModel : undefined,
+                    model: effectiveProvider === 'gemini' && effectiveModel ? effectiveModel : undefined,
                 });
-                if (imageProvider === 'gemini' && url.includes('image.pollinations.ai')) {
-                    toast.warning('Imagen is unavailable for your account. Using Turbo mode instead.');
+                if (effectiveProvider === 'gemini' && url.includes('image.pollinations.ai')) {
+                    toast.warning('Gemini/Imagen is unavailable or requires billing. Using Turbo mode instead.');
                 }
-                results.push({ url, provider: imageProvider });
+                results.push({ url, provider: effectiveProvider });
             }
             setGeneratedImages(results);
             toast.success('Images generated');
@@ -441,6 +449,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             default: return formData.content_sk;
         }
     };
+
+    const displayImageProvider = useGlobalImageSettings ? globalImageProvider : overrideImageProvider;
+    const displayImageModel = useGlobalImageSettings ? globalImageModel : overrideImageModel;
 
     const getCurrentDisclaimer = () => {
         switch (activeTab) {
@@ -670,10 +681,24 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     </div>
                 </div>
 
+                <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/20">
+                    <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Use Global AI Settings</Label>
+                        <p className="text-[10px] text-muted-foreground">
+                            Uses defaults from AI Settings. Turn off to override for this article.
+                        </p>
+                    </div>
+                    <Switch checked={useGlobalImageSettings} onCheckedChange={setUseGlobalImageSettings} />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Provider</Label>
-                        <Select value={imageProvider} onValueChange={(value) => setImageProvider(value as 'gemini' | 'turbo')}>
+                        <Select
+                            value={displayImageProvider}
+                            onValueChange={(value) => setOverrideImageProvider(value as 'gemini' | 'turbo')}
+                            disabled={useGlobalImageSettings}
+                        >
                             <SelectTrigger>
                                 <SelectValue placeholder="Select provider" />
                             </SelectTrigger>
@@ -683,7 +708,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                             </SelectContent>
                         </Select>
                         <p className="text-[10px] text-muted-foreground">
-                            Gemini uses your API key. Turbo is fast and free, good for drafts.
+                            {useGlobalImageSettings
+                                ? 'Using global provider from AI Settings.'
+                                : 'Gemini uses your API key. Turbo is fast and free, good for drafts.'}
                         </p>
                     </div>
                     <div className="space-y-2">
@@ -698,16 +725,19 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     </div>
                 </div>
 
-                {imageProvider === 'gemini' && (
+                {displayImageProvider === 'gemini' && (
                     <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Gemini Image Model (optional override)</Label>
                         <Input
-                            value={imageModel}
-                            onChange={(e) => setImageModel(e.target.value)}
+                            value={displayImageModel}
+                            onChange={(e) => setOverrideImageModel(e.target.value)}
                             placeholder="imagen-3.0-generate-001"
+                            disabled={useGlobalImageSettings}
                         />
                         <p className="text-[10px] text-muted-foreground">
-                            Leave empty to use the default from AI Settings.
+                            {useGlobalImageSettings
+                                ? 'Using global image model from AI Settings.'
+                                : 'Leave empty to use the default from AI Settings.'}
                         </p>
                     </div>
                 )}

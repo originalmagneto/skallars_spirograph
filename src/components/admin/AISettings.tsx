@@ -22,6 +22,7 @@ const AISettings = () => {
     const [saving, setSaving] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [apiKeyValid, setApiKeyValid] = useState<boolean | null>(null);
+    const [imageKeyValid, setImageKeyValid] = useState<boolean | null>(null);
     const [availableModels, setAvailableModels] = useState<GeminiModel[]>([]);
     const [availableImageModels, setAvailableImageModels] = useState<GeminiModel[]>([]);
 
@@ -41,8 +42,9 @@ const AISettings = () => {
 
             // If we have an API key, try to verify it
             const apiKey = data?.find(s => s.key === 'gemini_api_key')?.value;
-            if (apiKey) {
-                verifyApiKey(apiKey, false);
+            const imageApiKey = data?.find(s => s.key === 'gemini_image_api_key')?.value;
+            if (apiKey || imageApiKey) {
+                verifyApiKeys(apiKey, imageApiKey, false);
             }
         } catch (error: any) {
             toast.error(error.message || 'Failed to fetch settings');
@@ -51,68 +53,95 @@ const AISettings = () => {
         }
     };
 
-    const verifyApiKey = async (apiKey: string, showToast = true) => {
-        if (!apiKey || apiKey.length < 10) {
+    const verifyApiKeys = async (textApiKey: string | undefined, imageApiKey: string | undefined, showToast = true) => {
+        const resolvedTextKey = textApiKey?.trim();
+        const resolvedImageKey = (imageApiKey?.trim() || resolvedTextKey);
+
+        if (!resolvedTextKey && !resolvedImageKey) {
             setApiKeyValid(false);
+            setImageKeyValid(false);
             setAvailableModels([]);
+            setAvailableImageModels([]);
             if (showToast) toast.error('Please enter a valid API key');
             return;
         }
 
-        setVerifying(true);
-        try {
-            // Call Google's ListModels API to verify the key and get available models
+        const fetchModels = async (key: string) => {
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+                `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`
             );
-
             if (!response.ok) {
                 throw new Error('Invalid API key or API error');
             }
-
             const data = await response.json();
+            return data.models || [];
+        };
 
-            // Filter models that support generateContent method (Text)
-            const contentModels = (data.models || [])
-                .filter((m: any) =>
-                    m.supportedGenerationMethods?.includes('generateContent') &&
-                    m.name.includes('gemini')
-                )
-                .map((m: any) => ({
-                    name: m.name.replace('models/', ''),
-                    displayName: m.displayName || m.name.replace('models/', ''),
-                    description: m.description || '',
-                    supportedGenerationMethods: m.supportedGenerationMethods || []
-                }));
+        setVerifying(true);
+        let contentModels: GeminiModel[] = [];
+        let imageModels: GeminiModel[] = [];
 
-            // Filter models that support imageGeneration (Imagen)
-            // We list all potential image models. If one doesn't support 'generateContent' directly,
-            // our aiService has a fallback mechanism to handle 404s.
-            const imageModels = (data.models || [])
-                .filter((m: any) =>
-                    m.supportedGenerationMethods?.includes('imageGeneration') ||
-                    m.supportedGenerationMethods?.includes('predict') ||
-                    m.name.includes('imagen')
-                )
-                .map((m: any) => ({
-                    name: m.name.replace('models/', ''),
-                    displayName: m.displayName || m.name.replace('models/', ''),
-                    description: m.description || '',
-                    supportedGenerationMethods: m.supportedGenerationMethods || []
-                }));
+        try {
+            if (resolvedTextKey) {
+                try {
+                    const textModelsRaw = await fetchModels(resolvedTextKey);
+                    contentModels = (textModelsRaw || [])
+                        .filter((m: any) =>
+                            m.supportedGenerationMethods?.includes('generateContent') &&
+                            m.name.includes('gemini')
+                        )
+                        .map((m: any) => ({
+                            name: m.name.replace('models/', ''),
+                            displayName: m.displayName || m.name.replace('models/', ''),
+                            description: m.description || '',
+                            supportedGenerationMethods: m.supportedGenerationMethods || []
+                        }));
+                    setApiKeyValid(true);
+                } catch {
+                    setApiKeyValid(false);
+                }
+            } else {
+                setApiKeyValid(null);
+            }
+
+            if (resolvedImageKey) {
+                try {
+                    const imageModelsRaw = await fetchModels(resolvedImageKey);
+                    imageModels = (imageModelsRaw || [])
+                        .filter((m: any) =>
+                            m.supportedGenerationMethods?.includes('imageGeneration') ||
+                            m.supportedGenerationMethods?.includes('predict') ||
+                            m.supportedGenerationMethods?.includes('generateContent') ||
+                            m.name.includes('imagen') ||
+                            m.name.includes('image')
+                        )
+                        .map((m: any) => ({
+                            name: m.name.replace('models/', ''),
+                            displayName: m.displayName || m.name.replace('models/', ''),
+                            description: m.description || '',
+                            supportedGenerationMethods: m.supportedGenerationMethods || []
+                        }));
+                    setImageKeyValid(true);
+                } catch {
+                    setImageKeyValid(false);
+                }
+            } else {
+                setImageKeyValid(null);
+            }
 
             setAvailableModels(contentModels);
             setAvailableImageModels(imageModels);
-            setApiKeyValid(true);
 
             if (showToast) {
-                toast.success(`API key verified! Found ${contentModels.length} available models.`);
+                const textCount = contentModels.length;
+                const imageCount = imageModels.length;
+                toast.success(`Models loaded. Text: ${textCount}, Image: ${imageCount}.`);
             }
         } catch (error: any) {
-            setApiKeyValid(false);
             setAvailableModels([]);
+            setAvailableImageModels([]);
             if (showToast) {
-                toast.error('Invalid API key. Please check and try again.');
+                toast.error('Failed to load models. Please check your API keys.');
             }
         } finally {
             setVerifying(false);
@@ -135,11 +164,16 @@ const AISettings = () => {
             setApiKeyValid(null);
             setAvailableModels([]);
         }
+        if (key === 'gemini_image_api_key') {
+            setImageKeyValid(null);
+            setAvailableImageModels([]);
+        }
     };
 
     const handleVerifyClick = () => {
         const apiKey = settings.find(s => s.key === 'gemini_api_key')?.value;
-        verifyApiKey(apiKey, true);
+        const imageApiKey = settings.find(s => s.key === 'gemini_image_api_key')?.value;
+        verifyApiKeys(apiKey, imageApiKey, true);
     };
 
     const saveSettings = async () => {
@@ -167,6 +201,7 @@ const AISettings = () => {
     const initializeDefaultSettings = () => {
         const defaults = [
             { key: 'gemini_api_key', value: '', description: 'API Key for Google Gemini (Vertex AI / Generative AI)' },
+            { key: 'gemini_image_api_key', value: '', description: 'Optional: API Key for Gemini Image generation' },
             { key: 'gemini_model', value: '', description: 'Selected Gemini model for text generation' },
             { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
             { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
@@ -179,6 +214,7 @@ const AISettings = () => {
     if (loading) return <div className="p-8 text-center">Loading settings...</div>;
 
     const geminiApiKey = settings.find(s => s.key === 'gemini_api_key')?.value || '';
+    const geminiImageApiKey = settings.find(s => s.key === 'gemini_image_api_key')?.value || '';
     const selectedModel = settings.find(s => s.key === 'gemini_model')?.value || '';
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
     const priceInput = settings.find(s => s.key === 'gemini_price_input_per_million')?.value || '';
@@ -204,7 +240,7 @@ const AISettings = () => {
                             <div className="flex items-center justify-between">
                                 <Label className="flex items-center gap-2 text-base font-semibold">
                                     <Key01Icon size={18} className="text-primary" />
-                                    Google Gemini API Key
+                                    Google Gemini API Key (Text + Default)
                                 </Label>
                                 {apiKeyValid !== null && (
                                     <span className={`flex items-center gap-1 text-xs ${apiKeyValid ? 'text-green-600' : 'text-destructive'}`}>
@@ -241,6 +277,30 @@ const AISettings = () => {
                             <p className="text-xs text-muted-foreground">
                                 Get your API key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
                             </p>
+
+                            <div className="space-y-2 pt-2 border-t">
+                                <div className="flex items-center justify-between">
+                                    <Label className="flex items-center gap-2 text-sm font-semibold">
+                                        <Key01Icon size={16} className="text-primary" />
+                                        Gemini Image API Key (Optional)
+                                    </Label>
+                                    {imageKeyValid !== null && (
+                                        <span className={`flex items-center gap-1 text-xs ${imageKeyValid ? 'text-green-600' : 'text-destructive'}`}>
+                                            {imageKeyValid ? <Tick01Icon size={12} /> : <Cancel01Icon size={12} />}
+                                            {imageKeyValid ? 'Verified' : 'Invalid'}
+                                        </span>
+                                    )}
+                                </div>
+                                <Input
+                                    type="password"
+                                    value={geminiImageApiKey}
+                                    onChange={(e) => handleUpdate('gemini_image_api_key', e.target.value)}
+                                    placeholder="Optional separate API key for image generation..."
+                                />
+                                <p className="text-[11px] text-muted-foreground">
+                                    If set, image models list + image generation will use this key. Otherwise the main key is used.
+                                </p>
+                            </div>
 
                             {/* Model Selection */}
                             {availableModels.length > 0 && (
@@ -332,7 +392,7 @@ const AISettings = () => {
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground">
-                                        For "Pro" image mode.
+                                        For "Pro" image mode. Uses the Image API key if provided, otherwise the main key.
                                     </p>
                                 </div>
                             )}
