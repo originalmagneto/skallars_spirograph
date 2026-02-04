@@ -204,6 +204,13 @@ export default function LawFirmHomepage() {
     show_solutions: true,
     show_contact: true,
   });
+  const [sectionTemplates, setSectionTemplates] = useState({
+    hero: 'classic',
+    services: 'sticky',
+    team: 'cards',
+    testimonials: 'grid',
+    contact: 'classic',
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -266,6 +273,17 @@ export default function LawFirmHomepage() {
         .from('page_block_items')
         .select('*')
         .order('sort_order', { ascending: true });
+
+      const templatesPromise = supabase
+        .from('settings')
+        .select('key, value')
+        .in('key', [
+          'template_hero',
+          'template_services',
+          'template_team',
+          'template_testimonials',
+          'template_contact',
+        ]);
 
       void layoutPromise.then(({ data: layoutData, error: layoutError }) => {
         if (cancelled) return;
@@ -345,6 +363,22 @@ export default function LawFirmHomepage() {
           setPageBlockItems(pageBlockItemsData);
         }
       });
+
+      void templatesPromise.then(({ data }) => {
+        if (cancelled) return;
+        if (!data) return;
+        setSectionTemplates((prev) => {
+          const next = { ...prev };
+          data.forEach((row: any) => {
+            if (row.key === 'template_hero' && row.value) next.hero = row.value;
+            if (row.key === 'template_services' && row.value) next.services = row.value;
+            if (row.key === 'template_team' && row.value) next.team = row.value;
+            if (row.key === 'template_testimonials' && row.value) next.testimonials = row.value;
+            if (row.key === 'template_contact' && row.value) next.contact = row.value;
+          });
+          return next;
+        });
+      });
     };
 
     fetchData();
@@ -405,6 +439,16 @@ export default function LawFirmHomepage() {
     gridDesktop[teamSettings.columns_desktop] || 'lg:grid-cols-4',
     'gap-8',
   ].join(' ');
+  const teamTemplate = sectionTemplates.team;
+  const teamHeadingClass = teamTemplate === 'compact'
+    ? 'text-4xl md:text-5xl font-extrabold mb-8 text-center text-foreground tracking-tight'
+    : 'text-5xl font-extrabold mb-12 text-center text-foreground tracking-tight';
+  const teamCardClass = teamTemplate === 'compact'
+    ? 'bg-white p-4 rounded-lg shadow-md flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 group'
+    : 'bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group';
+  const teamImageClass = teamTemplate === 'compact'
+    ? 'w-40 h-40 mx-auto mb-4 relative'
+    : 'w-64 h-64 mx-auto mb-6 relative';
 
   const mainSections: Record<string, JSX.Element> = {
     hero: (
@@ -415,44 +459,123 @@ export default function LawFirmHomepage() {
       >
         <Spirograph />
         <div className="container mx-auto px-4 py-20 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="text-sm uppercase tracking-[0.35em] text-muted-foreground mb-6"
-          >
-            {t.hero.title}
-          </motion.div>
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-            className="text-7xl md:text-8xl font-extrabold mb-6 text-foreground tracking-tight"
-          >
-            {t.hero.subtitle}
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
-            className="text-2xl text-muted-foreground max-w-3xl"
-          >
-            {t.hero.description}
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
-            className="mt-8"
-          >
-            <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
-              {t.hero.cta}
-            </a>
-          </motion.div>
+          {sectionTemplates.hero === 'split' ? (
+            <div className="grid lg:grid-cols-[1.2fr,0.8fr] gap-10 items-center">
+              <div>
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  className="text-sm uppercase tracking-[0.35em] text-muted-foreground mb-6"
+                >
+                  {t.hero.title}
+                </motion.div>
+                <motion.h1
+                  initial={{ opacity: 0, y: 24 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.7, ease: 'easeOut' }}
+                  className="text-6xl md:text-7xl font-extrabold mb-6 text-foreground tracking-tight"
+                >
+                  {t.hero.subtitle}
+                </motion.h1>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
+                className="rounded-2xl border border-white/40 bg-white/85 backdrop-blur-md p-8 shadow-xl space-y-4"
+              >
+                <p className="text-lg text-muted-foreground">{t.hero.description}</p>
+                <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
+                  {t.hero.cta}
+                </a>
+              </motion.div>
+            </div>
+          ) : (
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+                className="text-sm uppercase tracking-[0.35em] text-muted-foreground mb-6"
+              >
+                {t.hero.title}
+              </motion.div>
+              <motion.h1
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
+                className="text-7xl md:text-8xl font-extrabold mb-6 text-foreground tracking-tight"
+              >
+                {t.hero.subtitle}
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 }}
+                className="text-2xl text-muted-foreground max-w-3xl"
+              >
+                {t.hero.description}
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+                className="mt-8"
+              >
+                <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
+                  {t.hero.cta}
+                </a>
+              </motion.div>
+            </>
+          )}
         </div>
       </section>
     ),
-    services: (
+    services: sectionTemplates.services === 'grid' ? (
+      <section
+        id="services"
+        ref={servicesRef}
+        className={`py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        data-admin-section="services"
+      >
+        <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-3xl mx-auto text-center">
+            <h2 className="text-4xl font-bold mb-4 text-foreground">
+              {t.services.title}
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              {t.services.subtitle}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
+            {servicesToRender.map((service, index) => (
+              <div
+                key={index}
+                ref={(el) => {
+                  serviceRefs.current[index] = el;
+                }}
+                data-index={index}
+                className="bg-white p-6 rounded-xl shadow-sm hover:shadow-xl transition-shadow border border-transparent hover:border-secondary/20"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  {service.icon ? (
+                    <span className="text-xl text-accent">{service.icon}</span>
+                  ) : (
+                    <Check className="text-accent" />
+                  )}
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {service.title}
+                  </h3>
+                </div>
+                <p className="text-muted-foreground text-sm">{service.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    ) : (
       <section
         id="services"
         ref={servicesRef}
@@ -526,7 +649,7 @@ export default function LawFirmHomepage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.6 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
-            className="text-5xl font-extrabold mb-12 text-center text-foreground tracking-tight"
+            className={teamHeadingClass}
           >
             {t.team.title}
           </motion.h2>
@@ -534,9 +657,9 @@ export default function LawFirmHomepage() {
             {team.map((member) => (
               <div
                 key={member.id}
-                className="bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group"
+                className={teamCardClass}
               >
-                <div className="w-64 h-64 mx-auto mb-6 relative">
+                <div className={teamImageClass}>
                   <div className="w-full h-full rounded-lg overflow-hidden border-4 border-white shadow-md">
                     <img
                       src={member.photo_url || "/placeholder-avatar.jpg"}
@@ -674,22 +797,56 @@ export default function LawFirmHomepage() {
     }
 
     if (block.block_type === 'testimonials') {
+      const template = sectionTemplates.testimonials;
+      const primaryItem = items[0];
+      const secondaryItems = items.slice(1);
       return (
         <section className="py-16 bg-white" data-admin-section={`block-${block.id}`}>
           <div className="container mx-auto px-4 space-y-8">
             {title && <h3 className="text-3xl font-semibold text-center text-foreground">{title}</h3>}
             {body && <p className="text-center text-muted-foreground max-w-2xl mx-auto">{body}</p>}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {items.map((item) => (
-                <div key={item.id} className="border rounded-xl p-6 shadow-sm bg-white">
-                  <p className="text-sm text-muted-foreground mb-4">“{getBlockText(item, 'body')}”</p>
-                  <div className="text-sm font-semibold text-foreground">{getBlockText(item, 'title')}</div>
-                  {getBlockText(item, 'subtitle') && (
-                    <div className="text-xs text-muted-foreground">{getBlockText(item, 'subtitle')}</div>
+            {template === 'spotlight' ? (
+              <div className="grid grid-cols-1 lg:grid-cols-[1.2fr,0.8fr] gap-6">
+                {primaryItem ? (
+                  <div className="border rounded-2xl p-8 shadow-md bg-gradient-to-br from-white to-slate-50">
+                    <p className="text-base text-muted-foreground mb-6 leading-relaxed">“{getBlockText(primaryItem, 'body')}”</p>
+                    <div className="text-sm font-semibold text-foreground">{getBlockText(primaryItem, 'title')}</div>
+                    {getBlockText(primaryItem, 'subtitle') && (
+                      <div className="text-xs text-muted-foreground">{getBlockText(primaryItem, 'subtitle')}</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="border rounded-2xl p-8 text-sm text-muted-foreground">No testimonials yet.</div>
+                )}
+                <div className="space-y-4">
+                  {secondaryItems.length > 0 ? (
+                    secondaryItems.map((item) => (
+                      <div key={item.id} className="border rounded-xl p-5 shadow-sm bg-white">
+                        <p className="text-sm text-muted-foreground mb-3">“{getBlockText(item, 'body')}”</p>
+                        <div className="text-sm font-semibold text-foreground">{getBlockText(item, 'title')}</div>
+                        {getBlockText(item, 'subtitle') && (
+                          <div className="text-xs text-muted-foreground">{getBlockText(item, 'subtitle')}</div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="border rounded-xl p-5 text-sm text-muted-foreground">Add more testimonials to fill this column.</div>
                   )}
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {items.map((item) => (
+                  <div key={item.id} className="border rounded-xl p-6 shadow-sm bg-white">
+                    <p className="text-sm text-muted-foreground mb-4">“{getBlockText(item, 'body')}”</p>
+                    <div className="text-sm font-semibold text-foreground">{getBlockText(item, 'title')}</div>
+                    {getBlockText(item, 'subtitle') && (
+                      <div className="text-xs text-muted-foreground">{getBlockText(item, 'subtitle')}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       );
@@ -717,6 +874,9 @@ export default function LawFirmHomepage() {
     return null;
   };
 
+  const footerGridClass = sectionTemplates.contact === 'compact'
+    ? 'grid grid-cols-1 lg:grid-cols-2 gap-8'
+    : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8';
   const footerSections: Record<string, JSX.Element | null> = {
     contact: footerSettings.show_contact ? (
       <div data-admin-section="contact">
@@ -744,66 +904,112 @@ export default function LawFirmHomepage() {
             </div>
           )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className={footerGridClass}>
           {footerSettings.show_contact && (
             <div>
-            <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
-            {t.contact.subtitle && (
-              <p className="text-xs text-gray-300 mb-3">{t.contact.subtitle}</p>
-            )}
-            <p>{t.contact.address}</p>
-            <p>{t.contact.phone}</p>
-            <a href={`mailto:${t.contact.email}`} className="hover:underline">
-              {t.contact.email}
-            </a>
-            <p className="text-sm text-gray-300 mt-2">{t.contact.workingHours}</p>
-            {t.contact.image && (
-              <img
-                src={t.contact.image}
-                alt=""
-                className="mt-4 w-full max-w-xs rounded-lg border border-white/10 object-cover"
-              />
-            )}
+              <h3 className="text-lg font-semibold mb-4">{t.contact.title}</h3>
+              {t.contact.subtitle && (
+                <p className="text-xs text-gray-300 mb-3">{t.contact.subtitle}</p>
+              )}
+              <p>{t.contact.address}</p>
+              <p>{t.contact.phone}</p>
+              <a href={`mailto:${t.contact.email}`} className="hover:underline">
+                {t.contact.email}
+              </a>
+              <p className="text-sm text-gray-300 mt-2">{t.contact.workingHours}</p>
+              {t.contact.image && (
+                <img
+                  src={t.contact.image}
+                  alt=""
+                  className="mt-4 w-full max-w-xs rounded-lg border border-white/10 object-cover"
+                />
+              )}
             </div>
           )}
-          {footerSettings.show_solutions && (
-            <div>
-              <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
-              <ul className="space-y-2">
-                {footerLinks
-                  .filter((link) => link.section === 'solutions' && link.enabled)
-                  .map((link) => (
-                    <li key={link.id || link.url}>
-                      <a
-                        href={link.url}
-                        target={link.is_external ? '_blank' : undefined}
-                        rel={link.is_external ? 'noopener noreferrer' : undefined}
-                        className="hover:underline"
-                      >
-                        {link[`label_${language}`] || link.label_en || link.label_sk}
-                      </a>
-                    </li>
-                  ))}
-              </ul>
+          {sectionTemplates.contact === 'compact' ? (
+            <div className="space-y-8">
+              {footerSettings.show_solutions && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
+                  <ul className="space-y-2">
+                    {footerLinks
+                      .filter((link) => link.section === 'solutions' && link.enabled)
+                      .map((link) => (
+                        <li key={link.id || link.url}>
+                          <a
+                            href={link.url}
+                            target={link.is_external ? '_blank' : undefined}
+                            rel={link.is_external ? 'noopener noreferrer' : undefined}
+                            className="hover:underline"
+                          >
+                            {link[`label_${language}`] || link.label_en || link.label_sk}
+                          </a>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+              {footerSettings.show_newsletter && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">{t.news.title}</h3>
+                  <form className="flex flex-col space-y-2">
+                    <input
+                      type="email"
+                      placeholder={t.footer.newsletterPlaceholder}
+                      className="px-4 py-2 bg-gray-800 rounded"
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-[#210059] text-white rounded hover:bg-[#210059]/80"
+                    >
+                      {t.footer.newsletterCta}
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
-          )}
-          {footerSettings.show_newsletter && (
-            <div>
-            <h3 className="text-lg font-semibold mb-4">{t.news.title}</h3>
-            <form className="flex flex-col space-y-2">
-              <input
-                type="email"
-                placeholder={t.footer.newsletterPlaceholder}
-                className="px-4 py-2 bg-gray-800 rounded"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-[#210059] text-white rounded hover:bg-[#210059]/80"
-              >
-                {t.footer.newsletterCta}
-              </button>
-            </form>
-            </div>
+          ) : (
+            <>
+              {footerSettings.show_solutions && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">{t.footer.solutionsTitle}</h3>
+                  <ul className="space-y-2">
+                    {footerLinks
+                      .filter((link) => link.section === 'solutions' && link.enabled)
+                      .map((link) => (
+                        <li key={link.id || link.url}>
+                          <a
+                            href={link.url}
+                            target={link.is_external ? '_blank' : undefined}
+                            rel={link.is_external ? 'noopener noreferrer' : undefined}
+                            className="hover:underline"
+                          >
+                            {link[`label_${language}`] || link.label_en || link.label_sk}
+                          </a>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+              {footerSettings.show_newsletter && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">{t.news.title}</h3>
+                  <form className="flex flex-col space-y-2">
+                    <input
+                      type="email"
+                      placeholder={t.footer.newsletterPlaceholder}
+                      className="px-4 py-2 bg-gray-800 rounded"
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-[#210059] text-white rounded hover:bg-[#210059]/80"
+                    >
+                      {t.footer.newsletterCta}
+                    </button>
+                  </form>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

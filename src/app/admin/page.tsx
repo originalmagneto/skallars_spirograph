@@ -22,6 +22,7 @@ import NewsSettingsManager from "@/components/admin/NewsSettingsManager";
 import FooterSettingsManager from "@/components/admin/FooterSettingsManager";
 import PageBlocksManager from "@/components/admin/PageBlocksManager";
 import MediaLibraryManager from "@/components/admin/MediaLibraryManager";
+import SectionTemplatesPanel from "@/components/admin/SectionTemplatesPanel";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -135,7 +136,10 @@ export default function AdminPage() {
             </TabsContent>
 
             <TabsContent value="layout">
-                <PageLayoutManager />
+                <div className="space-y-6">
+                    <PageLayoutManager />
+                    <SectionTemplatesPanel />
+                </div>
             </TabsContent>
 
             <TabsContent value="services">
