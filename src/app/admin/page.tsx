@@ -23,6 +23,7 @@ import FooterSettingsManager from "@/components/admin/FooterSettingsManager";
 import PageBlocksManager from "@/components/admin/PageBlocksManager";
 import MediaLibraryManager from "@/components/admin/MediaLibraryManager";
 import SectionTemplatesPanel from "@/components/admin/SectionTemplatesPanel";
+import ImageStudio from "@/components/admin/ImageStudio";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -89,6 +90,12 @@ export default function AdminPage() {
                     <TabsTrigger value="media" className="gap-2">
                         <Image01Icon size={14} />
                         Media
+                    </TabsTrigger>
+                )}
+                {isAdmin && (
+                    <TabsTrigger value="image-studio" className="gap-2">
+                        <AiMagicIcon size={14} />
+                        Image Studio
                     </TabsTrigger>
                 )}
                 {isAdmin && (
@@ -160,6 +167,10 @@ export default function AdminPage() {
 
             <TabsContent value="media">
                 <MediaLibraryManager />
+            </TabsContent>
+
+            <TabsContent value="image-studio">
+                <ImageStudio />
             </TabsContent>
 
             <TabsContent value="team">

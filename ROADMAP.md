@@ -65,11 +65,11 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Align **Gemini/Imagen image endpoints** + allow **custom model overrides**. ✅
 
 ## Phase 4: AI Image Studio (Only After Content Editing Is Strong)
-- Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets.
-- Add **batch generation** with previews, history, and comparisons.
+- Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets. ✅
+- Add **batch generation** with previews, history, and comparisons. ✅
 - Add **in-app editor** (crop, focal point, color adjustments, text overlay).
 - Add **template-based social images** for blog and announcements.
-- Store **generation metadata** (prompt, model, seed) and allow regeneration.
+- Store **generation metadata** (prompt, model, seed) and allow regeneration. ✅
 
 ## Phase 5: Publishing Workflow + Analytics
 - Add **approval workflow** (review, approve, publish, schedule).

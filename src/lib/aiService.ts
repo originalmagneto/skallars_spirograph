@@ -935,6 +935,7 @@ export async function generateAIImage(
         aspectRatio?: string;
         imageSize?: string;
         model?: string;
+        seed?: number;
     } = {}
 ): Promise<string> {
     const {
@@ -943,7 +944,8 @@ export async function generateAIImage(
         height = 1024,
         aspectRatio,
         imageSize,
-        model
+        model,
+        seed
     } = options;
 
     // Check global settings if turbo is not forced
@@ -962,10 +964,10 @@ export async function generateAIImage(
 
     if (useTurbo) {
         // Use Pollinations.ai for fast, free, high-quality Flux images
-        const seed = Math.floor(Math.random() * 1000000);
+        const resolvedSeed = typeof seed === 'number' ? seed : Math.floor(Math.random() * 1000000);
         const turboPrompt = truncatePrompt(normalizePrompt(prompt));
         const encodedPrompt = encodeURIComponent(turboPrompt);
-        return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
+        return `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${resolvedSeed}&model=flux`;
     }
 
     // Pro mode: Use Gemini Image models (requires Gemini API key)
