@@ -78,8 +78,10 @@ interface ArticleEditorProps {
 export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps) {
     const isNew = !articleId || articleId === 'new';
     const router = useRouter();
+    const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const { user, session, isAdmin, isEditor } = useAuth();
+    const panelParam = searchParams.get('panel');
 
     const factChecklistDefaults: Array<{ key: string; label: string }> = [
         { key: 'facts_verified', label: 'Facts and figures verified against sources' },
@@ -151,6 +153,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
     const [tagsInput, setTagsInput] = useState('');
     const editorRef = useRef<HTMLDivElement | null>(null);
+    const linkedinSectionRef = useRef<HTMLDivElement | null>(null);
     const [seoFieldsAvailable, setSeoFieldsAvailable] = useState(true);
     const [workflowFieldsAvailable, setWorkflowFieldsAvailable] = useState(true);
     const [imagePrompt, setImagePrompt] = useState('');
@@ -490,6 +493,17 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     useEffect(() => {
         loadLinkedInScheduled();
     }, [session?.access_token, articleId, isNew]);
+
+    useEffect(() => {
+        if (articleLoading) return;
+        if (panelParam !== 'linkedin') return;
+        if (!linkedinSectionRef.current) return;
+        const el = linkedinSectionRef.current;
+        const timer = window.setTimeout(() => {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+        return () => window.clearTimeout(timer);
+    }, [articleLoading, panelParam, articleId, isNew]);
 
     // Auto-generate slug from Slovak title
     useEffect(() => {
@@ -1359,7 +1373,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             </div>
 
             {/* LinkedIn Share */}
-            <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+            <div ref={linkedinSectionRef} className="rounded-lg border bg-muted/20 p-4 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <Label className="text-sm font-semibold">LinkedIn Share</Label>

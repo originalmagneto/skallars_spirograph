@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { Plus, Search, Edit, Trash2, Eye, EyeOff, Calendar } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, EyeOff, Calendar, Share2 } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -269,6 +269,14 @@ export default function ArticlesManager() {
                                 >
                                     <Edit size={14} className="mr-1" />
                                     Edit
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => router.push(`/admin?workspace=publishing&tab=article-studio&edit=${article.id}&panel=linkedin`)}
+                                >
+                                    <Share2 size={14} className="mr-1" />
+                                    LinkedIn
                                 </Button>
                                 {isAdmin && (
                                     <AlertDialog>
