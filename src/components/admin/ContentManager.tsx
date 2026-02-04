@@ -499,6 +499,18 @@ const ContentManager = () => {
         return (item as any)[draftKey] || (item as any)[valueKey] || '';
     };
 
+    const makeBadgeHandlers = (handler: () => void) => ({
+        onClick: handler,
+        onKeyDown: (event: React.KeyboardEvent) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handler();
+            }
+        },
+        role: 'button',
+        tabIndex: 0,
+    });
+
     const renderSectionPreview = (section: string, items: ContentItem[]) => {
         if (!showPreviews) return null;
         const map = new Map(items.map(item => [item.key, item]));
@@ -544,10 +556,15 @@ const ContentManager = () => {
                     <SectionWrapper title="Navigation">
                         <div className="flex flex-wrap gap-2 text-sm">
                             {['navigation.home', 'navigation.services', 'navigation.countries', 'navigation.team', 'navigation.news', 'navigation.blog', 'navigation.contact'].map((key) => (
-                                <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
-                                    const item = map.get(key);
-                                    if (item) startEdit(item);
-                                }}>
+                                <Badge
+                                    key={key}
+                                    variant="secondary"
+                                    className="cursor-pointer"
+                                    {...makeBadgeHandlers(() => {
+                                        const item = map.get(key);
+                                        if (item) startEdit(item);
+                                    })}
+                                >
                                     {getValue(map, key)}
                                 </Badge>
                             ))}
@@ -562,10 +579,15 @@ const ContentManager = () => {
                             <EditableText text={getValue(map, 'hero.description')} keyPath="hero.description" />
                         </p>
                         <div className="flex gap-2">
-                            <Badge className="cursor-pointer" onClick={() => {
-                                const item = map.get('hero.cta');
-                                if (item) startEdit(item);
-                            }}>{getValue(map, 'hero.cta')}</Badge>
+                            <Badge
+                                className="cursor-pointer"
+                                {...makeBadgeHandlers(() => {
+                                    const item = map.get('hero.cta');
+                                    if (item) startEdit(item);
+                                })}
+                            >
+                                {getValue(map, 'hero.cta')}
+                            </Badge>
                         </div>
                     </SectionWrapper>
                 )}
@@ -608,7 +630,7 @@ const ContentManager = () => {
                         <div className="text-xs text-muted-foreground pt-2 space-y-2">
                             <p>Team members are managed in the Team tab.</p>
                             <Button size="sm" variant="outline" asChild>
-                                <Link href="/admin?tab=team">Open Team Manager</Link>
+                                <Link href="/admin?workspace=site&tab=team">Open Team Manager</Link>
                             </Button>
                         </div>
                     </SectionWrapper>
@@ -618,10 +640,14 @@ const ContentManager = () => {
                         <Title text={getValue(map, 'news.title')} keyPath="news.title" />
                         <Subtitle text={getValue(map, 'news.subtitle')} keyPath="news.subtitle" />
                         <div className="pt-2">
-                            <Badge variant="outline" className="cursor-pointer" onClick={() => {
-                                const item = map.get('news.viewAll');
-                                if (item) startEdit(item);
-                            }}>
+                            <Badge
+                                variant="outline"
+                                className="cursor-pointer"
+                                {...makeBadgeHandlers(() => {
+                                    const item = map.get('news.viewAll');
+                                    if (item) startEdit(item);
+                                })}
+                            >
                                 {getValue(map, 'news.viewAll')}
                             </Badge>
                         </div>
@@ -649,7 +675,13 @@ const ContentManager = () => {
                             <EditableText text={getValue(map, 'contact.workingHours')} keyPath="contact.workingHours" />
                         </div>
                         {contactImage && (
-                            <img src={contactImage} alt="" className="mt-2 w-full max-w-sm rounded border" />
+                            <img
+                                src={contactImage}
+                                alt="Contact section"
+                                width={640}
+                                height={360}
+                                className="mt-2 w-full max-w-sm rounded border"
+                            />
                         )}
                     </SectionWrapper>
                 )}
@@ -681,10 +713,15 @@ const ContentManager = () => {
                     <SectionWrapper title="Map Labels">
                         <div className="flex gap-2 text-sm">
                             {['map.slovakia', 'map.czechRepublic'].map((key) => (
-                                <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
-                                    const item = map.get(key);
-                                    if (item) startEdit(item);
-                                }}>
+                                <Badge
+                                    key={key}
+                                    variant="secondary"
+                                    className="cursor-pointer"
+                                    {...makeBadgeHandlers(() => {
+                                        const item = map.get(key);
+                                        if (item) startEdit(item);
+                                    })}
+                                >
                                     {getValue(map, key)}
                                 </Badge>
                             ))}
@@ -714,10 +751,15 @@ const ContentManager = () => {
                             <SectionWrapper title="Navigation">
                                 <div className="flex flex-wrap gap-2 text-sm">
                                     {['navigation.home', 'navigation.services', 'navigation.countries', 'navigation.team', 'navigation.news', 'navigation.blog', 'navigation.contact'].map((key) => (
-                                        <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
-                                            const item = map.get(key);
-                                            if (item) startEdit(item);
-                                        }}>
+                                        <Badge
+                                            key={key}
+                                            variant="secondary"
+                                            className="cursor-pointer"
+                                            {...makeBadgeHandlers(() => {
+                                                const item = map.get(key);
+                                                if (item) startEdit(item);
+                                            })}
+                                        >
                                             {getValue(draftMap, key)}
                                         </Badge>
                                     ))}
@@ -732,10 +774,15 @@ const ContentManager = () => {
                                     <EditableText text={getValue(draftMap, 'hero.description')} keyPath="hero.description" />
                                 </p>
                                 <div className="flex gap-2">
-                                    <Badge className="cursor-pointer" onClick={() => {
-                                        const item = map.get('hero.cta');
-                                        if (item) startEdit(item);
-                                    }}>{getValue(draftMap, 'hero.cta')}</Badge>
+                                    <Badge
+                                        className="cursor-pointer"
+                                        {...makeBadgeHandlers(() => {
+                                            const item = map.get('hero.cta');
+                                            if (item) startEdit(item);
+                                        })}
+                                    >
+                                        {getValue(draftMap, 'hero.cta')}
+                                    </Badge>
                                 </div>
                             </SectionWrapper>
                         )}
@@ -778,7 +825,7 @@ const ContentManager = () => {
                                 <div className="text-xs text-muted-foreground pt-2 space-y-2">
                                     <p>Team members are managed in the Team tab.</p>
                                     <Button size="sm" variant="outline" asChild>
-                                        <Link href="/admin?tab=team">Open Team Manager</Link>
+                                        <Link href="/admin?workspace=site&tab=team">Open Team Manager</Link>
                                     </Button>
                                 </div>
                             </SectionWrapper>
@@ -788,10 +835,14 @@ const ContentManager = () => {
                                 <Title text={getValue(draftMap, 'news.title')} keyPath="news.title" />
                                 <Subtitle text={getValue(draftMap, 'news.subtitle')} keyPath="news.subtitle" />
                                 <div className="pt-2">
-                                    <Badge variant="outline" className="cursor-pointer" onClick={() => {
-                                        const item = map.get('news.viewAll');
-                                        if (item) startEdit(item);
-                                    }}>
+                                    <Badge
+                                        variant="outline"
+                                        className="cursor-pointer"
+                                        {...makeBadgeHandlers(() => {
+                                            const item = map.get('news.viewAll');
+                                            if (item) startEdit(item);
+                                        })}
+                                    >
                                         {getValue(draftMap, 'news.viewAll')}
                                     </Badge>
                                 </div>
@@ -819,7 +870,13 @@ const ContentManager = () => {
                                     <EditableText text={getValue(draftMap, 'contact.workingHours')} keyPath="contact.workingHours" />
                                 </div>
                                 {contactImageDraft && (
-                                    <img src={contactImageDraft} alt="" className="mt-2 w-full max-w-sm rounded border" />
+                                    <img
+                                        src={contactImageDraft}
+                                        alt="Contact section"
+                                        width={640}
+                                        height={360}
+                                        className="mt-2 w-full max-w-sm rounded border"
+                                    />
                                 )}
                             </SectionWrapper>
                         )}
@@ -851,10 +908,15 @@ const ContentManager = () => {
                             <SectionWrapper title="Map Labels">
                                 <div className="flex gap-2 text-sm">
                                     {['map.slovakia', 'map.czechRepublic'].map((key) => (
-                                        <Badge key={key} variant="secondary" className="cursor-pointer" onClick={() => {
-                                            const item = map.get(key);
-                                            if (item) startEdit(item);
-                                        }}>
+                                        <Badge
+                                            key={key}
+                                            variant="secondary"
+                                            className="cursor-pointer"
+                                            {...makeBadgeHandlers(() => {
+                                                const item = map.get(key);
+                                                if (item) startEdit(item);
+                                            })}
+                                        >
                                             {getValue(draftMap, key)}
                                         </Badge>
                                     ))}
@@ -926,8 +988,12 @@ const ContentManager = () => {
             </p>
 
             <div className="relative">
+                <label htmlFor="contentSearch" className="sr-only">Search content</label>
                 <Search01Icon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                    id="contentSearch"
+                    name="contentSearch"
+                    autoComplete="off"
                     placeholder="Search content..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}

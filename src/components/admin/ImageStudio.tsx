@@ -492,8 +492,11 @@ export default function ImageStudio() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs">Core Prompt</Label>
+              <Label htmlFor="imageCorePrompt" className="text-xs">Core Prompt</Label>
               <Textarea
+                id="imageCorePrompt"
+                name="imageCorePrompt"
+                autoComplete="off"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Describe the subject, setting, and intent of the image."
@@ -521,12 +524,15 @@ export default function ImageStudio() {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Palette / Color Notes</Label>
-                <Input
-                  value={palette}
-                  onChange={(e) => setPalette(e.target.value)}
-                  placeholder="e.g. deep navy, silver highlights"
-                />
+              <Label htmlFor="imagePalette" className="text-xs">Palette / Color Notes</Label>
+              <Input
+                id="imagePalette"
+                name="imagePalette"
+                autoComplete="off"
+                value={palette}
+                onChange={(e) => setPalette(e.target.value)}
+                placeholder="e.g. deep navy, silver highlights"
+              />
               </div>
             </div>
 
@@ -610,11 +616,13 @@ export default function ImageStudio() {
                 {aspectPreset === "custom" && (
                   <div className="grid grid-cols-2 gap-2">
                     <Input
+                      aria-label="Custom width"
                       value={customWidth}
                       onChange={(e) => setCustomWidth(e.target.value)}
                       placeholder="Width"
                     />
                     <Input
+                      aria-label="Custom height"
                       value={customHeight}
                       onChange={(e) => setCustomHeight(e.target.value)}
                       placeholder="Height"
@@ -759,7 +767,7 @@ export default function ImageStudio() {
             <div className="flex flex-wrap items-center gap-3">
               <Button onClick={handleGenerate} disabled={generating}>
                 <AiMagicIcon size={16} className="mr-2" />
-                {generating ? "Generating..." : "Generate Images"}
+                {generating ? "Generating…" : "Generate Images"}
               </Button>
               <Button
                 variant="outline"
@@ -796,10 +804,10 @@ export default function ImageStudio() {
             <CardDescription>Preview, compare, crop, and save to Media Library.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Switch checked={compareMode} onCheckedChange={setCompareMode} />
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Switch id="compareMode" checked={compareMode} onCheckedChange={setCompareMode} />
+            <label htmlFor="compareMode" className="text-xs text-muted-foreground flex items-center gap-1">
               Compare mode
-            </span>
+            </label>
             {compareMode && compareIds.length > 0 && (
               <Button size="sm" variant="ghost" onClick={() => setCompareIds([])}>
                 <Cancel01Icon size={14} className="mr-1" />
@@ -815,7 +823,13 @@ export default function ImageStudio() {
                 <div key={item.id} className="border rounded-xl overflow-hidden bg-white shadow-sm">
                   <div className="aspect-video bg-muted">
                     {item.url ? (
-                      <img src={item.url} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={item.url}
+                        alt={item.prompt ? `Generated: ${item.prompt}` : "Generated image"}
+                        width={item.width || 1280}
+                        height={item.height || 720}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
                         No image
@@ -839,7 +853,13 @@ export default function ImageStudio() {
                 <div key={item.id} className="border rounded-xl overflow-hidden bg-white shadow-sm">
                   <div className="aspect-[4/3] bg-muted relative">
                     {item.url ? (
-                      <img src={item.url} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={item.url}
+                        alt={item.prompt ? `Generated: ${item.prompt}` : "Generated image"}
+                        width={item.width || 1200}
+                        height={item.height || 900}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
                         {item.error || "No image"}
@@ -906,7 +926,13 @@ export default function ImageStudio() {
                 <div key={row.id} className="border rounded-lg overflow-hidden bg-white">
                   <div className="aspect-[4/3] bg-muted">
                     {row.image_url ? (
-                      <img src={row.image_url} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={row.image_url}
+                        alt={row.prompt ? `Generated: ${row.prompt}` : "Generated image"}
+                        width={1200}
+                        height={900}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
                         {row.status === "error" ? "Failed" : "No image"}

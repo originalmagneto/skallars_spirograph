@@ -520,7 +520,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     if (articleLoading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <p className="text-muted-foreground">Loading article...</p>
+                <p className="text-muted-foreground">Loading article…</p>
             </div>
         );
     }
@@ -731,8 +731,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     </span>
                     {workflowFieldsAvailable && (
                         <div className="flex items-center gap-2">
-                            <Label className="text-xs text-muted-foreground">Schedule</Label>
+                            <Label htmlFor="scheduleAt" className="text-xs text-muted-foreground">Schedule</Label>
                             <Input
+                                id="scheduleAt"
+                                name="scheduleAt"
+                                autoComplete="off"
                                 type="datetime-local"
                                 value={toLocalInput(formData.scheduled_at)}
                                 onChange={(e) => setFormData(prev => ({ ...prev, scheduled_at: fromLocalInput(e.target.value) }))}
@@ -806,7 +809,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     {!isNew && isAdmin && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm">
+                                <Button variant="destructive" size="sm" aria-label="Delete article">
                                     <Trash2 size={16} />
                                 </Button>
                             </AlertDialogTrigger>
@@ -846,6 +849,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         <img
                             src={formData.cover_image_url}
                             alt="Cover"
+                            width={1200}
+                            height={480}
                             className="w-full h-48 object-cover rounded-lg"
                         />
                         <Button
@@ -853,6 +858,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                             size="sm"
                             className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => setFormData(prev => ({ ...prev, cover_image_url: '' }))}
+                            aria-label="Remove cover image"
                         >
                             <X size={16} />
                         </Button>
@@ -892,8 +898,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 </div>
 
                 <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Image Prompt</Label>
+                    <Label htmlFor="imagePrompt" className="text-xs text-muted-foreground">Image Prompt</Label>
                     <Textarea
+                        id="imagePrompt"
+                        name="imagePrompt"
+                        autoComplete="off"
                         value={imagePrompt}
                         onChange={(e) => setImagePrompt(e.target.value)}
                         rows={4}
@@ -1012,6 +1021,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                                     <img
                                         src={img.url}
                                         alt={`Generated ${idx + 1}`}
+                                        width={1280}
+                                        height={720}
                                         className="w-full h-full object-cover"
                                     />
                                 </div>
@@ -1187,6 +1198,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                             ref={editorRef}
                             className="min-h-[260px] rounded-lg border border-input bg-background p-4 text-sm prose max-w-none focus:outline-none"
                             contentEditable
+                            role="textbox"
+                            aria-label="Article content editor"
+                            aria-multiline="true"
                             onInput={(e) => {
                                 const html = (e.target as HTMLDivElement).innerHTML;
                                 updateField('content', html);
@@ -1201,7 +1215,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     <Textarea
                         value={getCurrentContent()}
                         onChange={(e) => updateField('content', e.target.value)}
-                        placeholder={getLabel('Start writing article content...', 'Začnite písať obsah článku...')}
+                        placeholder={getLabel('Start writing article content…', 'Začnite písať obsah článku…')}
                         rows={12}
                         className="font-mono text-sm"
                     />

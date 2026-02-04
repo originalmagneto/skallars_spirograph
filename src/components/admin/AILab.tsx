@@ -682,8 +682,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             <Label>Target Languages</Label>
                             <div className="flex flex-wrap gap-2">
                                 {['sk', 'en', 'de', 'cn'].map((lang) => (
-                                    <div
+                                    <button
                                         key={lang}
+                                        type="button"
+                                        aria-pressed={targetLanguages.includes(lang)}
                                         onClick={() => toggleLanguage(lang)}
                                         className={`px-3 py-1.5 rounded-md text-sm font-medium cursor-pointer transition-all border ${targetLanguages.includes(lang)
                                             ? 'bg-primary text-primary-foreground border-primary shadow-sm'
@@ -697,7 +699,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                             {lang === 'de' && 'German (DE)'}
                                             {lang === 'cn' && 'Chinese (CN)'}
                                         </div>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
                         </div>
@@ -765,11 +767,14 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
 
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <Label>Target Word Count</Label>
+                                <Label htmlFor="targetWordCount">Target Word Count</Label>
                                 <Input
+                                    id="targetWordCount"
                                     type="number"
                                     min={300}
                                     max={3000}
+                                    name="targetWordCount"
+                                    autoComplete="off"
                                     value={targetWordCount}
                                     onChange={(e) => setTargetWordCount(Math.max(300, Math.min(3000, parseInt(e.target.value) || 0)))}
                                     className="w-28"
@@ -803,7 +808,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             </Select>
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
-                                    <Label className="text-xs text-muted-foreground">Tone Instructions (customizable)</Label>
+                                    <Label htmlFor="toneInstructions" className="text-xs text-muted-foreground">Tone Instructions (customizable)</Label>
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -817,6 +822,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     </Button>
                                 </div>
                                 <Textarea
+                                    id="toneInstructions"
+                                    name="toneInstructions"
+                                    autoComplete="off"
                                     value={toneInstructions}
                                     onChange={(e) => {
                                         setToneInstructions(e.target.value);
@@ -875,7 +883,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                         onClick={() => handleGenerateOutline()}
                                         disabled={outlineGenerating}
                                     >
-                                        {outlineGenerating ? 'Generating...' : 'Generate Outline'}
+                                        {outlineGenerating ? 'Generating…' : 'Generate Outline'}
                                     </Button>
                                     <Button
                                         size="sm"
@@ -958,7 +966,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     onChange={(e) => setCustomPrompt(e.target.value)}
                                     rows={10}
                                     className="font-mono text-xs bg-muted/50"
-                                    placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings..."
+                                    placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings…"
                                 />
                                 <p className="text-[10px] text-orange-500 font-medium">
                                     ⚠️ Caution: Manually changing the JSON structure instructions might break generation.
@@ -994,15 +1002,19 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     {links.map((link, index) => (
                                         <div key={index} className="flex gap-2">
                                             <Input
-                                                placeholder="https://..."
+                                                placeholder="https://…"
                                                 value={link}
                                                 onChange={(e) => updateLink(index, e.target.value)}
+                                                name={`research_link_${index}`}
+                                                autoComplete="off"
+                                                aria-label={`Research link ${index + 1}`}
                                             />
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => removeLink(index)}
                                                 disabled={links.length === 1}
+                                                aria-label="Remove link"
                                             >
                                                 <Cancel01Icon size={16} />
                                             </Button>
@@ -1020,7 +1032,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                 className="flex-1 bg-primary hover:bg-primary/90"
                             >
                                 {generating ? (
-                                    <>Generating...</>
+                                    <>Generating…</>
                                 ) : (
                                     <>
                                         <Search01Icon size={18} className="mr-2" />

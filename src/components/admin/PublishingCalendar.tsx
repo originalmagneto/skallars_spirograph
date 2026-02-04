@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type ArticleRow = {
   id: string;
@@ -53,7 +53,6 @@ const buildMonthGrid = (baseDate: Date) => {
 };
 
 export default function PublishingCalendar() {
-  const router = useRouter();
   const [monthOffset, setMonthOffset] = useState(0);
 
   const baseDate = useMemo(() => {
@@ -133,13 +132,13 @@ export default function PublishingCalendar() {
               <CardDescription>Track scheduled launches and reviews.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => setMonthOffset((m) => m - 1)}>
+              <Button size="sm" variant="outline" aria-label="Previous month" onClick={() => setMonthOffset((m) => m - 1)}>
                 ←
               </Button>
               <div className="text-sm font-semibold">
                 {baseDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
               </div>
-              <Button size="sm" variant="outline" onClick={() => setMonthOffset((m) => m + 1)}>
+              <Button size="sm" variant="outline" aria-label="Next month" onClick={() => setMonthOffset((m) => m + 1)}>
                 →
               </Button>
             </div>
@@ -164,17 +163,16 @@ export default function PublishingCalendar() {
                       {entries.slice(0, 2).map((row) => {
                         const status = statusLabel(row);
                         return (
-                          <button
+                          <Link
                             key={row.id}
-                            type="button"
-                            onClick={() => router.push(`/admin?tab=articles&edit=${row.id}`)}
+                            href={`/admin?workspace=publishing&tab=article-studio&edit=${row.id}`}
                             className="w-full text-left text-[10px] line-clamp-2 rounded-md px-2 py-1 border bg-white hover:bg-muted/40"
                           >
                             <span className={`inline-block mr-1 px-1.5 py-0.5 rounded-full text-[9px] ${statusColors[status] || "bg-muted"}`}>
                               {status}
                             </span>
                             {toLabel(row)}
-                          </button>
+                          </Link>
                         );
                       })}
                       {entries.length > 2 && (
@@ -220,8 +218,10 @@ export default function PublishingCalendar() {
                 reviewQueue.map((row) => (
                   <div key={row.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
                     <div className="text-sm font-medium line-clamp-1">{toLabel(row)}</div>
-                    <Button size="sm" variant="outline" onClick={() => router.push(`/admin?tab=articles&edit=${row.id}`)}>
-                      Review
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/admin?workspace=publishing&tab=article-studio&edit=${row.id}`}>
+                        Review
+                      </Link>
                     </Button>
                   </div>
                 ))

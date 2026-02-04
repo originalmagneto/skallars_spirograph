@@ -162,8 +162,13 @@ export default function ArticlesManager() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="relative flex-1 max-w-md">
+                    <label htmlFor="articleSearch" className="sr-only">Search articles</label>
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
+                        id="articleSearch"
+                        name="articleSearch"
+                        autoComplete="off"
+                        aria-label="Search articles"
                         placeholder="Search articles..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -172,6 +177,7 @@ export default function ArticlesManager() {
                 </div>
                 <div className="flex items-center gap-2">
                     <select
+                        aria-label="Filter by status"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as any)}
                         className="h-9 rounded-md border px-3 text-sm bg-white"
@@ -192,7 +198,7 @@ export default function ArticlesManager() {
             {/* Articles List */}
             {isLoading ? (
                 <div className="text-center py-12">
-                    <p className="text-muted-foreground">Loading articles...</p>
+                    <p className="text-muted-foreground">Loading articles…</p>
                 </div>
             ) : filteredArticles.length === 0 ? (
                 <div className="text-center py-12 border rounded-lg bg-muted/30">
@@ -218,7 +224,9 @@ export default function ArticlesManager() {
                                 {article.cover_image_url ? (
                                     <img
                                         src={article.cover_image_url}
-                                        alt=""
+                                        alt={article.title_sk || article.title_en || 'Article cover'}
+                                        width={320}
+                                        height={224}
                                         className="w-full h-full object-cover"
                                     />
                                 ) : (
@@ -265,7 +273,7 @@ export default function ArticlesManager() {
                                 {isAdmin && (
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="destructive" size="sm">
+                                            <Button variant="destructive" size="sm" aria-label="Delete article">
                                                 <Trash2 size={14} />
                                             </Button>
                                         </AlertDialogTrigger>
