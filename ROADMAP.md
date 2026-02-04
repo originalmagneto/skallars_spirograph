@@ -41,7 +41,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Make **Contact image** editable via content overrides (footer contact block). ✅
 - Support **reorderable blocks** and **section templates** (Hero, Services, Team, Testimonials, Contact).
 - Add **multilingual editing UX** with side-by-side view and translation helpers.
-- Add **live preview** with “before/after” diff for reviewers.
+- Add **live preview** with “before/after” diff for reviewers. ✅
 - Add **SEO editor** (meta title/desc, OpenGraph, structured data) per page.
 
 ## Phase 2.1: Media + History (Moved from Phase 1)

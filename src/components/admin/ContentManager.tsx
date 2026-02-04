@@ -74,7 +74,7 @@ const ContentManager = () => {
     const [isTranslating, setIsTranslating] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [showPreviews, setShowPreviews] = useState(true);
-    const [previewMode, setPreviewMode] = useState<'published' | 'draft'>('published');
+    const [previewMode, setPreviewMode] = useState<'published' | 'draft' | 'compare'>('published');
     const [libraryKey, setLibraryKey] = useState<string | null>(null);
     const [historyKey, setHistoryKey] = useState<string | null>(null);
     const [cropState, setCropState] = useState<{
@@ -705,7 +705,7 @@ const ContentManager = () => {
         }) as ContentItem).map(item => [item.key, item]));
         const contactImageDraft = getValue(draftMap, 'contact.image');
 
-        return (
+        const draftPreview = (
             <div className="space-y-3">
                 <div>
                     <div className="text-[10px] uppercase text-muted-foreground mb-2">Draft Preview</div>
@@ -865,6 +865,20 @@ const ContentManager = () => {
                 </div>
             </div>
         );
+
+        if (previewMode === 'draft') return draftPreview;
+
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-lg border bg-white p-3">
+                    <div className="text-[10px] uppercase text-muted-foreground mb-2">Published</div>
+                    {previewContent}
+                </div>
+                <div className="rounded-lg border bg-white p-3">
+                    {draftPreview}
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -892,6 +906,14 @@ const ContentManager = () => {
                         onClick={() => setPreviewMode('draft')}
                     >
                         Draft
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant={previewMode === 'compare' ? 'secondary' : 'ghost'}
+                        className="h-6 px-2 text-[10px]"
+                        onClick={() => setPreviewMode('compare')}
+                    >
+                        Compare
                     </Button>
                 </div>
             </div>
