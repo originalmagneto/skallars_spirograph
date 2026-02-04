@@ -332,7 +332,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return (
             <div className="min-h-screen bg-white">
                 <header className="border-b bg-white">
-                    <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+                    <div className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-4 flex items-center justify-between">
                         <Link href="/" className="text-xl font-bold">Skallars Admin</Link>
                         <div className="flex items-center gap-4">
                             <span className="text-sm text-gray-500 mr-2">{user.email}</span>
@@ -342,7 +342,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         </div>
                     </div>
                 </header>
-                <div className="container mx-auto px-4 py-20 text-center space-y-6">
+                <div className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-20 text-center space-y-6">
                     <div className="p-4 bg-gray-100 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
                         <UserMultipleIcon size={40} className="text-gray-500" />
                     </div>
@@ -407,7 +407,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
         <div className="min-h-screen bg-white">
             <header className="border-b bg-white sticky top-0 z-50">
-                <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+                <div className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link href="/" className="text-xl font-bold text-[#210059]">Skallars Admin</Link>
                     </div>
@@ -419,7 +419,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     </div>
                 </div>
             </header>
-            <main className="container mx-auto px-4 py-8">
+            <main className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-8">
                 {children}
             </main>
         </div>

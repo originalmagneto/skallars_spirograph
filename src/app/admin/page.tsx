@@ -152,25 +152,25 @@ export default function AdminPage() {
     if (!user) return null;
 
     return (
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-6">
-                <aside className="space-y-4">
-                    <div className="rounded-xl border bg-white p-4 space-y-2">
-                        <div className="text-xs uppercase text-muted-foreground">Workspace</div>
-                        <div className="grid gap-2">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
+            <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-8">
+                <aside className="space-y-5">
+                    <div className="rounded-xl border bg-white p-5 space-y-3">
+                        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Workspace</div>
+                        <div className="grid gap-3">
                             {(["site", "publishing"] as const).map((workspaceId) => (
                                 <Button
                                     key={workspaceId}
-                                    size="sm"
+                                    size="lg"
                                     variant={activeWorkspace === workspaceId ? "default" : "outline"}
-                                    className="justify-start"
+                                    className="justify-start h-auto py-3 px-4"
                                     onClick={() => handleWorkspaceChange(workspaceId)}
                                 >
                                     <div className="flex flex-col items-start">
-                                        <span className="text-sm font-semibold">
+                                        <span className="text-[15px] font-semibold leading-snug">
                                             {workspaceConfig[workspaceId].label}
                                         </span>
-                                        <span className="text-[10px] text-muted-foreground">
+                                        <span className="text-xs text-muted-foreground leading-relaxed">
                                             {workspaceConfig[workspaceId].description}
                                         </span>
                                     </div>
@@ -180,17 +180,17 @@ export default function AdminPage() {
                     </div>
 
                     {workspaceConfig[activeWorkspace].sections.map((section) => (
-                        <div key={section.title} className="rounded-xl border bg-white p-4 space-y-2">
-                            <div className="text-xs uppercase text-muted-foreground">{section.title}</div>
-                            <TabsList className="flex flex-col items-stretch gap-2 h-auto bg-transparent p-0">
-                {section.items
+                        <div key={section.title} className="rounded-xl border bg-white p-5 space-y-3">
+                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{section.title}</div>
+                            <TabsList className="flex flex-col items-stretch gap-3 h-auto bg-transparent p-0">
+                                {section.items
                                     .filter((item) => (item.adminOnly ? isAdmin : true))
                                     .filter((item) => !item.hidden || item.value === activeTab)
                                     .map((item) => {
                                         const Icon = item.icon;
                                         return (
-                                            <TabsTrigger key={item.value} value={item.value} className="justify-start gap-2">
-                                                <Icon size={14} />
+                                            <TabsTrigger key={item.value} value={item.value} className="justify-start gap-3 py-3 text-sm">
+                                                <Icon size={16} />
                                                 {item.label}
                                             </TabsTrigger>
                                         );

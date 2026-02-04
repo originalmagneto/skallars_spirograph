@@ -559,7 +559,10 @@ const GlobalNetworkSection = ({ id }: { id?: string }) => {
                             </div>
                         )}
                         {countriesSettings.show_connections && (
-                            <div className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 delay-[400ms] pt-4">
+                            <div
+                                className="scroll-reveal opacity-0 translate-y-8 transition-all duration-700 pt-4"
+                                style={{ transitionDelay: "400ms" }}
+                            >
                                 <p className="text-sm text-muted-foreground mb-3">{t.countries.connectionsTitle}</p>
                                 <div className="flex flex-wrap gap-2">
                                     {connectionPoints.map((city) => (

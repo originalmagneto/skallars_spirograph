@@ -82,15 +82,17 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **engagement event tracking** (CTA clicks, view-all clicks). ✅
 - Add **analytics events table + API** for custom events. ✅
 
-## Phase 7: Admin IA + Workflow Simplification (In Progress)
+## Phase 7: Admin IA + Workflow Simplification (Complete)
 - Split admin into **two workspaces**: Site Editor vs Publishing & AI. ✅
 - Replace the mega-tab bar with a **left sidebar** grouped by workflow. ✅
 - Ensure **URL deep links** reflect tab/workspace selection. ✅
 - Consolidate article workflows into **Article Studio** (AI Lab → Draft → Media → Publish). ✅
 - Unify AI settings into **one source of truth** with clear override UX. ✅
+- Widen admin layout + reduce cramped workspace controls. ✅
 
 ## Phase 8: Social Distribution (LinkedIn) (Planned)
-- Add **LinkedIn OAuth** per user with secure token storage.
+- Define **LinkedIn app setup** steps + required permissions (Organization + Member posting).
+- Add **LinkedIn OAuth** per user with secure token storage + refresh.
 - Add **LinkedIn post preview** (image + headline + excerpt).
 - Allow **share now / schedule** with per-user accounts.
 - Track share status + errors in a **share log**.
