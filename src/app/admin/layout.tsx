@@ -19,6 +19,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const autoDiagnosticsRanRef = useRef(false);
     const diagnosticsTimeoutRef = useRef<number | null>(null);
     const refreshTimeoutRef = useRef<number | null>(null);
+    const accessRetryRef = useRef(0);
+    const [accessChecking, setAccessChecking] = useState(false);
 
     const handleSignOut = async () => {
         await signOut();
@@ -45,6 +47,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
 
     const checkAccessViaRpc = async () => {
+        setAccessChecking(true);
         try {
             const targetId = user?.id;
             if (!targetId) {
@@ -52,8 +55,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 return;
             }
 
-            const { data: isAdminRpc, error: adminError } = await supabase
-                .rpc('is_profile_admin', { _user_id: targetId });
+            const adminRpc = await withTimeout(
+                supabase.rpc('is_profile_admin', { _user_id: targetId }),
+                8000,
+                'Admin RPC check'
+            );
+            const isAdminRpc = adminRpc.data;
+            const adminError = adminRpc.error;
 
             if (!adminError && isAdminRpc === true) {
                 setAccessOverride(true);
@@ -61,8 +69,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 return;
             }
 
-            const { data: isEditorRpc, error: editorError } = await supabase
-                .rpc('is_profile_editor', { _user_id: targetId });
+            const editorRpc = await withTimeout(
+                supabase.rpc('is_profile_editor', { _user_id: targetId }),
+                8000,
+                'Editor RPC check'
+            );
+            const isEditorRpc = editorRpc.data;
+            const editorError = editorRpc.error;
 
             if (!editorError && isEditorRpc === true) {
                 setAccessOverride(true);
@@ -71,11 +84,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }
 
             // Fallback: direct profile role check (in case RPC isn't available)
-            const profileRes = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('id', targetId)
-                .maybeSingle();
+            const profileRes = await withTimeout(
+                supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', targetId)
+                    .maybeSingle(),
+                8000,
+                'Profile check'
+            );
 
             if (!profileRes.error && profileRes.data?.role) {
                 const role = profileRes.data.role;
@@ -95,9 +112,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 setAccessOverride(false);
                 setAccessCheckMessage('No admin/editor role detected.');
             }
-        } catch {
+        } catch (error: any) {
             // Ignore RPC errors; fallback to context state.
-            setAccessCheckMessage('Access check failed. Please re-login.');
+            setAccessCheckMessage(error?.message || 'Access check failed. Please re-login.');
+        } finally {
+            setAccessChecking(false);
         }
     };
 
@@ -289,6 +308,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         void runDiagnostics();
     }, [user?.id, isAdmin, isEditor, accessOverride]);
 
+    useEffect(() => {
+        if (!user?.id) return;
+        if (isAdmin || isEditor || accessOverride === true) return;
+        if (accessRetryRef.current >= 3) return;
+        const timeout = window.setTimeout(() => {
+            accessRetryRef.current += 1;
+            void checkAccessViaRpc();
+        }, 2000);
+        return () => window.clearTimeout(timeout);
+    }, [user?.id, isAdmin, isEditor, accessOverride, accessCheckMessage]);
+
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
     }
@@ -298,6 +328,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const canManage = isAdmin || isEditor || accessOverride === true;
 
     if (!canManage) {
+        const isChecking = accessChecking || accessCheckMessage.toLowerCase().includes('checking') || accessCheckMessage.toLowerCase().includes('timed out');
         return (
             <div className="min-h-screen bg-white">
                 <header className="border-b bg-white">
@@ -316,9 +347,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <UserMultipleIcon size={40} className="text-gray-500" />
                     </div>
                     <div className="space-y-2">
-                        <h2 className="text-2xl font-bold">Permission Required</h2>
+                        <h2 className="text-2xl font-bold">{isChecking ? 'Checking Permissions' : 'Permission Required'}</h2>
                         <p className="text-gray-500">
-                            Your account ({user.email}) does not have administrative rights to access the dashboard.
+                            {isChecking
+                                ? 'Verifying your admin access. This can take a few seconds.'
+                                : `Your account (${user.email}) does not have administrative rights to access the dashboard.`}
                         </p>
                     </div>
                     <div className="max-w-md mx-auto p-6 border rounded-xl bg-white space-y-4 shadow-sm">
