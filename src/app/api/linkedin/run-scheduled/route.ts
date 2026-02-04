@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
 
       const { data: account } = await supabase
         .from('linkedin_accounts')
-        .select('access_token, expires_at, member_urn')
+        .select('access_token, expires_at, member_urn, scopes')
         .eq('user_id', item.user_id)
         .maybeSingle();
 
@@ -151,6 +151,9 @@ export async function POST(req: NextRequest) {
           continue;
         }
       }
+
+      const scopes = Array.isArray(account.scopes) ? account.scopes : [];
+      const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
 
       let linkUrl = getSiteUrl();
       let title: string | null = null;
@@ -199,6 +202,14 @@ export async function POST(req: NextRequest) {
           .update({ status: 'error', error_message: 'Missing LinkedIn author.', updated_at: new Date().toISOString() })
           .eq('id', item.id);
         results.push({ id: item.id, status: 'error', message: 'Missing LinkedIn author.' });
+        continue;
+      }
+      if (shareTarget === 'organization' && !hasOrgScope) {
+        await supabase
+          .from('linkedin_share_queue')
+          .update({ status: 'error', error_message: 'Organization scopes missing.', updated_at: new Date().toISOString() })
+          .eq('id', item.id);
+        results.push({ id: item.id, status: 'error', message: 'Organization scopes missing.' });
         continue;
       }
 

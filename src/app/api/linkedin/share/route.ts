@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
           article.excerpt_de ||
           article.excerpt_cn ||
           excerpt;
-        if (article.slug) {
+        if (!linkUrl && article.slug) {
           linkUrl = `${getSiteUrl()}/blog/${article.slug}`;
         }
       }

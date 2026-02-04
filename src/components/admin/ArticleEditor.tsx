@@ -752,8 +752,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     };
 
     const getArticleUrl = () => {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-        return formData.slug ? `${siteUrl}/blog/${formData.slug}` : '';
+        const windowOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+        const base = (windowOrigin || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '');
+        return formData.slug && base ? `${base}/blog/${formData.slug}` : '';
     };
 
     const handleLinkedInConnect = async () => {
@@ -1437,6 +1438,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         )}
                         {linkedinStatus.expired && (
                             <span className="text-destructive">Token expired — reconnect.</span>
+                        )}
+                        {!hasOrgScope && (
+                            <span className="text-muted-foreground">
+                                Company pages disabled (missing org scopes).
+                            </span>
                         )}
                         {linkedinTarget === 'organization' && linkedinOrganizations.length > 0 && (
                             <span>{linkedinOrganizations.length} orgs available</span>
