@@ -187,6 +187,17 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         created_at: string;
     }>>([]);
     const [linkedinLogsLoading, setLinkedinLogsLoading] = useState(false);
+    const [linkedinScheduleAt, setLinkedinScheduleAt] = useState('');
+    const [linkedinScheduled, setLinkedinScheduled] = useState<Array<{
+        id: string;
+        status: string;
+        share_target: string | null;
+        visibility: string | null;
+        scheduled_at: string;
+        error_message: string | null;
+        created_at: string;
+    }>>([]);
+    const [linkedinScheduledLoading, setLinkedinScheduledLoading] = useState(false);
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -363,6 +374,28 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     useEffect(() => {
         loadLinkedInLogs();
+    }, [session?.access_token, articleId, isNew]);
+
+    const loadLinkedInScheduled = async () => {
+        if (!session?.access_token || !articleId || isNew) return;
+        setLinkedinScheduledLoading(true);
+        try {
+            const res = await fetch(`/api/linkedin/scheduled?articleId=${articleId}`, {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.scheduled)) {
+                setLinkedinScheduled(data.scheduled);
+            }
+        } catch {
+            // ignore
+        } finally {
+            setLinkedinScheduledLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadLinkedInScheduled();
     }, [session?.access_token, articleId, isNew]);
 
     // Auto-generate slug from Slovak title
@@ -696,6 +729,67 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error(error?.message || 'LinkedIn share failed.');
         } finally {
             setLinkedinSharing(false);
+        }
+    };
+
+    const handleLinkedInSchedule = async () => {
+        if (!session?.access_token) {
+            toast.error('Missing session. Please sign in again.');
+            return;
+        }
+        if (!articleId || isNew) {
+            toast.error('Save the article before scheduling.');
+            return;
+        }
+        if (!linkedinScheduleAt) {
+            toast.error('Pick a schedule time.');
+            return;
+        }
+        if (linkedinTarget === 'organization' && !linkedinOrganizationUrn) {
+            toast.error('Select a LinkedIn organization.');
+            return;
+        }
+
+        try {
+            const scheduledAtIso = fromLocalInput(linkedinScheduleAt);
+            const res = await fetch('/api/linkedin/schedule', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    articleId,
+                    scheduledAt: scheduledAtIso,
+                    message: linkedinMessage,
+                    shareTarget: linkedinTarget,
+                    organizationUrn: linkedinOrganizationUrn || null,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed to schedule share.');
+            toast.success('LinkedIn share scheduled.');
+            setLinkedinScheduleAt('');
+            loadLinkedInScheduled();
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to schedule LinkedIn share.');
+        }
+    };
+
+    const handleRunLinkedInScheduled = async () => {
+        if (!session?.access_token) return;
+        try {
+            const res = await fetch('/api/linkedin/run-scheduled', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || 'Failed to run scheduled shares.');
+            toast.success('Checked scheduled shares.');
+            loadLinkedInLogs();
+            loadLinkedInScheduled();
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to run scheduled shares.');
         }
     };
 
@@ -1387,11 +1481,43 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         >
                             {linkedinLogsLoading ? 'Refreshing…' : 'Refresh Share Log'}
                         </Button>
+                        <Button
+                            variant="outline"
+                            onClick={handleRunLinkedInScheduled}
+                            disabled={!articleId || isNew}
+                        >
+                            Run Scheduled
+                        </Button>
                         {(!articleId || isNew) && (
                             <span className="text-xs text-muted-foreground">
                                 Save the article before sharing.
                             </span>
                         )}
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr,180px] gap-3">
+                        <div className="space-y-2">
+                            <Label htmlFor="linkedinScheduleAt">Schedule share</Label>
+                            <Input
+                                id="linkedinScheduleAt"
+                                name="linkedinScheduleAt"
+                                type="datetime-local"
+                                value={linkedinScheduleAt}
+                                onChange={(e) => setLinkedinScheduleAt(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-end">
+                            <Button
+                                className="w-full"
+                                variant="outline"
+                                onClick={handleLinkedInSchedule}
+                                disabled={!linkedinScheduleAt || !articleId || isNew}
+                            >
+                                Schedule
+                            </Button>
+                        </div>
                     </div>
                 )}
 
@@ -1434,6 +1560,49 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                                                     View on LinkedIn
                                                 </a>
                                             )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
+                    <div className="rounded-lg border bg-white p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-xs text-muted-foreground">Scheduled Shares</Label>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={loadLinkedInScheduled}
+                                disabled={linkedinScheduledLoading || !articleId || isNew}
+                            >
+                                {linkedinScheduledLoading ? 'Refreshing…' : 'Refresh'}
+                            </Button>
+                        </div>
+                        {linkedinScheduled.length === 0 ? (
+                            <div className="text-xs text-muted-foreground">No scheduled shares.</div>
+                        ) : (
+                            <div className="space-y-2">
+                                {linkedinScheduled.map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+                                    >
+                                        <div className="flex flex-col gap-1">
+                                            <span className="font-semibold text-foreground">
+                                                {item.status === 'scheduled' ? 'Scheduled' : item.status}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                {new Date(item.scheduled_at).toLocaleString()}
+                                            </span>
+                                            {item.error_message && (
+                                                <span className="text-destructive">{item.error_message}</span>
+                                            )}
+                                        </div>
+                                        <div className="text-muted-foreground">
+                                            {item.share_target || 'member'} · {item.visibility || 'PUBLIC'}
                                         </div>
                                     </div>
                                 ))}

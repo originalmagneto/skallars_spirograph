@@ -36,6 +36,7 @@ Skallars Spirograph is a Next.js 14 (App Router) site for a law office with a Su
 - `LINKEDIN_CLIENT_ID` (server-only)
 - `LINKEDIN_CLIENT_SECRET` (server-only)
 - `LINKEDIN_REDIRECT_URI` (server-only; must match LinkedIn app settings)
+- `LINKEDIN_SCHEDULER_SECRET` (server-only; required for cron to run scheduled shares)
 
 ## Supabase Data Model (as used in code)
 Tables referenced in app code:
@@ -52,6 +53,7 @@ Tables referenced in app code:
 - `linkedin_accounts` (per-user OAuth tokens + LinkedIn member info).
 - `linkedin_oauth_states` (short-lived OAuth state for connect flow).
 - `linkedin_share_logs` (share status + errors).
+- `linkedin_share_queue` (scheduled LinkedIn shares).
 - `team_members` (team bios and photos).
 - `clients` (client logos).
 - `map_cities` (global network map).
