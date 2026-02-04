@@ -46,8 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const checkAccessViaRpc = async () => {
         try {
-            const { data: userData } = await supabase.auth.getUser();
-            const targetId = userData?.user?.id || user?.id;
+            const targetId = user?.id;
             if (!targetId) {
                 setAccessCheckMessage('No active user session detected.');
                 return;
@@ -125,11 +124,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             setAccessCheckMessage('Permission refresh timed out. Please try again.');
         }, 12000);
         try {
-            try {
-                await withTimeout(supabase.auth.refreshSession(), 8000, 'Session refresh');
-            } catch {
-                // Ignore refresh failures; continue to role checks.
-            }
             await withTimeout(refreshRoles(), 8000, 'Role refresh');
             await withTimeout(checkAccessViaRpc(), 8000, 'Access check');
         } catch (error: any) {
@@ -166,22 +160,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 },
             };
 
-            const sessionRes = await withTimeout(supabase.auth.getSession(), 8000, 'Session check');
-            result.session = {
-                userId: sessionRes.data.session?.user?.id || null,
-                email: sessionRes.data.session?.user?.email || null,
-                expiresAt: sessionRes.data.session?.expires_at || null,
-                error: sessionRes.error?.message || null,
-            };
+            let sessionRes: any = null;
+            try {
+                sessionRes = await withTimeout(supabase.auth.getSession(), 8000, 'Session check');
+                result.session = {
+                    userId: sessionRes.data.session?.user?.id || null,
+                    email: sessionRes.data.session?.user?.email || null,
+                    expiresAt: sessionRes.data.session?.expires_at || null,
+                    error: sessionRes.error?.message || null,
+                };
+            } catch (error: any) {
+                result.session = {
+                    userId: null,
+                    email: null,
+                    expiresAt: null,
+                    error: error?.message || 'Session check failed',
+                };
+            }
 
-            const userRes = await withTimeout(supabase.auth.getUser(), 8000, 'User check');
-            result.user = {
-                userId: userRes.data.user?.id || null,
-                email: userRes.data.user?.email || null,
-                error: userRes.error?.message || null,
-            };
+            let userRes: any = null;
+            try {
+                userRes = await withTimeout(supabase.auth.getUser(), 8000, 'User check');
+                result.user = {
+                    userId: userRes.data.user?.id || null,
+                    email: userRes.data.user?.email || null,
+                    error: userRes.error?.message || null,
+                };
+            } catch (error: any) {
+                result.user = {
+                    userId: null,
+                    email: null,
+                    error: error?.message || 'User check failed',
+                };
+            }
 
-            const targetId = userRes.data.user?.id || user?.id || null;
+            const targetId = userRes?.data?.user?.id || user?.id || null;
             if (targetId) {
                 const profileRes = await withTimeout(
                     supabase
