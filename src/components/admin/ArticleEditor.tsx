@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import Link from 'next/link';
 import { generateAIEdit, generateAIImage } from '@/lib/aiService';
+import { fetchAISettings } from '@/lib/aiSettings';
 
 interface ArticleFormData {
     title_sk: string;
@@ -268,20 +269,13 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     useEffect(() => {
         const loadImageSettings = async () => {
-            const { data } = await supabase
-                .from('settings')
-                .select('key, value')
-                .in('key', ['image_model', 'gemini_image_model']);
-            const imageMode = data?.find((s) => s.key === 'image_model')?.value;
-            const geminiModel = data?.find((s) => s.key === 'gemini_image_model')?.value;
-            if (imageMode) {
-                const provider = imageMode === 'turbo' ? 'turbo' : 'gemini';
-                setGlobalImageProvider(provider);
-                setOverrideImageProvider(provider);
-            }
-            if (geminiModel) {
-                setGlobalImageModel(geminiModel);
-                setOverrideImageModel(geminiModel);
+            const settings = await fetchAISettings();
+            const provider = settings.imageEngine === 'turbo' ? 'turbo' : 'gemini';
+            setGlobalImageProvider(provider);
+            setOverrideImageProvider(provider);
+            if (settings.geminiImageModel) {
+                setGlobalImageModel(settings.geminiImageModel);
+                setOverrideImageModel(settings.geminiImageModel);
             }
         };
         loadImageSettings();

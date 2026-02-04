@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateAIImage } from "@/lib/aiService";
+import { fetchAISettings, fetchGeminiModels, filterImageModels, resolveImageKey } from "@/lib/aiSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -150,28 +151,6 @@ const buildPrompt = ({
   return parts.join("\n");
 };
 
-const fetchImageModels = async (apiKey: string) => {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-  );
-  if (!response.ok) throw new Error("Unable to load models");
-  const data = await response.json();
-  const models = data.models || [];
-  return models
-    .filter((m: any) =>
-      m.supportedGenerationMethods?.includes("imageGeneration") ||
-      m.supportedGenerationMethods?.includes("predict") ||
-      m.supportedGenerationMethods?.includes("generateContent") ||
-      m.name.includes("imagen") ||
-      m.name.includes("image")
-    )
-    .map((m: any) => ({
-      name: m.name.replace("models/", ""),
-      displayName: m.displayName || m.name.replace("models/", ""),
-      description: m.description || "",
-    }));
-};
-
 const dataUrlToBlob = async (dataUrl: string) => {
   const response = await fetch(dataUrl);
   return await response.blob();
@@ -208,23 +187,30 @@ export default function ImageStudio() {
   const [cropTarget, setCropTarget] = useState<GeneratedItem | null>(null);
 
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [aiSettings, setAiSettings] = useState<Awaited<ReturnType<typeof fetchAISettings>> | null>(null);
   const [imageModels, setImageModels] = useState<Array<{ name: string; displayName: string; description: string }>>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
+      const snapshot = await fetchAISettings();
+      setAiSettings(snapshot);
       const { data } = await supabase.from("settings").select("key, value");
       const map: Record<string, string> = {};
       (data || []).forEach((row: any) => {
         if (row.key) map[row.key] = row.value;
       });
       setSettings(map);
-      const imageKey = map.gemini_image_api_key || map.gemini_api_key;
+      const imageKey = resolveImageKey(snapshot);
       if (imageKey) {
         try {
           setModelsLoading(true);
-          const list = await fetchImageModels(imageKey);
-          setImageModels(list);
+          const models = await fetchGeminiModels(imageKey);
+          setImageModels(filterImageModels(models).map((model) => ({
+            name: model.name,
+            displayName: model.displayName,
+            description: model.description,
+          })));
         } catch {
           setImageModels([]);
         } finally {
@@ -718,15 +704,19 @@ export default function ImageStudio() {
                       variant="ghost"
                       size="sm"
                       onClick={async () => {
-                        const apiKey = settings.gemini_image_api_key || settings.gemini_api_key;
+                        const apiKey = aiSettings ? resolveImageKey(aiSettings) : '';
                         if (!apiKey) {
                           toast.error("No Gemini image key configured.");
                           return;
                         }
                         try {
                           setModelsLoading(true);
-                          const list = await fetchImageModels(apiKey);
-                          setImageModels(list);
+                          const models = await fetchGeminiModels(apiKey);
+                          setImageModels(filterImageModels(models).map((model) => ({
+                            name: model.name,
+                            displayName: model.displayName,
+                            description: model.description,
+                          })));
                           toast.success("Image models refreshed");
                         } catch {
                           toast.error("Could not refresh models.");

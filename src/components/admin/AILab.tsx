@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { generateAIArticle, generateAIOutline, generateAIResearchPack, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
+import { fetchAISettings } from '@/lib/aiSettings';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -103,36 +104,14 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     // Fetch model settings on load
     useEffect(() => {
         const init = async () => {
-            const { data: settings } = await supabase.from('settings').select('key, value');
-            const model = settings?.find(s => s.key === 'gemini_model')?.value || 'gemini-2.0-flash';
-            const apiKey = settings?.find(s => s.key === 'gemini_api_key')?.value;
-            const priceInput = settings?.find(s => s.key === 'gemini_price_input_per_million')?.value;
-            const priceOutput = settings?.find(s => s.key === 'gemini_price_output_per_million')?.value;
+            const settings = await fetchAISettings();
+            setCurrentModel(settings.geminiModel || 'gemini-2.0-flash');
+            setPriceInputPerM(settings.priceInputPerM);
+            setPriceOutputPerM(settings.priceOutputPerM);
 
-            setCurrentModel(model);
-            setPriceInputPerM(priceInput ? parseFloat(priceInput) : null);
-            setPriceOutputPerM(priceOutput ? parseFloat(priceOutput) : null);
-
-            // Verify capabilities if we have an API key
-            if (apiKey) {
+            if (settings.geminiApiKey && settings.geminiModel) {
                 try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${apiKey}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        // Check if model supports generateContent (standard) 
-                        // Note: Specific tool support isn't always explicitly listed in a simple way for all models,
-                        // but generally modern Gemini models support tools. 
-                        // We mainly want to ensure we aren't using a text-only legacy model if any.
-                        // For now we assume true unless we detect specific legacy models, 
-                        // but the user wants to KNOW.
-
-                        // Actually, let's look for "googleSearch" in "supportedGenerationMethods" if available? 
-                        // The API returns `supportedGenerationMethods` as a list of strings like "generateContent".
-                        // It doesn't explicitly list "googleSearch". 
-                        // However, we can warn the user if it's a model known to have issues.
-
-                        // For now, we'll just display the model name.
-                    }
+                    await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel}?key=${settings.geminiApiKey}`);
                 } catch (e) {
                     console.error("Failed to fetch model info", e);
                 }
