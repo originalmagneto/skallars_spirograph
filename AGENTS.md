@@ -37,6 +37,7 @@ Skallars Spirograph is a Next.js 14 (App Router) site for a law office with a Su
 - `LINKEDIN_CLIENT_SECRET` (server-only)
 - `LINKEDIN_REDIRECT_URI` (server-only; must match LinkedIn app settings)
 - `LINKEDIN_SCHEDULER_SECRET` (server-only; required for cron to run scheduled shares)
+- `LINKEDIN_ENABLE_ORG_SCOPES` (server-only; set to `true` to request org scopes)
 
 ## Supabase Data Model (as used in code)
 Tables referenced in app code:
@@ -132,6 +133,9 @@ Storage buckets referenced:
 ## LinkedIn SQL
 - Initial tables: `supabase/linkedin_schema.sql`, `supabase/linkedin_share_queue.sql`
 - Upgrade (adds image share columns): `supabase/linkedin_share_queue_upgrade.sql`
+
+## Core Supabase SQL
+- Base tables: `supabase/articles.sql`, `supabase/tags.sql`, `supabase/article_tags.sql`, `supabase/site_content.sql`, `supabase/settings.sql`, `supabase/ai_usage_logs.sql`, `supabase/clients.sql`, `supabase/team_members.sql`, `supabase/map_cities.sql`
 
 ## Current Gaps (Known)
 - Content editing is field-based, not a full CMS or page builder.
