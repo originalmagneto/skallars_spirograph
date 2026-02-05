@@ -6,11 +6,15 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const resolveRedirect = (redirectTo: string | null | undefined, origin: string) => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || '';
+  const siteUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || '';
   if (!redirectTo) return `${siteUrl}/admin?tab=article-studio&linkedin=connected`;
   if (redirectTo.startsWith('http')) {
-    if (redirectTo.startsWith(siteUrl) || (origin && redirectTo.startsWith(origin))) {
-      return redirectTo;
+    try {
+      const target = new URL(redirectTo);
+      const originHost = new URL(siteUrl).host;
+      if (target.host === originHost) return redirectTo;
+    } catch {
+      // fall through to default
     }
     return `${siteUrl}/admin?tab=article-studio`;
   }
@@ -28,7 +32,7 @@ export async function GET(req: NextRequest) {
 
   if (oauthError) {
     const reason = oauthErrorDescription || oauthError;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || '';
+    const siteUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || '';
     const redirectUrl = `${siteUrl}/admin?tab=article-studio&linkedin=error&reason=${encodeURIComponent(reason)}`;
     return NextResponse.redirect(redirectUrl);
   }

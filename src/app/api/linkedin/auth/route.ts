@@ -6,11 +6,18 @@ import { buildLinkedInAuthUrl } from '@/lib/linkedinApi';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const buildRedirectUrl = (redirectTo?: string | null) => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+const buildRedirectUrl = (redirectTo: string | null | undefined, origin: string) => {
+  const siteUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || '';
   if (!redirectTo) return `${siteUrl}/admin?tab=article-studio`;
   if (redirectTo.startsWith('http')) {
-    return redirectTo.startsWith(siteUrl) ? redirectTo : `${siteUrl}/admin?tab=article-studio`;
+    try {
+      const target = new URL(redirectTo);
+      const originHost = new URL(siteUrl).host;
+      if (target.host === originHost) return redirectTo;
+    } catch {
+      // fall through to default
+    }
+    return `${siteUrl}/admin?tab=article-studio`;
   }
   const normalized = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
   return `${siteUrl}${normalized}`;
@@ -31,7 +38,8 @@ export async function POST(req: NextRequest) {
     }
 
     const payload = await req.json().catch(() => ({}));
-    const redirectTo = buildRedirectUrl(payload?.redirectTo);
+    const origin = req.nextUrl.origin;
+    const redirectTo = buildRedirectUrl(payload?.redirectTo, origin);
 
     const state = randomUUID();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
