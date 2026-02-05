@@ -34,20 +34,23 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const response = await fetch(
-      'https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))',
-      {
-        headers: {
-          Authorization: `Bearer ${account.access_token}`,
-          'X-Restli-Protocol-Version': '2.0.0',
-        },
-      }
-    );
+    const orgEndpoint = 'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))';
+    const response = await fetch(orgEndpoint, {
+      headers: {
+        Authorization: `Bearer ${account.access_token}`,
+        'X-Restli-Protocol-Version': '2.0.0',
+        'LinkedIn-Version': '202401',
+      },
+    });
 
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       return NextResponse.json(
-        { error: body?.message || 'Failed to load organizations.', details: body },
+        {
+          error: body?.message || body?.error?.message || 'Failed to load organizations.',
+          details: body,
+          hint: 'Ensure your LinkedIn app has Organization/Community Management access and the token includes w_organization_social.',
+        },
         { status: response.status }
       );
     }
