@@ -211,7 +211,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     const hasOrgScope = Boolean(
         linkedinStatus?.scopes?.includes('w_organization_social') ||
-        linkedinStatus?.scopes?.includes('r_organization_social')
+        linkedinStatus?.scopes?.includes('r_organization_social') ||
+        (linkedinStatus?.organization_urns && linkedinStatus.organization_urns.length > 0)
     );
     const latestLinkedInShare = linkedinLogs.find((log) => log.status === 'success');
 

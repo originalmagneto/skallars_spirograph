@@ -86,7 +86,9 @@ export async function GET(req: NextRequest) {
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
       : null;
     const fallbackScopes = getLinkedInScopes().split(' ');
-    const scopes = tokenData.scope ? tokenData.scope.split(' ') : fallbackScopes;
+    const scopes = tokenData.scope
+      ? tokenData.scope.split(/[\s,]+/).filter(Boolean)
+      : fallbackScopes;
 
     const { error: upsertError } = await supabase
       .from('linkedin_accounts')
