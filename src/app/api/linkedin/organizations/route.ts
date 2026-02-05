@@ -23,7 +23,20 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (!account?.access_token) {
-      return NextResponse.json({ error: 'LinkedIn account not connected.' }, { status: 400 });
+      const { data: defaultOrg } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'linkedin_default_org_urn')
+        .maybeSingle();
+      const fallback = defaultOrg?.value ? [{ urn: defaultOrg.value, name: 'Default Organization' }] : [];
+      return NextResponse.json(
+        {
+          organizations: fallback,
+          error: 'LinkedIn account not connected.',
+          hint: 'Reconnect LinkedIn or set a default organization URN in Settings.',
+        },
+        { status: 200 }
+      );
     }
     const scopes = Array.isArray(account.scopes) ? account.scopes : [];
     const hasOrgScope =
@@ -42,7 +55,6 @@ export async function GET(req: NextRequest) {
       Authorization: `Bearer ${account.access_token}`,
       'X-Restli-Protocol-Version': '2.0.0',
       'LinkedIn-Version': '202401',
-      'Linkedin-Version': '202401',
       Accept: 'application/json',
       'Content-Type': 'application/json',
     };

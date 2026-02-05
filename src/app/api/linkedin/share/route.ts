@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
     const { data: account } = await supabase
       .from('linkedin_accounts')
-      .select('access_token, expires_at, member_urn, scopes')
+      .select('access_token, expires_at, member_urn, scopes, organization_urns')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -110,6 +110,9 @@ export async function POST(req: NextRequest) {
       if (orgSetting?.value) {
         organizationUrn = orgSetting.value;
       }
+    }
+    if (shareTarget === 'organization' && !organizationUrn && Array.isArray(account?.organization_urns)) {
+      organizationUrn = account.organization_urns[0] || organizationUrn;
     }
 
     if (!account?.access_token) {

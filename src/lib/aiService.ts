@@ -52,7 +52,7 @@ async function getSetting(key: string): Promise<string | null> {
         .from('settings')
         .select('value')
         .eq('key', key)
-        .single();
+        .maybeSingle();
 
     if (error || !data) return null;
     return data.value;
