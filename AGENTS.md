@@ -148,3 +148,15 @@ High-impact mismatches found and now resolved:
 - Image batch count honored or removed. ✅
 - AI usage cost estimate aligned with selected model. ✅
 - **Blog Rendering**: Fixed unformatted text by installing `@tailwindcss/typography`. ✅
+
+## Change Log (Feb 5, 2026)
+- **User Profiles & Stats**:
+  - Added `avatar_url` to `profiles` table.
+  - Added "Edit Profile" dialog in `UserManagement.tsx` (Display Name & Avatar).
+  - Updated `AIUsageStats.tsx` to server-side join log data with user profiles (Avatar/Name).
+  - Updated `AILab.tsx` to log generated Article Titles instead of just prompts.
+- **Database Synchronization**:
+  - Enforced `user_id` FK relationship between `ai_usage_logs` and `profiles`.
+  - Created `repair_relationship_v3.sql` to handle massive RLS policy dependencies during schema updates.
+- **Build Fixes**:
+  - Fixed Netlify build failure in `AISettings.tsx` by removing invalid `variant` prop from HugeIcons.
