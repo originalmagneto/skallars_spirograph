@@ -5,11 +5,14 @@ import { exchangeLinkedInCode, getLinkedInScopes } from '@/lib/linkedinApi';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const resolveRedirect = (redirectTo?: string | null) => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+const resolveRedirect = (redirectTo: string | null | undefined, origin: string) => {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || '';
   if (!redirectTo) return `${siteUrl}/admin?tab=article-studio&linkedin=connected`;
   if (redirectTo.startsWith('http')) {
-    return redirectTo.startsWith(siteUrl) ? redirectTo : `${siteUrl}/admin?tab=article-studio`;
+    if (redirectTo.startsWith(siteUrl) || (origin && redirectTo.startsWith(origin))) {
+      return redirectTo;
+    }
+    return `${siteUrl}/admin?tab=article-studio`;
   }
   const normalized = redirectTo.startsWith('/') ? redirectTo : `/${redirectTo}`;
   return `${siteUrl}${normalized}`;
@@ -21,16 +24,17 @@ export async function GET(req: NextRequest) {
   const state = url.searchParams.get('state');
   const oauthError = url.searchParams.get('error');
   const oauthErrorDescription = url.searchParams.get('error_description');
+  const origin = url.origin;
 
   if (oauthError) {
     const reason = oauthErrorDescription || oauthError;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || '';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || '';
     const redirectUrl = `${siteUrl}/admin?tab=article-studio&linkedin=error&reason=${encodeURIComponent(reason)}`;
     return NextResponse.redirect(redirectUrl);
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(resolveRedirect(null));
+    return NextResponse.redirect(resolveRedirect(null, origin));
   }
 
   try {
@@ -42,13 +46,13 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (stateError || !stateRow) {
-      return NextResponse.redirect(resolveRedirect(null));
+      return NextResponse.redirect(resolveRedirect(null, origin));
     }
 
     const expiresAt = new Date(stateRow.expires_at).getTime();
     if (Number.isNaN(expiresAt) || expiresAt < Date.now()) {
       await supabase.from('linkedin_oauth_states').delete().eq('state', state);
-      return NextResponse.redirect(resolveRedirect(stateRow.redirect_to));
+      return NextResponse.redirect(resolveRedirect(stateRow.redirect_to, origin));
     }
 
     const tokenData = await exchangeLinkedInCode(code);
@@ -100,8 +104,8 @@ export async function GET(req: NextRequest) {
 
     await supabase.from('linkedin_oauth_states').delete().eq('state', state);
 
-    return NextResponse.redirect(resolveRedirect(stateRow.redirect_to));
+    return NextResponse.redirect(resolveRedirect(stateRow.redirect_to, origin));
   } catch (error) {
-    return NextResponse.redirect(resolveRedirect(null));
+    return NextResponse.redirect(resolveRedirect(null, origin));
   }
 }
