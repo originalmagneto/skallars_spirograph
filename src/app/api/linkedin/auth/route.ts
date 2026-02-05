@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const buildRedirectUrl = (redirectTo: string | null | undefined, origin: string) => {
-  const siteUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || '';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || '';
   if (!redirectTo) return `${siteUrl}/admin?tab=article-studio`;
   if (redirectTo.startsWith('http')) {
     try {

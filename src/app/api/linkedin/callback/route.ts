@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const resolveRedirect = (redirectTo: string | null | undefined, origin: string) => {
-  const siteUrl = origin || process.env.NEXT_PUBLIC_SITE_URL || '';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || '';
   if (!redirectTo) return `${siteUrl}/admin?tab=article-studio&linkedin=connected`;
   if (redirectTo.startsWith('http')) {
     try {
