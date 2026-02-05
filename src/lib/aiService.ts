@@ -223,18 +223,22 @@ const shouldEnhanceFormatting = (html: string) => {
 
 const enhanceArticleFormatting = async (html: string, languageLabel: string, signal?: AbortSignal) => {
     if (!shouldEnhanceFormatting(html)) return html;
-    const instruction = `Reformat the HTML into a richly structured article for readability.
+    const instruction = `Reformat the HTML into a richly structured, premium article.
 Rules:
-1. Preserve all facts, numbers, names, and URLs exactly. Do not add new facts or sources.
-2. Keep the language as ${languageLabel}.
-3. Use semantic HTML only. No markdown.
-4. Start with a short lead paragraph.
-5. Use <h2> for main sections (at least 4 for long pieces) and <h3> for subsections (at least 2 when appropriate).
-6. Include at least one list (<ul> or <ol>) where it improves clarity.
-7. Add one <blockquote> that quotes a sentence from the existing text.
-8. Use <em> for emphasis on 2–4 phrases.
-9. Paragraphs should be short (2–4 sentences).
-10. Keep any existing sources section and links intact.`;
+1. **Preserve Facts**: Keep all facts, numbers, names, and URLs exactly as is.
+2. **Language**: Keep the language as ${languageLabel}.
+3. **Format**: Use semantic HTML only. No markdown.
+4. **Structure**:
+   - Start with a compelling lead paragraph.
+   - Use <h2> for main sections (minimum 4).
+   - Use <h3> for specific subsections (frequently used).
+5. **Richness**:
+   - **Bold** key terms and important phrases using <strong> (aim for 2-3 highlight phrases per paragraph for skimmability).
+   - Use one <blockquote> every 2-3 sections to highlight a key insight or principle.
+   - Use <ul> or <ol> lists whenever listing 3+ items.
+   - Use <em> for subtle emphasis.
+6. **Flow**: Paragraphs should be concise (2-4 sentences).
+7. **Sources**: Keep all existing citations and links.`;
     try {
         const edited = await generateAIEdit(html, {
             mode: 'rewrite',
@@ -250,32 +254,39 @@ Rules:
 
 const STYLE_GUIDES: Record<string, string> = {
     'Deep Dive': `
-- **Structure**: Comprehensive analysis. Introduction -> Background -> Key Issues/Analysis -> Strategic Implications -> Conclusion.
+- **Structure**: Comprehensive analysis. Introduction -> Background -> Key Issues (H2) -> Detailed Analysis (H3s) -> Strategic Implications -> Conclusion.
 - **Tone**: Authoritative, analytical, thought-provoking.
-- **Focus**: Explore the 'why' and 'how'. Connect dots between disparate trends. Provide strategic foresight.`,
+- **Formatting**: Dense with **bolded key concepts**, frequent subheadings, and blockquotes for emphasis.
+- **Focus**: Explore the 'why' and 'how'. Connect dots between disparate trends.`,
     'News': `
-- **Structure**: Journalistic "Inverted Pyramid". Most important info first -> Supporting details -> Context.
+- **Structure**: Journalistic "Inverted Pyramid". Lead (Who/What/When) -> Key Details (H2) -> Context & Quotes (H3) -> Implementation.
 - **Tone**: Objective, factual, concise, urgent.
-- **Focus**: What happened? Who is involved? When? Why does it matter right now?`,
+- **Formatting**: Short paragraphs. **Bold** names and dates. Use blockquotes for statements.
+- **Focus**: What happened? Who is involved? Why does it matter right now?`,
     'Trends': `
-- **Structure**: Pattern recognition. Current state -> Emerging shift -> Evidence/Data -> Future prediction.
+- **Structure**: Pattern recognition. Current State -> The Shift (H2) -> Evidence/Data (H3s) -> Future Outlook.
 - **Tone**: Forward-looking, speculative but grounded, exciting.
-- **Focus**: Identify new shifts in the market or industry. Use data to support predictions.`,
+- **Formatting**: Use bullet lists for data points. **Bold** prediction statements.
+- **Focus**: Identify new shifts. Use data to support predictions.`,
     'Law': `
-- **Structure**: Formal legal brief style. Issue -> Rule/Regulation -> Analysis/Application -> Conclusion.
+- **Structure**: Formal legal brief. Issue/Topic -> Relevant Legislation (H2) -> Analysis (H3) -> Practical Application -> Risks.
 - **Tone**: Precise, formal, guarded but clear.
-- **Focus**: Cite specific laws (Acts, Paragraphs) where applicable. Focus on compliance and legal risk.`,
+- **Formatting**: Strict hierarchy. **Bold** defined terms or specific Act names. Use lists for conditions.
+- **Focus**: Cite specific laws (Acts, Paragraphs). Focus on compliance and risk.`,
     'Tax': `
-- **Structure**: Advisory. Situation/Change -> Impact on Tax Liability -> Actionable Advice.
+- **Structure**: Advisory. Situation -> Tax Implications (H2) -> Calculations/Examples (H3) -> Recommendations.
 - **Tone**: Practical, advisory, detailed.
-- **Focus**: Specific tax rates, deadlines, and deductions. Focus on optimization and compliance.`,
+- **Formatting**: Use lists for steps. **Bold** deadlines and rates.
+- **Focus**: Specific tax rates, deadlines, and deductions. Optimization.`,
     'Accounting': `
-- **Structure**: Technical. Standard/Principle -> Application -> Reporting Impact.
+- **Structure**: Technical. Standard/Principle -> Application (H2) -> Reporting Impact (H3) -> Example.
 - **Tone**: Technical, clear, methodical.
-- **Focus**: Impact on financial statements (Balance Sheet, P&L). IFRS/SAS standards.`,
+- **Formatting**: Structured. **Bold** account names or standards (e.g., **IFRS 16**).
+- **Focus**: Financial statements (Balance Sheet, P&L). IFRS/SAS standards.`,
     'Regulatory': `
-- **Structure**: Compliance brief. Regulation -> Scope -> Requirements -> Practical steps -> Risks.
+- **Structure**: Compliance brief. Regulation -> Scope (H2) -> Requirements (H3) -> Timeline -> Action Plan.
 - **Tone**: Clear, precise, compliance-first.
+- **Formatting**: Checklist style lists. **Bold** dates and penalties.
 - **Focus**: Applicability, deadlines, and actionable compliance guidance.`,
 };
 
@@ -434,23 +445,25 @@ ${toneBlock}
 1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
 2. **Value**: Every paragraph must add value. No filler.
 3. **Multilingual**: You must generate the article in the following languages: **${selectedLangNames}** simultaneously.
-4. **Formatting**: 
-   - Use **HTML tags** for all content semantics.
-   - **Headings**: Use \`<h2>\` for main sections and \`<h3>\` for subsections.
-   - **Paragraphs**: Wrap all body text in \`<p>\` tags.
-   - **Lists**: Use \`<ul>\` with \`<li>\` for bullet points.
-   - **Emphasis**: Use \`<strong>\` for key terms and \`<em>\` for subtle emphasis.
-   - **Quotes**: Include at least one \`<blockquote>\` using a sentence from the article.
-   - **Structure**: Break long text into readable chunks with frequent subheadings.
+4. **Formatting (CRITICAL)**: 
+   - Use **HTML tags** for all content.
+   - **Headings**: Use \`<h2>\` for main sections and \`<h3>\` for subsections. **Use H3 frequently** to break up text.
+   - **Paragraphs**: Wrap all body text in \`<p>\` tags. Keep them short (2-4 sentences).
+   - **Lists**: Use \`<ul>\` with \`<li>\` for bullet points. Include at least 2 lists in the article.
+   - **Emphasis**: Use \`<strong>\` to bold **key terms**, **important concepts**, and **takeaways**. (Target: 2-3 bolded phrases per paragraph).
+   - **Quotes**: Include at least one \`<blockquote>\` every major section (or every 300 words) to highlight a key insight, legal principle, or "pull quote".
+   - **Subtle Emphasis**: Use \`<em>\` for foreign phrases or subtle stress.
    - **Prohibited**: Do NOT use markdown characters like \`#\`, \`**\`, or \`- \` inside the JSON strings. Use HTML only.
 5. **Structure Requirements**:
-   - Minimum **4** \`<h2>\` sections and at least **1** \`<h3>\` subsection.
-   - Include at least **one** bullet list where it improves readability.
-   - Paragraphs should be short (2–4 sentences).
-6. **Citations**:
-   - When referencing facts, add inline citations like \`<sup>[1]</sup>\`.
+   - Minimum **4** \`<h2>\` sections.
+   - Each H2 section should ideally have **1-2** \`<h3>\` subsections.
+   - Include at least **two** bullet lists.
+   - Paragraphs should be short and punchy.
+6. **Citations & Links**:
+   - **Inline Citations**: When referencing specific facts from the research, use inline citations like \`<sup>[1]</sup>\`.
+   - **Link Citations**: If you have the URL, allow the citation to be a link if possible, or ensure the reference list connects to it.
    - End the article with a **Sources & References** section using \`<h3>\` + \`<ol>\`.
-   - Each source must be a clickable \`<a>\` tag.
+   - Each source in the reference list must be a clickable \`<a>\` tag.
 
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
