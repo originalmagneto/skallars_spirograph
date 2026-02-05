@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
-import { exchangeLinkedInCode, getLinkedInScopes } from '@/lib/linkedinApi';
+import { exchangeLinkedInCode, getLinkedInScopes, LINKEDIN_BASE_SCOPES } from '@/lib/linkedinApi';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     const expiresAtIso = tokenData.expires_in
       ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
       : null;
-    const fallbackScopes = getLinkedInScopes().split(' ');
+    const fallbackScopes = LINKEDIN_BASE_SCOPES;
     const scopes = tokenData.scope
       ? tokenData.scope.split(/[\s,]+/).filter(Boolean)
       : fallbackScopes;

@@ -387,7 +387,12 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     await supabase.from('ai_usage_logs').insert({
                         user_id: user.id,
                         action: `Article: ${truncatedTitle}`,
-                        model: await supabase.from('settings').select('value').eq('key', 'gemini_model').single().then(r => r.data?.value || 'gemini-2.0-flash'),
+                        model: await supabase
+                            .from('settings')
+                            .select('value')
+                            .eq('key', 'gemini_model')
+                            .maybeSingle()
+                            .then((r) => r.data?.value || 'gemini-2.0-flash'),
                         input_tokens: content.usage.promptTokens,
                         output_tokens: content.usage.completionTokens,
                         total_tokens: content.usage.totalTokens
