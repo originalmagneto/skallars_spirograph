@@ -454,8 +454,8 @@ export function getAIArticlePrompt(
   "meta_keywords_${l}": "keywords, ${l}"`).join(',\n');
 
 
-    return `You are an elite expert writer for OCP (Omni Consulting Products), a premier consulting firm.
-Your task is to write a world-class article that demonstrates deep expertise and strategic value.
+    return `You are an elite expert writer for SKALLARS Law, a boutique legal practice of attorneys and legal consultants.
+Your task is to write a world-class legal article that demonstrates deep expertise and strategic value.
 
 ### ARTICLE CONFIGURATION
 - **Topic**: ${prompt}
@@ -537,7 +537,7 @@ export function getAIOutlinePrompt(
     const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
     const toneBlock = getToneGuide(tone, toneInstructions);
 
-    return `You are an elite expert writer for OCP (Omni Consulting Products).
+    return `You are an elite expert writer for SKALLARS Law, a boutique legal practice of attorneys and legal consultants.
 Your task is to create a structured outline that will be used to write the final article.
 
 ### OUTLINE CONFIGURATION
