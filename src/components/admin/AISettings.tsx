@@ -3,11 +3,25 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { FloppyDiskIcon, Key01Icon, Tick01Icon, Cancel01Icon, Loading01Icon } from 'hugeicons-react';
+import {
+    FloppyDiskIcon,
+    Key01Icon,
+    Tick01Icon,
+    Cancel01Icon,
+    Loading01Icon,
+    Settings01Icon,
+    Image01Icon,
+    Coins01Icon,
+    MagicWand01Icon,
+    SparklesIcon,
+    ZapIcon,
+    CheckmarkBadge01Icon
+} from 'hugeicons-react';
+import { Badge } from '@/components/ui/badge';
 import AIUsageStats from './AIUsageStats';
 
 interface GeminiModel {
@@ -168,12 +182,10 @@ const AISettings = () => {
             if (exists) {
                 return prev.map(s => s.key === key ? { ...s, value } : s);
             } else {
-                // Add new setting if it doesn't exist
                 return [...prev, { key, value, description: '' }];
             }
         });
 
-        // If API key changes, reset verification
         if (key === 'gemini_api_key') {
             setApiKeyValid(null);
             setAvailableModels([]);
@@ -203,7 +215,7 @@ const AISettings = () => {
                     });
                 if (error) throw error;
             }
-            toast.success('AI settings updated successfully');
+            toast.success('AI settings saved successfully');
             fetchSettings();
         } catch (error: any) {
             toast.error(error.message || 'Failed to save settings');
@@ -225,7 +237,7 @@ const AISettings = () => {
         setSettings(defaults);
     };
 
-    if (loading) return <div className="p-8 text-center">Loading settings...</div>;
+    if (loading) return <div className="p-12 text-center text-muted-foreground animate-pulse">Loading settings...</div>;
 
     const geminiApiKey = settings.find(s => s.key === 'gemini_api_key')?.value || '';
     const geminiImageApiKey = settings.find(s => s.key === 'gemini_image_api_key')?.value || '';
@@ -233,267 +245,249 @@ const AISettings = () => {
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
     const priceInput = settings.find(s => s.key === 'gemini_price_input_per_million')?.value || '';
     const priceOutput = settings.find(s => s.key === 'gemini_price_output_per_million')?.value || '';
+
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in duration-500">
+            {/* 1. Usage Statistics */}
             <AIUsageStats />
 
-            <Card className="w-full">
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <FloppyDiskIcon size={24} className="text-primary" />
-                        <CardTitle>AI Configuration</CardTitle>
-                    </div>
-                    <CardDescription>
-                        Manage your AI provider credentials and settings. These keys are used for article and image generation.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="space-y-6">
-                        {/* Gemini API Key Section */}
-                        <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+            {/* 2. Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+                        <Settings01Icon size={24} className="text-primary" />
+                        AI Configuration
+                    </h2>
+                    <p className="text-muted-foreground">Manage your credentials, models, and generation preferences.</p>
+                </div>
+                <Button onClick={saveSettings} disabled={saving} size="lg" className="shadow-sm">
+                    {saving ? <Loading01Icon className="mr-2 animate-spin" /> : <FloppyDiskIcon className="mr-2" />}
+                    {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+            </div>
+
+            {/* 3. Main Setting Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* A. Core API Config */}
+                <Card className="lg:col-span-2 shadow-sm border-border/60">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Key01Icon size={18} className="text-primary" /> Core Credentials
+                        </CardTitle>
+                        <CardDescription>Configure your Google Gemini API access.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <Label className="flex items-center gap-2 text-base font-semibold">
-                                    <Key01Icon size={18} className="text-primary" />
-                                    Google Gemini API Key (Text + Default)
-                                </Label>
+                                <Label className="font-semibold">Gemini API Key</Label>
                                 {apiKeyValid !== null && (
-                                    <span className={`flex items-center gap-1 text-xs ${apiKeyValid ? 'text-green-600' : 'text-destructive'}`}>
-                                        {apiKeyValid ? <Tick01Icon size={14} /> : <Cancel01Icon size={14} />}
-                                        {apiKeyValid ? 'Verified' : 'Invalid'}
-                                    </span>
+                                    <Badge variant={apiKeyValid ? "outline" : "destructive"} className={`text-[10px] ${apiKeyValid ? 'border-green-200 text-green-700 bg-green-50' : ''}`}>
+                                        {apiKeyValid ? <><Tick01Icon size={12} className="mr-1" /> Verified</> : "Invalid"}
+                                    </Badge>
                                 )}
                             </div>
-
                             <div className="flex gap-2">
                                 <Input
                                     type="password"
                                     value={geminiApiKey}
                                     onChange={(e) => handleUpdate('gemini_api_key', e.target.value)}
-                                    placeholder="Enter your Gemini API key..."
-                                    className="flex-1"
+                                    placeholder="Enter API key..."
+                                    className="font-mono text-sm"
                                 />
-                                <Button
-                                    variant="secondary"
-                                    onClick={handleVerifyClick}
-                                    disabled={verifying || !geminiApiKey}
-                                >
-                                    {verifying ? (
-                                        <>
-                                            <Loading01Icon size={14} className="mr-1 animate-spin" />
-                                            Verifying...
-                                        </>
-                                    ) : (
-                                        'Verify & Load Models'
-                                    )}
+                                <Button variant="secondary" onClick={handleVerifyClick} disabled={verifying || !geminiApiKey}>
+                                    {verifying ? <Loading01Icon className="animate-spin" /> : 'Verify'}
                                 </Button>
                             </div>
-
-                            <p className="text-xs text-muted-foreground">
-                                Get your API key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google AI Studio</a>
+                            <p className="text-[11px] text-muted-foreground">
+                                Required for Text Generation & 'High Quality' Images. Get key from <a href="https://aistudio.google.com/apikey" target="_blank" className="underline hover:text-primary">Google AI Studio</a>.
                             </p>
+                        </div>
 
-                            <div className="space-y-2 pt-2 border-t">
-                                <div className="flex items-center justify-between">
-                                    <Label className="flex items-center gap-2 text-sm font-semibold">
-                                        <Key01Icon size={16} className="text-primary" />
-                                        Gemini Image API Key (Optional)
-                                    </Label>
-                                    {imageKeyValid !== null && (
-                                        <span className={`flex items-center gap-1 text-xs ${imageKeyValid ? 'text-green-600' : 'text-destructive'}`}>
-                                            {imageKeyValid ? <Tick01Icon size={12} /> : <Cancel01Icon size={12} />}
-                                            {imageKeyValid ? 'Verified' : 'Invalid'}
-                                        </span>
-                                    )}
-                                </div>
+                        {availableModels.length > 0 && (
+                            <div className="space-y-2 pt-2">
+                                <Label className="font-semibold">Text Model</Label>
+                                <Select value={selectedModel} onValueChange={(v) => handleUpdate('gemini_model', v)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select model..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableModels.map((m) => (
+                                            <SelectItem key={m.name} value={m.name}>
+                                                <div className="flex flex-col text-left">
+                                                    <span className="font-medium">{m.displayName}</span>
+                                                    <span className="text-[10px] text-muted-foreground line-clamp-1">{m.description}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* B. Cost & Pricing */}
+                <Card className="lg:col-span-1 shadow-sm border-border/60">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Coins01Icon size={18} className="text-primary" /> Cost Settings
+                        </CardTitle>
+                        <CardDescription>Set rates for cost estimation.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Input ($/1M)</Label>
                                 <Input
-                                    type="password"
-                                    value={geminiImageApiKey}
-                                    onChange={(e) => handleUpdate('gemini_image_api_key', e.target.value)}
-                                    placeholder="Optional separate API key for image generation..."
+                                    type="number" step="0.01"
+                                    value={priceInput}
+                                    onChange={(e) => handleUpdate('gemini_price_input_per_million', e.target.value)}
+                                    placeholder="0.00"
                                 />
-                                <p className="text-[11px] text-muted-foreground">
-                                    If set, image models list + image generation will use this key. Otherwise the main key is used.
-                                </p>
                             </div>
-
-                            {/* Model Selection */}
-                            {availableModels.length > 0 && (
-                                <div className="space-y-2 pt-3 border-t">
-                                    <Label className="text-sm">Select Model</Label>
-                                    <Select
-                                        value={selectedModel}
-                                        onValueChange={(v) => handleUpdate('gemini_model', v)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Choose a Gemini model..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableModels.map((model) => (
-                                                <SelectItem key={model.name} value={model.name}>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium">{model.displayName}</span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {model.description.substring(0, 60)}{model.description.length > 60 ? '...' : ''}
-                                                        </span>
-                                                        <span className="text-[10px] text-primary/70 mt-0.5">
-                                                            Methods: {model.supportedGenerationMethods.join(', ')}
-                                                        </span>
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <p className="text-xs text-muted-foreground">
-                                        {availableModels.length} models available for your API key
-                                    </p>
-                                </div>
-                            )}
-
-                            <div className="space-y-2 pt-3 border-t">
-                                <Label className="text-sm">Cost Estimation (Optional)</Label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Input price ($ per 1M tokens)</Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={priceInput}
-                                            onChange={(e) => handleUpdate('gemini_price_input_per_million', e.target.value)}
-                                            placeholder="e.g. 0.10"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">Output price ($ per 1M tokens)</Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            value={priceOutput}
-                                            onChange={(e) => handleUpdate('gemini_price_output_per_million', e.target.value)}
-                                            placeholder="e.g. 0.40"
-                                        />
-                                    </div>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground">
-                                    Used only for cost estimates in AI Lab. Leave empty to hide cost estimates.
-                                </p>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Output ($/1M)</Label>
+                                <Input
+                                    type="number" step="0.01"
+                                    value={priceOutput}
+                                    onChange={(e) => handleUpdate('gemini_price_output_per_million', e.target.value)}
+                                    placeholder="0.00"
+                                />
                             </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                            Rates are used to calculate the estimated cost shown in analytics and usage reports.
+                        </p>
+                    </CardContent>
+                </Card>
 
-                            {/* Image Model Selection */}
-                            <div className="space-y-3 pt-3 border-t">
-                                <Label className="text-sm">Image Generation Model</Label>
-                                {availableImageModels.length > 0 && (
-                                    <Select
-                                        value={useCustomImageModel ? '' : (settings.find(s => s.key === 'gemini_image_model')?.value || '')}
-                                        onValueChange={(v) => {
-                                            setUseCustomImageModel(false);
-                                            handleUpdate('gemini_image_model', v);
-                                        }}
-                                        disabled={useCustomImageModel}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Choose an Image model..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableImageModels.map((model) => (
-                                                <SelectItem key={model.name} value={model.name}>
-                                                    <div className="flex flex-col">
-                                                        <span className="font-medium">{model.displayName}</span>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {model.description.substring(0, 60)}
-                                                        </span>
-                                                        <span className="text-[10px] text-primary/70 mt-0.5">
-                                                            Methods: {model.supportedGenerationMethods.join(', ')}
-                                                        </span>
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                                <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
-                                    <div>
-                                        <Label className="text-xs">Use custom model name</Label>
-                                        <p className="text-[10px] text-muted-foreground">
-                                            Enable this if your model isn’t in the list.
+                {/* C. Image Generation Settings */}
+                <Card className="lg:col-span-3 shadow-sm border-border/60">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <Image01Icon size={18} className="text-primary" /> Image Studio Config
+                        </CardTitle>
+                        <CardDescription>Configure models and preferences for article cover generation.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                        {/* Mode Selection */}
+                        <div className="space-y-4">
+                            <Label className="text-sm font-semibold flex items-center gap-2">
+                                <MagicWand01Icon size={14} /> Default Quality Mode
+                            </Label>
+                            <div className="grid grid-cols-1 gap-3">
+                                <button
+                                    className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'turbo' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
+                                    onClick={() => handleUpdate('image_model', 'turbo')}
+                                >
+                                    <div className={`p-2 rounded-lg ${currentImageModel === 'turbo' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                        <ZapIcon size={20} variant={currentImageModel === 'turbo' ? "solid" : "stroke"} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="font-bold text-sm">Standard (Fast)</span>
+                                            <Badge variant="outline" className="text-[9px] h-5 bg-background">FLUX</Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                            Uses Flux Schnell via Pollinations.ai. Free and extremely fast. Best for abstract or simple covers.
                                         </p>
                                     </div>
-                                    <Switch
-                                        checked={useCustomImageModel || availableImageModels.length === 0}
-                                        onCheckedChange={(checked) => {
-                                            setUseCustomImageModel(checked);
-                                            if (!checked && customImageModel) {
-                                                handleUpdate('gemini_image_model', customImageModel);
-                                            }
-                                        }}
-                                        disabled={availableImageModels.length === 0}
+                                </button>
+
+                                <button
+                                    className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'pro' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
+                                    onClick={() => handleUpdate('image_model', 'pro')}
+                                >
+                                    <div className={`p-2 rounded-lg ${currentImageModel === 'pro' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                        <SparklesIcon size={20} variant={currentImageModel === 'pro' ? "solid" : "stroke"} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className="font-bold text-sm">High Quality</span>
+                                            <Badge variant="secondary" className="text-[9px] h-5 bg-indigo-100 text-indigo-700">IMAGEN 3</Badge>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                            Uses Google Imagen/Gemini. Requires API Key. Best for <strong className="text-foreground">Slovak Text</strong>, photorealism, and complex scenes.
+                                        </p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Advanced Image Keys & Model Override */}
+                        <div className="space-y-4 md:border-l md:pl-8">
+                            <div className="space-y-3">
+                                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advanced Configuration</Label>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs">Separate Image API Key (Optional)</Label>
+                                        {imageKeyValid !== null && (
+                                            <span className={`text-[10px] flex items-center gap-1 ${imageKeyValid ? 'text-green-600' : 'text-destructive'}`}>
+                                                {imageKeyValid ? <CheckmarkBadge01Icon size={12} /> : <Cancel01Icon size={12} />}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Input
+                                        type="password"
+                                        value={geminiImageApiKey}
+                                        onChange={(e) => handleUpdate('gemini_image_api_key', e.target.value)}
+                                        placeholder="Use different key for images..."
+                                        className="h-8 text-xs font-mono"
                                     />
                                 </div>
-                                {(useCustomImageModel || availableImageModels.length === 0) && (
-                                    <div className="space-y-2">
+
+                                <div className="space-y-2 pt-2">
+                                    <Label className="text-xs">Model Override</Label>
+                                    {availableImageModels.length > 0 ? (
+                                        <Select
+                                            value={useCustomImageModel ? '' : (settings.find(s => s.key === 'gemini_image_model')?.value || '')}
+                                            onValueChange={(v) => {
+                                                setUseCustomImageModel(false);
+                                                handleUpdate('gemini_image_model', v);
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="Default (Imagen 3)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableImageModels.map((m) => (
+                                                    <SelectItem key={m.name} value={m.name} className="text-xs max-w-[300px]">
+                                                        {m.displayName}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
                                         <Input
                                             value={customImageModel}
                                             onChange={(e) => {
                                                 setCustomImageModel(e.target.value);
                                                 handleUpdate('gemini_image_model', e.target.value);
                                             }}
-                                            placeholder="imagen-3.0-generate-001 or gemini-2.5-flash-image"
+                                            placeholder="e.g. imagen-3.0-generate-001"
+                                            className="h-8 text-xs font-mono"
                                         />
-                                        <p className="text-xs text-muted-foreground">
-                                            Paste any valid Gemini/Imagen model name to override the dropdown.
-                                        </p>
-                                    </div>
-                                )}
-                                <p className="text-xs text-muted-foreground">
-                                    For "Pro" image mode. Uses the Image API key if provided, otherwise the main key.
-                                </p>
+                                    )}
+                                    <p className="text-[10px] text-muted-foreground">Specific model ID for High Quality mode.</p>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Image Preferences */}
-                        <div className="space-y-6 pt-4 border-t">
-                            <Label className="text-sm font-semibold">Image Generation Preferences</Label>
+                    </CardContent>
+                </Card>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <button
-                                    className={`p-4 border rounded-lg text-left transition-all ${currentImageModel === 'turbo' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
-                                    onClick={() => handleUpdate('image_model', 'turbo')}
-                                >
-                                    <h4 className="font-bold text-sm mb-1">Turbo Mode (Free & Fast)</h4>
-                                    <p className="text-xs text-muted-foreground">Uses Flux Schnell. Extreme speed, no API key required. Best for most articles.</p>
-                                </button>
-                                <button
-                                    className={`p-4 border rounded-lg text-left transition-all ${currentImageModel === 'pro' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:border-primary/50'}`}
-                                    onClick={() => handleUpdate('image_model', 'pro')}
-                                >
-                                    <h4 className="font-bold text-sm mb-1">Pro Mode (Gemini Imagen)</h4>
-                                    <p className="text-xs text-muted-foreground">Uses Google Gemini's image generation. Higher quality, uses your Gemini API key.</p>
-                                </button>
-                            </div>
+            </div>
 
-                            <p className="text-xs text-muted-foreground">
-                                Batch generation controls will appear in the Image Studio once it is enabled.
-                            </p>
-                        </div>
-                    </div>
-
-                    {settings.length > 0 && (
-                        <div className="pt-4">
-                            <Button onClick={saveSettings} disabled={saving} className="w-full sm:w-auto">
-                                <FloppyDiskIcon size={16} className="mr-2" />
-                                {saving ? 'Saving...' : 'Save AI Settings'}
-                            </Button>
-                        </div>
-                    )}
-
-                    {settings.length === 0 && (
-                        <div className="text-center py-4">
-                            <Button variant="outline" onClick={initializeDefaultSettings}>
-                                Initialize Default Keys
-                            </Button>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            {settings.length === 0 && (
+                <div className="text-center py-8">
+                    <Button variant="outline" onClick={initializeDefaultSettings}>
+                        Initialize Default Keys
+                    </Button>
+                </div>
+            )}
         </div>
     );
 };

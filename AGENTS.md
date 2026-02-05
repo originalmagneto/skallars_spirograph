@@ -9,7 +9,7 @@ Skallars Spirograph is a Next.js 14 (App Router) site for a law office with a Su
 
 ## Tech Stack
 - **Frontend**: Next.js 14 (App Router), React 18, TypeScript.
-- **UI**: Tailwind CSS, shadcn/ui components, Radix UI, lucide-react + hugeicons-react.
+- **UI**: Tailwind CSS (`@tailwindcss/typography`), shadcn/ui components, Radix UI, lucide-react + hugeicons-react.
 - **Data**: Supabase (PostgreSQL + Auth + Storage).
 - **State/Fetching**: TanStack Query.
 - **AI**: Google Gemini via Generative Language API. Optional grounding via `googleSearch` tool.
@@ -93,6 +93,8 @@ Storage buckets referenced:
 ## AI System Notes
 - Text generation uses `generateAIArticle` in `src/lib/aiService.ts`.
 - Prompt is built by `getAIArticlePrompt` and supports type, length, and target languages.
+- **Enhanced Formatting**: Prompts now strictly enforce semantic HTML with bolding (`<strong>`) for skimmability, blockquotes for insights, and frequent subheadings (`<h3>`).
+- **Citations**: Inline citations (`<sup>[1]</sup>`) and clickable source links are enforced when grounding is used.
 - Grounding uses `googleSearch` tool; JSON response mode is avoided when grounding is enabled.
 - Image generation uses a two-tier system:
   - Turbo: Pollinations (Flux) for fast, no-key images.
@@ -145,3 +147,4 @@ High-impact mismatches found and now resolved:
 - Team member photo positioning preserved on edit. ✅
 - Image batch count honored or removed. ✅
 - AI usage cost estimate aligned with selected model. ✅
+- **Blog Rendering**: Fixed unformatted text by installing `@tailwindcss/typography`. ✅

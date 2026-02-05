@@ -383,7 +383,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 try {
                     await supabase.from('ai_usage_logs').insert({
                         user_id: user.id,
-                        action: 'generate_article',
+                        action: prompt.length > 60 ? `Article: ${prompt.slice(0, 60)}…` : `Article: ${prompt}`,
                         model: await supabase.from('settings').select('value').eq('key', 'gemini_model').single().then(r => r.data?.value || 'gemini-2.0-flash'),
                         input_tokens: content.usage.promptTokens,
                         output_tokens: content.usage.completionTokens,

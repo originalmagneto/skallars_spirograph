@@ -12,6 +12,7 @@ import { BarChart3, CalendarDays } from "lucide-react";
 import MapCitiesManager from "@/components/admin/MapCitiesManager";
 import TeamMembersManager from "@/components/admin/TeamMembersManager";
 import ContentManager from "@/components/admin/ContentManager";
+// Force rebuild
 import UserManagement from "@/components/admin/UserManagement";
 import ArticlesManager from "@/components/admin/ArticlesManager";
 import AILab from "@/components/admin/AILab";
@@ -170,7 +171,7 @@ export default function AdminPage() {
                                         <span className="text-[15px] font-semibold leading-snug">
                                             {workspaceConfig[workspaceId].label}
                                         </span>
-                                        <span className="text-xs text-muted-foreground leading-relaxed">
+                                        <span className={`text-xs leading-relaxed ${activeWorkspace === workspaceId ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                                             {workspaceConfig[workspaceId].description}
                                         </span>
                                     </div>
