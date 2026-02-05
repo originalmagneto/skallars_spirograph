@@ -11,6 +11,7 @@ export const LINKEDIN_BASE_SCOPES = [
 export const LINKEDIN_ORG_SCOPES = [
   'r_organization_social',
   'w_organization_social',
+  'r_organization_admin',
 ];
 
 export const getLinkedInScopes = () => {

@@ -486,6 +486,16 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         loadLinkedInOrganizations();
     }, [linkedinTarget, linkedinStatus?.connected, hasOrgScope]);
 
+    useEffect(() => {
+        if (!linkedinStatus?.organization_urns?.length) return;
+        if (linkedinOrganizations.length > 0) return;
+        const fallback = linkedinStatus.organization_urns.map((urn) => ({ urn, name: urn }));
+        setLinkedinOrganizations(fallback);
+        if (!linkedinOrganizationUrn) {
+            setLinkedinOrganizationUrn(linkedinStatus.organization_urns[0]);
+        }
+    }, [linkedinStatus?.organization_urns, linkedinOrganizations.length, linkedinOrganizationUrn]);
+
     const loadLinkedInLogs = async () => {
         if (!session?.access_token || !articleId || isNew) return;
         setLinkedinLogsLoading(true);
@@ -1564,7 +1574,17 @@ Rules:
 
                         {linkedinTarget === 'organization' && (
                             <div className="space-y-2">
-                                <Label>Organization</Label>
+                                <div className="flex items-center justify-between gap-2">
+                                    <Label>Organization</Label>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={loadLinkedInOrganizations}
+                                    >
+                                        Refresh
+                                    </Button>
+                                </div>
                                 {linkedinOrganizations.length > 0 ? (
                                     <Select
                                         value={linkedinOrganizationUrn}
@@ -1582,11 +1602,16 @@ Rules:
                                         </SelectContent>
                                     </Select>
                                 ) : (
-                                    <Input
-                                        value={linkedinOrganizationUrn}
-                                        onChange={(e) => setLinkedinOrganizationUrn(e.target.value)}
-                                        placeholder="urn:li:organization:123456"
-                                    />
+                                    <div className="space-y-2">
+                                        <Input
+                                            value={linkedinOrganizationUrn}
+                                            onChange={(e) => setLinkedinOrganizationUrn(e.target.value)}
+                                            placeholder="urn:li:organization:123456"
+                                        />
+                                        <p className="text-[10px] text-muted-foreground">
+                                            If the list is empty, paste your company URN (from LinkedIn page admin URL or API).
+                                        </p>
+                                    </div>
                                 )}
                             </div>
                         )}
