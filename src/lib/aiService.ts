@@ -477,7 +477,7 @@ ${toneBlock}
 1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
 2. **Value**: Every paragraph must add value. No filler.
 3. **Multilingual**: You must generate the article in the following languages: **${selectedLangNames}** simultaneously.
-3.1 **Completeness**: Never return only titles. Every language must include full `content_*` HTML with paragraphs and headings, even when links are provided without grounding.
+3.1 **Completeness**: Never return only titles. Every language must include full \`content_*\` HTML with paragraphs and headings, even when links are provided without grounding.
 4. **Formatting (CRITICAL)**: 
    - Use **HTML tags** for all content.
    - **Headings**: Use \`<h2>\` for main sections and \`<h3>\` for subsections. **Use H3 frequently** to break up text.
