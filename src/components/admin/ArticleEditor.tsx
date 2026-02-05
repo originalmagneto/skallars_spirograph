@@ -776,7 +776,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     Authorization: `Bearer ${session.access_token}`,
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ redirectTo: window.location.href }),
+                body: JSON.stringify({ redirectTo: '/admin?tab=article-studio' }),
             });
             const data = await res.json();
             if (!res.ok || !data?.url) {
