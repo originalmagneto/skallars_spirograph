@@ -122,10 +122,22 @@ export default function LinkedInSettings() {
     useEffect(() => {
         if (!session?.access_token) return;
         loadStatus();
+    }, [session?.access_token]);
+
+    useEffect(() => {
+        if (!session?.access_token) return;
+        if (!status?.connected) {
+            setLogs([]);
+            setScheduled([]);
+            setAnalytics([]);
+            setAnalyticsOrgUrn(null);
+            setAnalyticsNote("Connect LinkedIn to load analytics.");
+            return;
+        }
         loadLogs();
         loadScheduled();
         loadAnalytics();
-    }, [session?.access_token]);
+    }, [session?.access_token, status?.connected]);
 
     const loadStatus = async () => {
         if (!session?.access_token) return;
@@ -137,11 +149,14 @@ export default function LinkedInSettings() {
             const data = await res.json();
             if (res.ok) {
                 setStatus(data);
+                return;
             } else {
                 setStatus({ connected: false });
+                return;
             }
         } catch {
             setStatus({ connected: false });
+            return;
         } finally {
             setStatusLoading(false);
         }
@@ -164,7 +179,7 @@ export default function LinkedInSettings() {
                     setDefaultOrgUrn(data.organizations[0].urn);
                 }
             }
-            if (!res.ok && data?.error) {
+            if (!res.ok && data?.error && (!Array.isArray(data.organizations) || data.organizations.length === 0)) {
                 toast.error(data.error);
             }
         } catch {
@@ -212,6 +227,7 @@ export default function LinkedInSettings() {
 
     const loadAnalytics = async () => {
         if (!session?.access_token) return;
+        if (!status?.connected) return;
         setAnalyticsLoading(true);
         try {
             const res = await fetch("/api/linkedin/analytics", {

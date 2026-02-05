@@ -7,6 +7,19 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Phase 1 (text-first editing) complete.
 - Phase 1 media tools moved to Phase 2 (you said no image fields right now).
 
+## Step 1 (Now): Stability Hardening (LinkedIn + Admin Access)
+- Make LinkedIn endpoints **degrade gracefully** (no hard-fail UI when org scopes/org APIs are unavailable). ✅
+- Make admin role checks **server-first** to reduce `Profile role check timed out` false negatives. ✅
+- Ensure LinkedIn Settings and Article Editor can proceed with a **saved default org URN** fallback. ✅
+- Reduce noisy UX errors from expected non-critical states (missing analytics scope, no org list yet, disconnected account). ✅
+
+### Step 1 Acceptance Criteria
+- `/api/linkedin/organizations` returns a usable response with fallback organizations when possible.
+- LinkedIn Settings does not block on analytics/org fetch failures and keeps the page usable.
+- Article Editor can share to company when a valid default org URN exists, even if org list fetch fails.
+- Admin access checks no longer depend primarily on slow client-side profile queries.
+- Repeated `Profile role check timed out` errors are significantly reduced in normal usage.
+
 ## Phase 0: Fix UI vs Functionality Mismatches (Immediate)
 - Wire **admin content edits to the actual frontend** (replace or augment `translations.ts` with Supabase content for public pages). ✅
 - Fix **Article Editor copy** (“Markdown” vs HTML) or implement a true rich editor that matches output. ✅

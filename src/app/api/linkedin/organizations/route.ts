@@ -38,6 +38,13 @@ export async function GET(req: NextRequest) {
         { status: 200 }
       );
     }
+    const { data: defaultOrgSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'linkedin_default_org_urn')
+      .maybeSingle();
+    const defaultOrgUrn = defaultOrgSetting?.value || '';
+
     const scopes = Array.isArray(account.scopes) ? account.scopes : [];
     const hasOrgScope =
       scopes.includes('w_organization_social') ||
@@ -45,9 +52,19 @@ export async function GET(req: NextRequest) {
       scopes.includes('r_organization_admin') ||
       scopes.includes('rw_organization_admin');
     if (!hasOrgScope) {
+      const fallback = [
+        ...(defaultOrgUrn ? [{ urn: defaultOrgUrn, name: 'Default Organization' }] : []),
+        ...(Array.isArray(account.organization_urns)
+          ? account.organization_urns.map((urn) => ({ urn, name: urn }))
+          : []),
+      ];
       return NextResponse.json(
-        { error: 'Organization scopes not enabled for this LinkedIn account.' },
-        { status: 403 }
+        {
+          organizations: fallback,
+          error: 'Organization scopes are missing for this LinkedIn account.',
+          hint: 'Reconnect LinkedIn after enabling r_organization_social and w_organization_social.',
+        },
+        { status: 200 }
       );
     }
 
@@ -75,9 +92,12 @@ export async function GET(req: NextRequest) {
         response = legacyResponse;
         body = legacyBody;
       } else {
-        const fallbackOrgs = Array.isArray(account.organization_urns)
-          ? account.organization_urns.map((urn) => ({ urn, name: urn }))
-          : [];
+        const fallbackOrgs = [
+          ...(defaultOrgUrn ? [{ urn: defaultOrgUrn, name: 'Default Organization' }] : []),
+          ...(Array.isArray(account.organization_urns)
+            ? account.organization_urns.map((urn) => ({ urn, name: urn }))
+            : []),
+        ];
         return NextResponse.json(
           {
             organizations: fallbackOrgs,

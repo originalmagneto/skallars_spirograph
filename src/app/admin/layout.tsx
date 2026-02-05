@@ -71,89 +71,66 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 return;
             }
 
+            // Server-first role check is the primary source of truth.
+            try {
+                const sessionRes = await withTimeout(supabase.auth.getSession(), 8000, 'Session check');
+                const token = sessionRes.data.session?.access_token;
+                if (token) {
+                    const fallbackRes = await withTimeout(
+                        fetch('/api/admin/role', {
+                            headers: { Authorization: `Bearer ${token}` },
+                        }),
+                        8000,
+                        'Server role check'
+                    );
+                    if (fallbackRes.ok) {
+                        const fallbackData = await fallbackRes.json();
+                        const role = fallbackData?.role;
+                        if (role === 'admin' || role === 'editor') {
+                            setAccessOverride(true);
+                            setAccessCheckMessage(`Server role confirmed (${role}).`);
+                            return;
+                        }
+                    }
+                }
+            } catch {
+                // Continue to RPC fallback.
+            }
+
             const adminRpc = await withTimeout(
                 supabase.rpc('is_profile_admin', { _user_id: targetId }),
                 8000,
                 'Admin RPC check'
             );
+            const editorRpc = await withTimeout(
+                supabase.rpc('is_profile_editor', { _user_id: targetId }),
+                8000,
+                'Editor RPC check'
+            );
+
             const isAdminRpc = adminRpc.data;
+            const isEditorRpc = editorRpc.data;
             const adminError = adminRpc.error;
+            const editorError = editorRpc.error;
 
             if (!adminError && isAdminRpc === true) {
                 setAccessOverride(true);
                 setAccessCheckMessage('Admin access confirmed.');
                 return;
             }
-
-            const editorRpc = await withTimeout(
-                supabase.rpc('is_profile_editor', { _user_id: targetId }),
-                8000,
-                'Editor RPC check'
-            );
-            const isEditorRpc = editorRpc.data;
-            const editorError = editorRpc.error;
-
             if (!editorError && isEditorRpc === true) {
                 setAccessOverride(true);
                 setAccessCheckMessage('Editor access confirmed.');
                 return;
             }
 
-            // Fallback: direct profile role check (in case RPC isn't available)
-            const profileRes = await withTimeout(
-                supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', targetId)
-                    .maybeSingle(),
-                8000,
-                'Profile check'
-            );
-
-            if (!profileRes.error && profileRes.data?.role) {
-                const role = profileRes.data.role;
-                if (role === 'admin' || role === 'editor') {
-                    setAccessOverride(true);
-                    setAccessCheckMessage(`Profile role confirmed (${role}).`);
-                    return;
-                }
-            }
-
-            if (adminError || editorError || profileRes.error) {
+            if (adminError || editorError) {
                 const adminMsg = adminError?.message ? `Admin check error: ${adminError.message}` : '';
                 const editorMsg = editorError?.message ? `Editor check error: ${editorError.message}` : '';
-                const profileMsg = profileRes.error?.message ? `Profile check error: ${profileRes.error.message}` : '';
-                setAccessCheckMessage([adminMsg, editorMsg, profileMsg].filter(Boolean).join(' | ') || 'Access check failed. Please re-login.');
+                setAccessCheckMessage([adminMsg, editorMsg].filter(Boolean).join(' | ') || 'Access check failed. Please re-login.');
             } else {
                 setAccessOverride(false);
                 setAccessCheckMessage('No admin/editor role detected.');
-            }
-
-            // Server fallback (service role) in case client RLS/network issues
-            if (user?.id) {
-                try {
-                    const sessionRes = await supabase.auth.getSession();
-                    const token = sessionRes.data.session?.access_token;
-                    if (token) {
-                        const fallbackRes = await withTimeout(
-                            fetch('/api/admin/role', {
-                                headers: { Authorization: `Bearer ${token}` },
-                            }),
-                            8000,
-                            'Server role check'
-                        );
-                        if (fallbackRes.ok) {
-                            const fallbackData = await fallbackRes.json();
-                            const role = fallbackData?.role;
-                            if (role === 'admin' || role === 'editor') {
-                                setAccessOverride(true);
-                                setAccessCheckMessage(`Server role confirmed (${role}).`);
-                            }
-                        }
-                    }
-                } catch {
-                    // ignore fallback errors
-                }
             }
         } catch (error: any) {
             // Ignore RPC errors; fallback to context state.

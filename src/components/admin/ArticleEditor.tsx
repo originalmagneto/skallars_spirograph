@@ -226,6 +226,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
         return Array.from(map.values());
     }, [linkedinOrganizations, linkedinDefaultOrgUrn]);
+    const resolveLinkedInOrgUrn = () =>
+        linkedinOrganizationUrn ||
+        linkedinDefaultOrgUrn ||
+        linkedinStatus?.organization_urns?.[0] ||
+        organizationOptions[0]?.urn ||
+        '';
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -503,11 +509,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     useEffect(() => {
         if (linkedinTarget !== 'organization') return;
-        if (!linkedinDefaultOrgUrn) return;
-        if (!linkedinOrganizationUrn) {
-            setLinkedinOrganizationUrn(linkedinDefaultOrgUrn);
-        }
-    }, [linkedinTarget, linkedinDefaultOrgUrn, linkedinOrganizationUrn]);
+        if (linkedinOrganizationUrn) return;
+        const resolved = resolveLinkedInOrgUrn();
+        if (resolved) setLinkedinOrganizationUrn(resolved);
+    }, [linkedinTarget, linkedinDefaultOrgUrn, linkedinOrganizationUrn, linkedinStatus?.organization_urns, organizationOptions]);
 
     useEffect(() => {
         if (!formData.cover_image_url) return;
@@ -880,7 +885,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         setLinkedinOrganizationUrn(data.organizations[0].urn);
                     }
                 }
-                if (!res.ok && data?.error) {
+                if (!res.ok && data?.error && data.organizations.length === 0) {
                     toast.error(data.error);
                 }
             } else if (data?.error) {
@@ -907,7 +912,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error('Article slug missing. Please save a slug first.');
             return;
         }
-        if (linkedinTarget === 'organization' && !linkedinOrganizationUrn) {
+        const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
+        if (linkedinTarget === 'organization' && !organizationUrn) {
             toast.error('Select a LinkedIn organization.');
             return;
         }
@@ -935,7 +941,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     excerpt: getCurrentExcerpt(),
                     message: linkedinMessage,
                     shareTarget: linkedinTarget,
-                    organizationUrn: linkedinOrganizationUrn || null,
+                    organizationUrn: organizationUrn || null,
                     shareMode: linkedinShareMode,
                     imageUrl: linkedinShareMode === 'image' ? linkedinImageUrl : null,
                 }),
@@ -966,7 +972,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error('Pick a schedule time.');
             return;
         }
-        if (linkedinTarget === 'organization' && !linkedinOrganizationUrn) {
+        const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
+        if (linkedinTarget === 'organization' && !organizationUrn) {
             toast.error('Select a LinkedIn organization.');
             return;
         }
@@ -988,7 +995,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     scheduledAt: scheduledAtIso,
                     message: linkedinMessage,
                     shareTarget: linkedinTarget,
-                    organizationUrn: linkedinOrganizationUrn || null,
+                    organizationUrn: organizationUrn || null,
                     shareMode: linkedinShareMode,
                     imageUrl: linkedinShareMode === 'image' ? linkedinImageUrl : null,
                 }),

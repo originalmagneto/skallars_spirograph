@@ -25,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isEditor, setIsEditor] = useState(false);
     const roleRetryRef = useRef(0);
+    const roleErrorLoggedRef = useRef(false);
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
 
@@ -67,9 +68,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const fetchRoles = useCallback(async (userId: string) => {
         const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
+        const applyRole = (role: string) => {
+            setIsAdmin(role === 'admin');
+            setIsEditor(role === 'editor' || role === 'admin');
+            writeRoleCache(userId, role);
+            roleErrorLoggedRef.current = false;
+        };
+
         if (cachedRole) {
             setIsAdmin(cachedRole === 'admin');
             setIsEditor(cachedRole === 'editor' || cachedRole === 'admin');
+        }
+
+        // Server-first role check avoids flaky client-side profile/RPC timeouts.
+        if (session?.access_token) {
+            try {
+                const res = await withTimeout(
+                    fetch('/api/admin/role', {
+                        headers: { Authorization: `Bearer ${session.access_token}` },
+                    }),
+                    8000,
+                    'Server role check'
+                );
+                if (res.ok) {
+                    const data = await res.json();
+                    const role = data?.role || 'user';
+                    applyRole(role);
+                    return;
+                }
+            } catch {
+                // If a valid cached role exists, avoid noisy fallbacks on transient failures.
+                if (cachedRole) return;
+            }
         }
 
         try {
@@ -78,16 +108,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .from('profiles')
                     .select('role')
                     .eq('id', userId)
-                    .single(),
+                    .maybeSingle(),
                 8000,
                 'Profile role check'
             );
 
             if (!error && data?.role) {
-                const role = data.role;
-                setIsAdmin(role === 'admin');
-                setIsEditor(role === 'editor' || role === 'admin');
-                writeRoleCache(userId, role);
+                applyRole(data.role);
                 return;
             }
 
@@ -106,47 +133,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         'Editor RPC check'
                     );
 
-                    setIsAdmin(isAdminRpc);
-                    setIsEditor(Boolean(isEditorRpc || isAdminRpc));
-                    writeRoleCache(userId, isAdminRpc ? 'admin' : (isEditorRpc ? 'editor' : 'user'));
+                    applyRole(isAdminRpc ? 'admin' : (isEditorRpc ? 'editor' : 'user'));
                     return;
                 }
             } catch {
-                // Ignore RPC failures and continue fallback.
-            }
-            if (cachedRole) {
-                return;
+                // Ignore RPC failures and fall through.
             }
 
-            // Server-side fallback (service role) to avoid client RLS timeouts
-            if (session?.access_token) {
-                try {
-                    const res = await withTimeout(
-                        fetch('/api/admin/role', {
-                            headers: { Authorization: `Bearer ${session.access_token}` },
-                        }),
-                        8000,
-                        'Server role check'
-                    );
-                    if (res.ok) {
-                        const data = await res.json();
-                        const role = data?.role || 'user';
-                        setIsAdmin(role === 'admin');
-                        setIsEditor(role === 'editor' || role === 'admin');
-                        writeRoleCache(userId, role);
-                        return;
-                    }
-                } catch {
-                    // ignore server fallback errors
-                }
+            if (cachedRole) {
+                return;
             }
 
             setIsAdmin(false);
             setIsEditor(false);
         } catch (error) {
-            console.error('Error fetching roles:', error);
-            if (cachedRole) {
-                return;
+            if (cachedRole) return;
+            if (!roleErrorLoggedRef.current) {
+                console.error('Error fetching roles:', error);
+                roleErrorLoggedRef.current = true;
             }
             setIsAdmin(false);
             setIsEditor(false);

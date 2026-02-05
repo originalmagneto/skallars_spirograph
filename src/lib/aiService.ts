@@ -52,10 +52,10 @@ async function getSetting(key: string): Promise<string | null> {
         .from('settings')
         .select('value')
         .eq('key', key)
-        .maybeSingle();
+        .limit(1);
 
-    if (error || !data) return null;
-    return data.value;
+    if (error || !data || data.length === 0) return null;
+    return data[0]?.value ?? null;
 }
 
 const toNumber = (value?: string | null) => {
