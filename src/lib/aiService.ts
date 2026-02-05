@@ -927,6 +927,7 @@ export async function generateAIOutline(
     const selectedModel = options.modelOverride || await getArticleModelSetting();
     const { useGrounding = false, signal } = options;
     const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
+    const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
     const promptText = getAIOutlinePrompt(prompt, links, options);
 
     const body: any = {
