@@ -176,6 +176,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         expires_at?: string | null;
         expired?: boolean;
         scopes?: string[];
+        organization_urns?: string[];
     } | null>(null);
     const [linkedinLoading, setLinkedinLoading] = useState(false);
     const [linkedinMessage, setLinkedinMessage] = useState('');
