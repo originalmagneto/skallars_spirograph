@@ -68,7 +68,12 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (!account?.access_token) {
-      return NextResponse.json({ error: 'LinkedIn account not connected.' }, { status: 400 });
+      return NextResponse.json({
+        analytics: [],
+        org_urn: null,
+        memberAnalyticsEnabled: false,
+        note: 'LinkedIn account not connected.',
+      }, { status: 200 });
     }
 
     const { data: defaultOrgSetting } = await supabase
@@ -118,7 +123,6 @@ export async function GET(req: NextRequest) {
           Authorization: `Bearer ${account.access_token}`,
           'X-Restli-Protocol-Version': '2.0.0',
           'LinkedIn-Version': '202401',
-          'Linkedin-Version': '202401',
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
@@ -151,7 +155,9 @@ export async function GET(req: NextRequest) {
       analytics,
       org_urn: defaultOrgUrn || null,
       memberAnalyticsEnabled: hasMemberAnalytics,
-      note: !hasMemberAnalytics
+      note: !defaultOrgUrn
+        ? 'Set a default organization URN to enable company analytics.'
+        : !hasMemberAnalytics
         ? 'Member post analytics require r_member_postAnalytics; organization stats use organizationalEntityShareStatistics.'
         : null,
     });
