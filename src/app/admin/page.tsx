@@ -30,6 +30,7 @@ import ImageStudio from "@/components/admin/ImageStudio";
 import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
 import PublishingCalendar from "@/components/admin/PublishingCalendar";
 import ArticleStudio from "@/components/admin/ArticleStudio";
+import LinkedInSettings from "@/components/admin/LinkedInSettings";
 
 export default function AdminPage() {
     const { user, isAdmin } = useAuth();
@@ -272,6 +273,7 @@ export default function AdminPage() {
                     <TabsContent value="settings">
                         <div className="space-y-6">
                             <AISettings />
+                            <LinkedInSettings />
                             <PageSEOSettings />
                         </div>
                     </TabsContent>

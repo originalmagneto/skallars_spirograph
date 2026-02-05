@@ -183,6 +183,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [linkedinTarget, setLinkedinTarget] = useState<'member' | 'organization'>('member');
     const [linkedinOrganizations, setLinkedinOrganizations] = useState<Array<{ urn: string; name: string }>>([]);
     const [linkedinOrganizationUrn, setLinkedinOrganizationUrn] = useState('');
+    const [linkedinDefaultOrgUrn, setLinkedinDefaultOrgUrn] = useState('');
     const [linkedinSharing, setLinkedinSharing] = useState(false);
     const [linkedinShareMode, setLinkedinShareMode] = useState<'article' | 'image'>('article');
     const [linkedinShareModeTouched, setLinkedinShareModeTouched] = useState(false);
@@ -216,6 +217,14 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         (linkedinStatus?.organization_urns && linkedinStatus.organization_urns.length > 0)
     );
     const latestLinkedInShare = linkedinLogs.find((log) => log.status === 'success');
+    const organizationOptions = useMemo(() => {
+        const map = new Map<string, { urn: string; name: string }>();
+        linkedinOrganizations.forEach((org) => map.set(org.urn, org));
+        if (linkedinDefaultOrgUrn && !map.has(linkedinDefaultOrgUrn)) {
+            map.set(linkedinDefaultOrgUrn, { urn: linkedinDefaultOrgUrn, name: 'Default Organization' });
+        }
+        return Array.from(map.values());
+    }, [linkedinOrganizations, linkedinDefaultOrgUrn]);
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -331,6 +340,30 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             }
         };
         loadImageSettings();
+    }, []);
+
+    useEffect(() => {
+        let active = true;
+        const loadLinkedInDefaults = async () => {
+            try {
+                const { data } = await supabase
+                    .from('settings')
+                    .select('key, value')
+                    .eq('key', 'linkedin_default_org_urn');
+                const defaultUrn = data?.[0]?.value || '';
+                if (!active) return;
+                setLinkedinDefaultOrgUrn(defaultUrn);
+                if (defaultUrn && !linkedinOrganizationUrn) {
+                    setLinkedinOrganizationUrn(defaultUrn);
+                }
+            } catch {
+                // ignore
+            }
+        };
+        loadLinkedInDefaults();
+        return () => {
+            active = false;
+        };
     }, []);
 
     useEffect(() => {
@@ -468,6 +501,14 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     }, [linkedinTarget, hasOrgScope]);
 
     useEffect(() => {
+        if (linkedinTarget !== 'organization') return;
+        if (!linkedinDefaultOrgUrn) return;
+        if (!linkedinOrganizationUrn) {
+            setLinkedinOrganizationUrn(linkedinDefaultOrgUrn);
+        }
+    }, [linkedinTarget, linkedinDefaultOrgUrn, linkedinOrganizationUrn]);
+
+    useEffect(() => {
         if (!formData.cover_image_url) return;
         setLinkedinImageUrl((prev) => prev || formData.cover_image_url);
     }, [formData.cover_image_url]);
@@ -492,9 +533,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         const fallback = linkedinStatus.organization_urns.map((urn) => ({ urn, name: urn }));
         setLinkedinOrganizations(fallback);
         if (!linkedinOrganizationUrn) {
-            setLinkedinOrganizationUrn(linkedinStatus.organization_urns[0]);
+            setLinkedinOrganizationUrn(linkedinDefaultOrgUrn || linkedinStatus.organization_urns[0]);
         }
-    }, [linkedinStatus?.organization_urns, linkedinOrganizations.length, linkedinOrganizationUrn]);
+    }, [linkedinStatus?.organization_urns, linkedinOrganizations.length, linkedinOrganizationUrn, linkedinDefaultOrgUrn]);
 
     const loadLinkedInLogs = async () => {
         if (!session?.access_token || !articleId || isNew) return;
@@ -825,8 +866,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const data = await res.json();
             if (Array.isArray(data.organizations)) {
                 setLinkedinOrganizations(data.organizations);
-                if (data.organizations.length === 1) {
-                    setLinkedinOrganizationUrn(data.organizations[0].urn);
+                if (!linkedinOrganizationUrn) {
+                    if (linkedinDefaultOrgUrn) {
+                        setLinkedinOrganizationUrn(linkedinDefaultOrgUrn);
+                    } else if (data.organizations.length === 1) {
+                        setLinkedinOrganizationUrn(data.organizations[0].urn);
+                    }
                 }
                 if (!res.ok && data?.error) {
                     toast.error(data.error);
