@@ -383,7 +383,7 @@ const AISettings = () => {
                                     onClick={() => handleUpdate('image_model', 'turbo')}
                                 >
                                     <div className={`p-2 rounded-lg ${currentImageModel === 'turbo' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                        <ZapIcon size={20} variant={currentImageModel === 'turbo' ? "solid" : "stroke"} />
+                                        <ZapIcon size={20} className={currentImageModel === 'turbo' ? "fill-current" : ""} />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-1">
@@ -401,7 +401,7 @@ const AISettings = () => {
                                     onClick={() => handleUpdate('image_model', 'pro')}
                                 >
                                     <div className={`p-2 rounded-lg ${currentImageModel === 'pro' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                        <SparklesIcon size={20} variant={currentImageModel === 'pro' ? "solid" : "stroke"} />
+                                        <SparklesIcon size={20} className={currentImageModel === 'pro' ? "fill-current" : ""} />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center justify-between mb-1">
