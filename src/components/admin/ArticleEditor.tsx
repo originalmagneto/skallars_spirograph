@@ -354,7 +354,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             }
         };
         loadStatus();
-    }, [session?.access_token]);
+    }, [session?.access_token, linkedinParam]);
 
     const getCurrentTitle = () => {
         switch (activeTab) {

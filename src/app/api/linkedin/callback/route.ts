@@ -111,7 +111,10 @@ export async function GET(req: NextRequest) {
     await supabase.from('linkedin_oauth_states').delete().eq('state', state);
 
     return NextResponse.redirect(resolveRedirect(stateRow.redirect_to, origin));
-  } catch (error) {
-    return NextResponse.redirect(resolveRedirect(null, origin));
+  } catch (error: any) {
+    const reason = error?.message || 'LinkedIn authorization failed.';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || origin || '';
+    const redirectUrl = `${siteUrl}/admin?tab=article-studio&linkedin=error&reason=${encodeURIComponent(reason)}`;
+    return NextResponse.redirect(redirectUrl);
   }
 }
