@@ -36,6 +36,23 @@ type LinkedInLog = {
     created_at: string;
 };
 
+type LinkedInAnalyticsStats = {
+    impressionCount?: number;
+    likeCount?: number;
+    commentCount?: number;
+    shareCount?: number;
+    clickCount?: number;
+    engagement?: number;
+    uniqueImpressionsCounts?: number;
+};
+
+type LinkedInAnalyticsEntry = {
+    log_id: string;
+    urn: string | null;
+    metrics: LinkedInAnalyticsStats | null;
+    source: "organization" | "member" | "unknown";
+};
+
 type LinkedInScheduled = {
     id: string;
     status: string;
@@ -66,6 +83,11 @@ export default function LinkedInSettings() {
     const [logsLoading, setLogsLoading] = useState(false);
     const [scheduled, setScheduled] = useState<LinkedInScheduled[]>([]);
     const [scheduledLoading, setScheduledLoading] = useState(false);
+    const [analytics, setAnalytics] = useState<LinkedInAnalyticsEntry[]>([]);
+    const [analyticsLoading, setAnalyticsLoading] = useState(false);
+    const [analyticsNote, setAnalyticsNote] = useState<string | null>(null);
+    const [analyticsOrgUrn, setAnalyticsOrgUrn] = useState<string | null>(null);
+    const [memberAnalyticsEnabled, setMemberAnalyticsEnabled] = useState(false);
 
     const organizationOptions = useMemo(() => {
         const map = new Map<string, LinkedInOrg>();
@@ -75,6 +97,14 @@ export default function LinkedInSettings() {
         }
         return Array.from(map.values());
     }, [organizations, defaultOrgUrn]);
+
+    const analyticsByLogId = useMemo(() => {
+        const map = new Map<string, LinkedInAnalyticsEntry>();
+        analytics.forEach((entry) => {
+            map.set(entry.log_id, entry);
+        });
+        return map;
+    }, [analytics]);
 
     useEffect(() => {
         const loadDefaults = async () => {
@@ -94,6 +124,7 @@ export default function LinkedInSettings() {
         loadStatus();
         loadLogs();
         loadScheduled();
+        loadAnalytics();
     }, [session?.access_token]);
 
     const loadStatus = async () => {
@@ -176,6 +207,29 @@ export default function LinkedInSettings() {
             // ignore
         } finally {
             setScheduledLoading(false);
+        }
+    };
+
+    const loadAnalytics = async () => {
+        if (!session?.access_token) return;
+        setAnalyticsLoading(true);
+        try {
+            const res = await fetch("/api/linkedin/analytics", {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const data = await res.json();
+            if (res.ok && Array.isArray(data.analytics)) {
+                setAnalytics(data.analytics);
+                setAnalyticsNote(data.note || null);
+                setAnalyticsOrgUrn(data.org_urn || null);
+                setMemberAnalyticsEnabled(Boolean(data.memberAnalyticsEnabled));
+            } else if (data?.error) {
+                setAnalyticsNote(data.error);
+            }
+        } catch {
+            setAnalyticsNote("Failed to load LinkedIn analytics.");
+        } finally {
+            setAnalyticsLoading(false);
         }
     };
 
@@ -358,10 +412,36 @@ export default function LinkedInSettings() {
                             <p className="text-xs text-muted-foreground">
                                 Latest LinkedIn posts and status.
                             </p>
+                            {analyticsNote && (
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                    {analyticsNote}
+                                </p>
+                            )}
+                            {!analyticsOrgUrn && (
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                    Set a default organization URN to pull company analytics.
+                                </p>
+                            )}
+                            {analyticsOrgUrn && !memberAnalyticsEnabled && (
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                    Member post analytics require the LinkedIn scope r_member_postAnalytics.
+                                </p>
+                            )}
                         </div>
-                        <Button type="button" variant="outline" size="sm" onClick={loadLogs} disabled={!connected || logsLoading}>
-                            {logsLoading ? "Refreshing…" : "Refresh log"}
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={loadLogs} disabled={!connected || logsLoading}>
+                                {logsLoading ? "Refreshing…" : "Refresh log"}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={loadAnalytics}
+                                disabled={!connected || analyticsLoading}
+                            >
+                                {analyticsLoading ? "Syncing…" : "Sync metrics"}
+                            </Button>
+                        </div>
                     </div>
 
                     <Table>
@@ -370,43 +450,57 @@ export default function LinkedInSettings() {
                                 <TableHead>Status</TableHead>
                                 <TableHead>Target</TableHead>
                                 <TableHead>Created</TableHead>
+                                <TableHead>Impr.</TableHead>
+                                <TableHead>Reactions</TableHead>
+                                <TableHead>Comments</TableHead>
+                                <TableHead>Shares</TableHead>
+                                <TableHead>Clicks</TableHead>
                                 <TableHead>Post</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {logs.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="text-muted-foreground">
+                                    <TableCell colSpan={9} className="text-muted-foreground">
                                         No LinkedIn shares yet.
                                     </TableCell>
                                 </TableRow>
                             )}
-                            {logs.map((log) => (
-                                <TableRow key={log.id}>
-                                    <TableCell>
-                                        <Badge variant={log.status === "success" ? "secondary" : "destructive"}>
-                                            {log.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>{log.share_target || "member"}</TableCell>
-                                    <TableCell>{formatDate(log.created_at)}</TableCell>
-                                    <TableCell>
-                                        {log.share_url ? (
-                                            <a
-                                                href={log.share_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-primary hover:underline"
-                                            >
-                                                View
-                                                <ExternalLink className="h-3 w-3" />
-                                            </a>
-                                        ) : (
-                                            <span className="text-muted-foreground">—</span>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                            {logs.map((log) => {
+                                const entry = analyticsByLogId.get(log.id);
+                                const metrics = entry?.metrics || null;
+                                return (
+                                    <TableRow key={log.id}>
+                                        <TableCell>
+                                            <Badge variant={log.status === "success" ? "secondary" : "destructive"}>
+                                                {log.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>{log.share_target || "member"}</TableCell>
+                                        <TableCell>{formatDate(log.created_at)}</TableCell>
+                                        <TableCell>{metrics?.impressionCount ?? "—"}</TableCell>
+                                        <TableCell>{metrics?.likeCount ?? "—"}</TableCell>
+                                        <TableCell>{metrics?.commentCount ?? "—"}</TableCell>
+                                        <TableCell>{metrics?.shareCount ?? "—"}</TableCell>
+                                        <TableCell>{metrics?.clickCount ?? "—"}</TableCell>
+                                        <TableCell>
+                                            {log.share_url ? (
+                                                <a
+                                                    href={log.share_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                >
+                                                    View
+                                                    <ExternalLink className="h-3 w-3" />
+                                                </a>
+                                            ) : (
+                                                <span className="text-muted-foreground">—</span>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </div>

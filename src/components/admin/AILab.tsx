@@ -438,7 +438,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 options.signal.addEventListener('abort', () => outlineController.abort(), { once: true });
             }
         }
-        const timeoutMs = options?.timeoutMs ?? 60000;
+        const defaultTimeoutMs = researchDepth === 'Deep' ? 600000 : 120000;
+        const timeoutMs = options?.timeoutMs ?? defaultTimeoutMs;
         const outlineTimeout = window.setTimeout(() => {
             outlineController.abort();
         }, timeoutMs);
