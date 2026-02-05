@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const scheduledAt = payload?.scheduledAt;
     const message = payload?.message || null;
     const shareTarget = payload?.shareTarget === 'organization' ? 'organization' : 'member';
-    const organizationUrn = payload?.organizationUrn || null;
+    let organizationUrn = payload?.organizationUrn || null;
     const visibility = payload?.visibility || 'PUBLIC';
     const shareMode = payload?.shareMode === 'image' ? 'image' : 'article';
     const imageUrl = payload?.imageUrl || null;
@@ -48,6 +48,14 @@ export async function POST(req: NextRequest) {
           { error: 'Organization sharing is not enabled for this LinkedIn account.' },
           { status: 403 }
         );
+      }
+      if (!organizationUrn) {
+        const { data: orgSetting } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'linkedin_default_org_urn')
+          .maybeSingle();
+        organizationUrn = orgSetting?.value || null;
       }
     }
 

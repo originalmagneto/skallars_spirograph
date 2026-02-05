@@ -67,14 +67,31 @@ END $$;
 -- Site content policies (public read, admin write)
 ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "site_content_public_read_v2"
-  ON public.site_content
-  FOR SELECT
-  TO anon, authenticated
-  USING (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'site_content'
+      AND policyname = 'site_content_public_read_v2'
+  ) THEN
+    CREATE POLICY "site_content_public_read_v2"
+      ON public.site_content
+      FOR SELECT
+      TO anon, authenticated
+      USING (true);
+  END IF;
 
-CREATE POLICY "site_content_manage_profiles_role"
-  ON public.site_content
-  FOR ALL
-  TO authenticated
-  USING (public.is_profile_admin(auth.uid()));
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'site_content'
+      AND policyname = 'site_content_manage_profiles_role'
+  ) THEN
+    CREATE POLICY "site_content_manage_profiles_role"
+      ON public.site_content
+      FOR ALL
+      TO authenticated
+      USING (public.is_profile_admin(auth.uid()));
+  END IF;
+END $$;

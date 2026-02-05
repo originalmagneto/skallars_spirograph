@@ -194,7 +194,16 @@ export async function POST(req: NextRequest) {
       const message = item.message || title || 'New article from Skallars.';
       const shareTarget = item.share_target === 'organization' ? 'organization' : 'member';
       const shareMode = item.share_mode === 'image' ? 'image' : 'article';
-      const author = shareTarget === 'organization' ? item.organization_urn : account.member_urn;
+      let organizationUrn = item.organization_urn;
+      if (shareTarget === 'organization' && !organizationUrn) {
+        const { data: orgSetting } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'linkedin_default_org_urn')
+          .maybeSingle();
+        organizationUrn = orgSetting?.value || null;
+      }
+      const author = shareTarget === 'organization' ? organizationUrn : account.member_urn;
 
       if (!author) {
         await supabase

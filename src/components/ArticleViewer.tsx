@@ -127,15 +127,15 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
                     )}
 
                     <div
-                        className="prose prose-lg prose-slate max-w-none 
+                        className="prose prose-xl prose-slate max-w-none 
               prose-headings:font-bold prose-headings:text-[#210059] prose-headings:tracking-tight
-              prose-h2:mt-10 prose-h2:mb-4 prose-h3:mt-8 prose-h3:mb-3
-              prose-p:mt-4 prose-p:text-gray-600 prose-p:leading-relaxed
+              prose-h2:mt-12 prose-h2:mb-4 prose-h3:mt-9 prose-h3:mb-3
+              prose-p:mt-4 prose-p:mb-5 prose-p:text-gray-600 prose-p:leading-relaxed
               prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
               prose-strong:text-[#210059] prose-strong:font-bold
               prose-em:text-gray-700
-              prose-li:mt-2 prose-li:text-gray-600
-              prose-ul:mt-4 prose-ol:mt-4
+              prose-li:mt-2 prose-li:mb-2 prose-li:text-gray-600
+              prose-ul:my-5 prose-ol:my-5
               prose-blockquote:border-l-4 prose-blockquote:border-[#210059]/30
               prose-blockquote:bg-[#f7f3ff] prose-blockquote:rounded-md
               prose-blockquote:px-5 prose-blockquote:py-4 prose-blockquote:not-italic

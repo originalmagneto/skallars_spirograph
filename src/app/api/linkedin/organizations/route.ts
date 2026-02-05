@@ -26,7 +26,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'LinkedIn account not connected.' }, { status: 400 });
     }
     const scopes = Array.isArray(account.scopes) ? account.scopes : [];
-    const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
+    const hasOrgScope =
+      scopes.includes('w_organization_social') ||
+      scopes.includes('r_organization_social') ||
+      scopes.includes('r_organization_admin') ||
+      scopes.includes('rw_organization_admin');
     if (!hasOrgScope) {
       return NextResponse.json(
         { error: 'Organization scopes not enabled for this LinkedIn account.' },

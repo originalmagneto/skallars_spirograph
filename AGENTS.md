@@ -47,7 +47,7 @@ Tables referenced in app code:
 - `site_content_drafts` (draft values + published state).
 - `articles` (title_*, excerpt_*, content_*, slug, cover_image_url, tags, is_published, published_at, author_id).
 - `tags`, `article_tags` (tagging for articles).
-- `settings` (gemini_api_key, gemini_image_api_key, gemini_model, gemini_image_model, image_model, image_count).
+- `settings` (gemini_api_key, gemini_image_api_key, gemini_model, gemini_image_model, image_model, image_count, linkedin_default_org_urn).
 - `ai_usage_logs` (token tracking and usage records).
 - `ai_generation_logs` (AI generation diagnostics).
 - `admin_access_logs` (admin permission diagnostics).
@@ -87,6 +87,7 @@ Storage buckets referenced:
 - **Map Countries**: `CountriesSettingsPanel.tsx` (in Map tab).
 - **AI Lab**: `src/components/admin/AILab.tsx` for article generation (Gemini text).
 - **AI Settings**: `src/components/admin/AISettings.tsx` for API keys/models + image preferences.
+- **LinkedIn Settings**: `src/components/admin/LinkedInSettings.tsx` for default org URN + share logs.
 - **Articles**: `src/components/admin/ArticlesManager.tsx` and `ArticleEditor.tsx`.
 - **Map Cities**: `MapCitiesManager.tsx`.
 - **Users**: `UserManagement.tsx` for roles.

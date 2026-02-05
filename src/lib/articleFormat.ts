@@ -145,6 +145,24 @@ export const formatArticleHtml = (input: string) => {
 
     flushList();
 
+    const strongSegments = line.split(/(<strong>[\s\S]*?<\/strong>)/i).filter(Boolean);
+    if (strongSegments.length > 1) {
+      strongSegments.forEach((segment) => {
+        const match = segment.match(/^<strong>([\s\S]*?)<\/strong>$/i);
+        if (match) {
+          const headingText = match[1]?.trim();
+          if (headingText) {
+            output.push(`<h2>${headingText}</h2>`);
+          }
+          return;
+        }
+        const segmentPlain = segment.replace(/<[^>]+>/g, '').trim();
+        if (!segmentPlain) return;
+        output.push(`<p>${segment}</p>`);
+      });
+      return;
+    }
+
     if (looksLikeHeading(plain) || isStrongHeading) {
       output.push(`<h2>${line}</h2>`);
       return;

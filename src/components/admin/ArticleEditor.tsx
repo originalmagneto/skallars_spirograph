@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Save, Upload, X, Eye, EyeOff, Trash2, Sparkles } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -1548,8 +1548,8 @@ Rules:
                                 Company pages disabled (missing org scopes).
                             </span>
                         )}
-                        {linkedinTarget === 'organization' && linkedinOrganizations.length > 0 && (
-                            <span>{linkedinOrganizations.length} orgs available</span>
+                        {linkedinTarget === 'organization' && organizationOptions.length > 0 && (
+                            <span>{organizationOptions.length} orgs available</span>
                         )}
                         {latestLinkedInShare?.created_at && (
                             <span className="flex items-center gap-2">
@@ -1630,7 +1630,7 @@ Rules:
                                         Refresh
                                     </Button>
                                 </div>
-                                {linkedinOrganizations.length > 0 ? (
+                                {organizationOptions.length > 0 ? (
                                     <Select
                                         value={linkedinOrganizationUrn}
                                         onValueChange={setLinkedinOrganizationUrn}
@@ -1639,7 +1639,7 @@ Rules:
                                             <SelectValue placeholder="Select organization" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {linkedinOrganizations.map((org) => (
+                                            {organizationOptions.map((org) => (
                                                 <SelectItem key={org.urn} value={org.urn}>
                                                     {org.name}
                                                 </SelectItem>

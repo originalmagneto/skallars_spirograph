@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     const payload = await req.json();
     const shareTarget = payload?.shareTarget === 'organization' ? 'organization' : 'member';
-    const organizationUrn = payload?.organizationUrn as string | undefined;
+    let organizationUrn = payload?.organizationUrn as string | undefined;
     const visibility = payload?.visibility || 'PUBLIC';
     const shareMode = payload?.shareMode === 'image' ? 'image' : 'article';
     const imageUrl = payload?.imageUrl as string | undefined;
@@ -100,6 +100,17 @@ export async function POST(req: NextRequest) {
       .select('access_token, expires_at, member_urn, scopes')
       .eq('user_id', userId)
       .maybeSingle();
+
+    if (shareTarget === 'organization' && !organizationUrn) {
+      const { data: orgSetting } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'linkedin_default_org_urn')
+        .maybeSingle();
+      if (orgSetting?.value) {
+        organizationUrn = orgSetting.value;
+      }
+    }
 
     if (!account?.access_token) {
       return NextResponse.json({ error: 'LinkedIn account not connected.' }, { status: 400 });
