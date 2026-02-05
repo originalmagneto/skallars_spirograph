@@ -258,7 +258,9 @@ const AISettings = () => {
                         <Settings01Icon size={24} className="text-primary" />
                         AI Configuration
                     </h2>
-                    <p className="text-muted-foreground">Manage your credentials, models, and generation preferences.</p>
+                    <p className="text-muted-foreground">
+                        Manage global credentials, models, and generation preferences. Article Studio uses its own model settings.
+                    </p>
                 </div>
                 <Button onClick={saveSettings} disabled={saving} size="lg" className="shadow-sm">
                     {saving ? <Loading01Icon className="mr-2 animate-spin" /> : <FloppyDiskIcon className="mr-2" />}

@@ -162,6 +162,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [imageStyle, setImageStyle] = useState('Editorial Photo');
     const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
     const [imageCount, setImageCount] = useState(2);
+    const [imageMode, setImageMode] = useState<'lite' | 'advanced'>('advanced');
     const [useGlobalImageSettings, setUseGlobalImageSettings] = useState(true);
     const [globalImageProvider, setGlobalImageProvider] = useState<'gemini' | 'turbo'>('gemini');
     const [globalImageModel, setGlobalImageModel] = useState('');
@@ -784,12 +785,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         setImageGenerating(true);
         setGeneratedImages([]);
         try {
-            const effectiveProvider = useGlobalImageSettings ? globalImageProvider : overrideImageProvider;
-            const effectiveModel = useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel);
+            const liteMode = imageMode === 'lite';
+            const effectiveProvider = liteMode
+                ? 'turbo'
+                : (useGlobalImageSettings ? globalImageProvider : overrideImageProvider);
+            const effectiveModel = liteMode
+                ? ''
+                : (useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel));
             const { width, height } = aspectSizes[imageAspect];
             const finalPrompt = `${imagePrompt}\nStyle: ${imageStyle}. Aspect ratio: ${imageAspect}.`;
             const results: Array<{ url: string; provider: 'gemini' | 'turbo' }> = [];
-            for (let i = 0; i < imageCount; i += 1) {
+            const total = liteMode ? 1 : imageCount;
+            for (let i = 0; i < total; i += 1) {
                 const url = await generateAIImage(finalPrompt, {
                     turbo: effectiveProvider === 'turbo',
                     width,
@@ -1405,71 +1412,91 @@ Rules:
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/20">
-                    <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Use Global AI Settings</Label>
-                        <p className="text-[10px] text-muted-foreground">
-                            Uses defaults from AI Settings. Turn off to override for this article.
-                        </p>
-                    </div>
-                    <Switch checked={useGlobalImageSettings} onCheckedChange={setUseGlobalImageSettings} />
-                </div>
-
-                {useGlobalImageSettings ? (
-                    <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-                        <div className="font-medium text-foreground">Using global image defaults</div>
-                        <div>Provider: {displayImageProvider === 'gemini' ? 'Gemini (Pro)' : 'Turbo (Fast)'}</div>
-                        {displayImageProvider === 'gemini' && displayImageModel && (
-                            <div>Model: {displayImageModel}</div>
-                        )}
-                        <div>
-                            Edit these in <span className="font-semibold">AI Settings</span>.
-                        </div>
-                    </div>
-                ) : (
-                    <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Provider</Label>
-                        <Select
-                            value={overrideImageProvider}
-                            onValueChange={(value) => setOverrideImageProvider(value as 'gemini' | 'turbo')}
-                        >
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select provider" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="gemini">Gemini (Pro)</SelectItem>
-                                <SelectItem value="turbo">Turbo (Fast)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <p className="text-[10px] text-muted-foreground">
-                            Gemini uses your API key. Turbo is fast and free for drafts.
-                        </p>
-                    </div>
-                )}
-
                 <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Image Variants</Label>
-                    <Input
-                        type="number"
-                        min={1}
-                        max={4}
-                        value={imageCount}
-                        onChange={(e) => setImageCount(Math.max(1, Math.min(4, parseInt(e.target.value) || 1)))}
-                    />
+                    <Label className="text-xs text-muted-foreground">Generation Mode</Label>
+                    <Select value={imageMode} onValueChange={(value) => setImageMode(value as 'lite' | 'advanced')}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="lite">Lite (Fast Draft)</SelectItem>
+                            <SelectItem value="advanced">Advanced (Full Controls)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground">
+                        Lite uses Turbo with one variant. Advanced unlocks model and provider controls.
+                    </p>
                 </div>
 
-                {displayImageProvider === 'gemini' && !useGlobalImageSettings && (
-                    <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Gemini Image Model (optional)</Label>
-                        <Input
-                            value={overrideImageModel}
-                            onChange={(e) => setOverrideImageModel(e.target.value)}
-                            placeholder="imagen-3.0-generate-001"
-                        />
-                        <p className="text-[10px] text-muted-foreground">
-                            Leave empty to fall back to the global model.
-                        </p>
-                    </div>
+                {imageMode === 'advanced' && (
+                    <>
+                        <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/20">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Use Global AI Settings</Label>
+                                <p className="text-[10px] text-muted-foreground">
+                                    Uses defaults from AI Settings. Turn off to override for this article.
+                                </p>
+                            </div>
+                            <Switch checked={useGlobalImageSettings} onCheckedChange={setUseGlobalImageSettings} />
+                        </div>
+
+                        {useGlobalImageSettings ? (
+                            <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+                                <div className="font-medium text-foreground">Using global image defaults</div>
+                                <div>Provider: {displayImageProvider === 'gemini' ? 'Gemini (Pro)' : 'Turbo (Fast)'}</div>
+                                {displayImageProvider === 'gemini' && displayImageModel && (
+                                    <div>Model: {displayImageModel}</div>
+                                )}
+                                <div>
+                                    Edit these in <span className="font-semibold">AI Settings</span>.
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Provider</Label>
+                                <Select
+                                    value={overrideImageProvider}
+                                    onValueChange={(value) => setOverrideImageProvider(value as 'gemini' | 'turbo')}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select provider" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="gemini">Gemini (Pro)</SelectItem>
+                                        <SelectItem value="turbo">Turbo (Fast)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[10px] text-muted-foreground">
+                                    Gemini uses your API key. Turbo is fast and free for drafts.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Image Variants</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={4}
+                                value={imageCount}
+                                onChange={(e) => setImageCount(Math.max(1, Math.min(4, parseInt(e.target.value) || 1)))}
+                            />
+                        </div>
+
+                        {displayImageProvider === 'gemini' && !useGlobalImageSettings && (
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Gemini Image Model (optional)</Label>
+                                <Input
+                                    value={overrideImageModel}
+                                    onChange={(e) => setOverrideImageModel(e.target.value)}
+                                    placeholder="imagen-3.0-generate-001"
+                                />
+                                <p className="text-[10px] text-muted-foreground">
+                                    Leave empty to fall back to the global model.
+                                </p>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 <Button onClick={handleGenerateImages} disabled={imageGenerating}>

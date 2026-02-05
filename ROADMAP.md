@@ -64,6 +64,12 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **fact-check checklist** and **legal compliance disclaimer** blocks. ✅
 - Add **AI Image Generator in Article Editor** (Gemini/Turbo, aspect ratios, save to media library, set cover). ✅
 - Align **Gemini/Imagen image endpoints** + allow **custom model overrides**. ✅
+- Fix **JSON output with Google grounding** (prompt + response config + repair). ⏳
+- Increase **outline timeouts** for deep research and clarify the outline workflow in UI. ⏳
+- Add **Article Model** + **Thinking Budget** controls directly in AI Article Generator (override global AI settings). ⏳
+- Keep **Main AI Settings** for translations/shared tasks and label accordingly. ⏳
+- Add **Lite vs Advanced** image generation modes in Article Editor. ⏳
+- Fix **link-only outputs** when links are provided without grounding (output token budget + validation). ⏳
 
 ## Phase 4: AI Image Studio (Only After Content Editing Is Strong)
 - Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets. ✅
@@ -104,3 +110,10 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **RLS policies** for admin/editor/user roles.
 - Add **rate limits** and **usage quotas** for AI generation.
 - Add **per-article budget controls** (token caps and cost estimates).
+
+## Test Plan (AI Reliability)
+- Generate article with **Deep** research and grounding; verify JSON fields and sources list.
+- Generate article with **Quick** mode + external links; verify full content (not title-only).
+- Run **Outline-first** flow with Deep research; ensure outline completes within 10 minutes.
+- Switch **Article Model** + **Thinking Budget** in AILab; verify generation uses new model in logs.
+- Run **Lite** image mode (Turbo, 1 variant) and **Advanced** mode (custom provider/model).

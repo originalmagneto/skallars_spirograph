@@ -58,6 +58,38 @@ async function getSetting(key: string): Promise<string | null> {
     return data.value;
 }
 
+const toNumber = (value?: string | null) => {
+    if (!value) return null;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getArticleModelSetting = async () => {
+    const articleModel = await getSetting('gemini_article_model');
+    if (articleModel) return articleModel;
+    return (await getSetting('gemini_model')) || 'gemini-2.0-flash';
+};
+
+const getArticleThinkingBudget = async () => {
+    return toNumber(await getSetting('gemini_article_thinking_budget'));
+};
+
+const estimateMaxOutputTokens = (targetWordCount?: number, languageCount?: number) => {
+    const words = targetWordCount && targetWordCount > 0 ? targetWordCount : 800;
+    const langs = languageCount && languageCount > 0 ? languageCount : 1;
+    const estimated = Math.round(words * langs * 2.2);
+    return Math.min(8192, Math.max(2048, estimated));
+};
+
+const buildThinkingConfig = (model: string, thinkingBudget?: number | null) => {
+    if (!thinkingBudget || thinkingBudget <= 0) return null;
+    if (!/gemini-2\\.5/i.test(model)) return null;
+    return {
+        thinkingConfig: { thinkingBudget },
+        thinking_config: { thinkingBudget }
+    };
+};
+
 const formatGeminiError = (result: any) => {
     const blockReason = result?.promptFeedback?.blockReason;
     const safetyRatings = result?.promptFeedback?.safetyRatings;
@@ -117,7 +149,7 @@ ${rawContent}`;
             responseMimeType: "application/json",
             response_mime_type: "application/json",
             temperature: 0,
-            maxOutputTokens: 4096
+            maxOutputTokens: 8192
         }
     };
 
@@ -445,6 +477,7 @@ ${toneBlock}
 1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
 2. **Value**: Every paragraph must add value. No filler.
 3. **Multilingual**: You must generate the article in the following languages: **${selectedLangNames}** simultaneously.
+3.1 **Completeness**: Never return only titles. Every language must include full `content_*` HTML with paragraphs and headings, even when links are provided without grounding.
 4. **Formatting (CRITICAL)**: 
    - Use **HTML tags** for all content.
    - **Headings**: Use \`<h2>\` for main sections and \`<h3>\` for subsections. **Use H3 frequently** to break up text.
@@ -466,7 +499,7 @@ ${toneBlock}
    - Each source in the reference list must be a clickable \`<a>\` tag.
 
 ### OUTPUT FORMAT
-IMPORTANT: Return ONLY raw JSON. No markdown blocking. No conversation.
+IMPORTANT: Return ONLY raw JSON. No markdown, no commentary. Even with Google grounding enabled, output JSON only.
 {
 ${jsonFields},
   "sources": [{"title": "Source title", "url": "https://source.com"}],
@@ -530,7 +563,7 @@ ${toneBlock}
 4. Do NOT write the full article—only the outline.
 
 ### OUTPUT FORMAT
-Return ONLY raw JSON. No markdown.
+Return ONLY raw JSON. No markdown, no commentary. Even with grounding enabled, output JSON only.
 {
   "outline": [
     "H2: Section Title",
@@ -590,24 +623,28 @@ Return ONLY raw JSON. No markdown or commentary.
 export async function generateAIResearchPack(
     prompt: string,
     links: string[] = [],
-    options: { type?: string; length?: string; targetWordCount?: number; tone?: string; toneInstructions?: string; signal?: AbortSignal } = {}
+    options: { type?: string; length?: string; targetWordCount?: number; tone?: string; toneInstructions?: string; signal?: AbortSignal; modelOverride?: string; thinkingBudgetOverride?: number | null } = {}
 ): Promise<ResearchPack> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
 
-    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const selectedModel = options.modelOverride || await getArticleModelSetting();
     const promptText = getAIResearchPrompt(prompt, links, options);
     const { signal } = options;
+    const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
+    const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
+    const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
     const body: any = {
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
-            responseMimeType: "text/plain",
-            response_mime_type: "text/plain",
+            responseMimeType: "application/json",
+            response_mime_type: "application/json",
             responseSchema: getResearchPackResponseSchema(),
             response_schema: getResearchPackResponseSchema(),
             temperature: 0.3,
-            maxOutputTokens: 4096
+            maxOutputTokens: 4096,
+            ...(thinkingConfig || {})
         },
         tools: [{ googleSearch: {} }]
     };
@@ -668,17 +705,20 @@ export async function generateAIResearchPack(
 export async function generateAIArticle(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string, researchFindings?: string, sources?: Array<{ title?: string; url?: string }>, signal?: AbortSignal } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, customPrompt?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string, researchFindings?: string, sources?: Array<{ title?: string; url?: string }>, signal?: AbortSignal, modelOverride?: string, thinkingBudgetOverride?: number | null } = {}
 ): Promise<GeneratedArticle> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
 
     // Get selected model, fallback to gemini-2.0-flash
-    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const selectedModel = options.modelOverride || await getArticleModelSetting();
     console.log('[AI] Using Gemini model:', selectedModel);
 
     const { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
     const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
+    const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
+    const maxOutputTokens = estimateMaxOutputTokens(options.targetWordCount, targetLanguages.length);
+    const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
     const finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
 
@@ -687,8 +727,10 @@ export async function generateAIArticle(
         generationConfig: {
             // JSON mode is incompatible with Grounding/Tools in some Gemini versions
             // We'll try to use it if Grounding is OFF, otherwise we rely on the prompt to request JSON
-            responseMimeType: useGrounding ? "text/plain" : "application/json",
-            response_mime_type: useGrounding ? "text/plain" : "application/json",
+            responseMimeType: "application/json",
+            response_mime_type: "application/json",
+            maxOutputTokens,
+            ...(thinkingConfig || {}),
             ...(useGrounding ? {} : { responseSchema: getArticleResponseSchema(targetLanguages), response_schema: getArticleResponseSchema(targetLanguages) })
         }
     };
@@ -878,20 +920,23 @@ Return ONLY the edited HTML string.`;
 export async function generateAIOutline(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, useGrounding?: boolean, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string, researchFindings?: string, signal?: AbortSignal } = {}
+    options: { type?: string, length?: string, useGrounding?: boolean, researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, languageLabel?: string, researchFindings?: string, signal?: AbortSignal, modelOverride?: string, thinkingBudgetOverride?: number | null } = {}
 ): Promise<{ outline: string[]; notes?: string; sources?: Array<{ title?: string; url?: string }>; usage?: { promptTokens: number; completionTokens: number; totalTokens: number } }> {
     const apiKey = await getSetting('gemini_api_key');
     if (!apiKey) throw new Error('Gemini API Key not found in settings.');
 
-    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const selectedModel = options.modelOverride || await getArticleModelSetting();
     const { useGrounding = false, signal } = options;
+    const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
     const promptText = getAIOutlinePrompt(prompt, links, options);
 
     const body: any = {
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
-            responseMimeType: useGrounding ? "text/plain" : "application/json",
-            response_mime_type: useGrounding ? "text/plain" : "application/json",
+            responseMimeType: "application/json",
+            response_mime_type: "application/json",
+            maxOutputTokens: 2048,
+            ...(thinkingConfig || {}),
             ...(useGrounding ? {} : { responseSchema: getOutlineResponseSchema(), response_schema: getOutlineResponseSchema() })
         }
     };

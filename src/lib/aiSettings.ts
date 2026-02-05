@@ -5,6 +5,8 @@ export type AISettingsSnapshot = {
     geminiImageApiKey: string | null;
     geminiModel: string | null;
     geminiImageModel: string | null;
+    geminiArticleModel: string | null;
+    geminiArticleThinkingBudget: number | null;
     imageEngine: "turbo" | "gemini";
     priceInputPerM: number | null;
     priceOutputPerM: number | null;
@@ -42,6 +44,8 @@ export const fetchAISettings = async (): Promise<AISettingsSnapshot> => {
         geminiImageApiKey: map.gemini_image_api_key || null,
         geminiModel: map.gemini_model || DEFAULTS.geminiModel,
         geminiImageModel: map.gemini_image_model || DEFAULTS.geminiImageModel,
+        geminiArticleModel: map.gemini_article_model || null,
+        geminiArticleThinkingBudget: toNumber(map.gemini_article_thinking_budget),
         imageEngine,
         priceInputPerM: toNumber(map.gemini_price_input_per_million),
         priceOutputPerM: toNumber(map.gemini_price_output_per_million),

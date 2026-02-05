@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { generateAIArticle, generateAIOutline, generateAIResearchPack, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
-import { fetchAISettings } from '@/lib/aiSettings';
+import { fetchAISettings, fetchGeminiModels, filterTextModels, GeminiModel } from '@/lib/aiSettings';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatArticleHtml } from '@/lib/articleFormat';
@@ -63,6 +63,12 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [activeTab, setActiveTab] = useState<'sk' | 'en'>('sk');
     const [currentModel, setCurrentModel] = useState<string>('');
     const [modelSupportsGrounding, setModelSupportsGrounding] = useState<boolean>(true);
+    const [thinkingBudget, setThinkingBudget] = useState<number>(0);
+    const [savedModel, setSavedModel] = useState<string>('');
+    const [savedThinkingBudget, setSavedThinkingBudget] = useState<number>(0);
+    const [modelOptions, setModelOptions] = useState<GeminiModel[]>([]);
+    const [modelLoading, setModelLoading] = useState(false);
+    const [articleSettingsSaving, setArticleSettingsSaving] = useState(false);
 
     const [targetLanguages, setTargetLanguages] = useState<string[]>(['sk', 'en']);
     const [toneStyle, setToneStyle] = useState('Client-Friendly');
@@ -102,11 +108,40 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         'Neutral': 'Balanced and objective. Avoid strong opinions or marketing language.',
     };
 
+    const articleSettingsDirty = currentModel !== savedModel || thinkingBudget !== savedThinkingBudget;
+
+    const saveArticleSettings = async (silent = false) => {
+        if (articleSettingsSaving) return true;
+        setArticleSettingsSaving(true);
+        try {
+            const payload = [
+                { key: 'gemini_article_model', value: currentModel || 'gemini-2.0-flash' },
+                { key: 'gemini_article_thinking_budget', value: String(Math.max(0, thinkingBudget || 0)) },
+            ];
+            const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'key' });
+            if (error) throw error;
+            setSavedModel(currentModel || 'gemini-2.0-flash');
+            setSavedThinkingBudget(Math.max(0, thinkingBudget || 0));
+            if (!silent) toast.success('Article model settings saved.');
+            return true;
+        } catch (err: any) {
+            if (!silent) toast.error(err?.message || 'Failed to save article model settings.');
+            return false;
+        } finally {
+            setArticleSettingsSaving(false);
+        }
+    };
+
     // Fetch model settings on load
     useEffect(() => {
         const init = async () => {
             const settings = await fetchAISettings();
-            setCurrentModel(settings.geminiModel || 'gemini-2.0-flash');
+            const articleModel = settings.geminiArticleModel || settings.geminiModel || 'gemini-2.0-flash';
+            setCurrentModel(articleModel);
+            setSavedModel(articleModel);
+            const budget = settings.geminiArticleThinkingBudget ?? 0;
+            setThinkingBudget(budget);
+            setSavedThinkingBudget(budget);
             setPriceInputPerM(settings.priceInputPerM);
             setPriceOutputPerM(settings.priceOutputPerM);
 
@@ -115,6 +150,18 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel}?key=${settings.geminiApiKey}`);
                 } catch (e) {
                     console.error("Failed to fetch model info", e);
+                }
+            }
+
+            if (settings.geminiApiKey) {
+                try {
+                    setModelLoading(true);
+                    const models = await fetchGeminiModels(settings.geminiApiKey);
+                    setModelOptions(filterTextModels(models));
+                } catch (e) {
+                    console.error("Failed to load model list", e);
+                } finally {
+                    setModelLoading(false);
                 }
             }
         };
@@ -280,6 +327,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             return;
         }
 
+        if (articleSettingsDirty) {
+            await saveArticleSettings(true);
+        }
+
         setGenerating(true);
         setGenerationTimeMs(null);
         setEstimatedCost(null);
@@ -327,6 +378,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     targetWordCount,
                     tone: toneStyle,
                     toneInstructions,
+                    modelOverride: currentModel,
+                    thinkingBudgetOverride: thinkingBudget,
                     signal: controller.signal
                 });
                 researchFindings = buildResearchFindings(researchPack);
@@ -339,7 +392,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 await handleGenerateOutline({
                     researchFindings,
                     useGroundingOverride: false,
-                    signal: controller.signal
+                    signal: controller.signal,
+                    timeoutMs: researchDepth === 'Deep' ? 600000 : 120000,
+                    modelOverride: currentModel,
+                    thinkingBudgetOverride: thinkingBudget
                 });
                 setGenerating(false);
                 clearGenerationTimers();
@@ -360,6 +416,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 targetWordCount,
                 tone: toneStyle,
                 toneInstructions,
+                modelOverride: currentModel,
+                thinkingBudgetOverride: thinkingBudget,
                 outline: useOutlineWorkflow && outlineText && !showPromptEditor ? outlineText : undefined,
                 researchFindings,
                 sources: researchSourcesLocal,
@@ -387,12 +445,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     await supabase.from('ai_usage_logs').insert({
                         user_id: user.id,
                         action: `Article: ${truncatedTitle}`,
-                        model: await supabase
-                            .from('settings')
-                            .select('value')
-                            .eq('key', 'gemini_model')
-                            .maybeSingle()
-                            .then((r) => r.data?.value || 'gemini-2.0-flash'),
+                        model: currentModel || 'gemini-2.0-flash',
                         input_tokens: content.usage.promptTokens,
                         output_tokens: content.usage.completionTokens,
                         total_tokens: content.usage.totalTokens
@@ -420,7 +473,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         }
     };
 
-    const handleGenerateOutline = async (options?: { researchFindings?: string; useGroundingOverride?: boolean; signal?: AbortSignal; timeoutMs?: number }) => {
+    const handleGenerateOutline = async (options?: { researchFindings?: string; useGroundingOverride?: boolean; signal?: AbortSignal; timeoutMs?: number; modelOverride?: string; thinkingBudgetOverride?: number | null }) => {
         if (!prompt && !customPrompt) {
             toast.error('Please enter a topic or prompt');
             return;
@@ -459,6 +512,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 languageLabel: languageLabels[primaryLang] || primaryLang,
                 useGrounding,
                 researchFindings: options?.researchFindings,
+                modelOverride: options?.modelOverride || currentModel,
+                thinkingBudgetOverride: options?.thinkingBudgetOverride ?? thinkingBudget,
                 signal: outlineController.signal
             });
             setOutlineText(outlineResult.outline.join('\n'));
@@ -767,12 +822,74 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                 {researchDepth === 'Deep'
                                     ? 'Deep mode uses Google Search grounding to verify facts.'
                                     : 'Quick mode uses only your prompt + links; no external search.'}
-                                {currentModel && (
-                                    <span className="block text-[10px] text-primary mt-1">
-                                        Current Model: {currentModel}
-                                    </span>
-                                )}
                             </p>
+                        </div>
+
+                        <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-primary/10">
+                            <div className="flex items-center justify-between gap-2">
+                                <Label className="text-sm font-medium flex items-center gap-2">
+                                    <AiMagicIcon size={16} className="text-primary" />
+                                    Article Model & Thinking Budget
+                                </Label>
+                                {articleSettingsDirty && (
+                                    <Badge variant="outline">Unsaved</Badge>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-muted-foreground">Article Model</Label>
+                                    {modelOptions.length > 0 ? (
+                                        <Select value={currentModel} onValueChange={setCurrentModel}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select model" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {modelOptions.map((model) => (
+                                                    <SelectItem key={model.name} value={model.name}>
+                                                        {model.displayName || model.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <Input
+                                            value={currentModel}
+                                            onChange={(e) => setCurrentModel(e.target.value)}
+                                            placeholder="gemini-2.5-pro"
+                                        />
+                                    )}
+                                    <p className="text-[10px] text-muted-foreground">
+                                        These settings only affect the Article Generator. Main AI Settings are used elsewhere.
+                                    </p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-muted-foreground">Thinking Budget</Label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={4096}
+                                        value={thinkingBudget}
+                                        onChange={(e) => setThinkingBudget(Math.max(0, parseInt(e.target.value) || 0))}
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Set 0 to disable. Only supported on thinking-capable models.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] text-muted-foreground">
+                                    Model list {modelLoading ? 'loading…' : 'ready'}.
+                                </p>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => saveArticleSettings()}
+                                    disabled={articleSettingsSaving}
+                                >
+                                    {articleSettingsSaving ? 'Saving…' : 'Save Article Settings'}
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="space-y-2">
@@ -853,7 +970,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     Outline-First Workflow
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
-                                    Generate an outline first, review it, then create the full article.
+                                    Generate a structured outline, review/edit it, then create the full article. Deep research can take several minutes.
                                 </p>
                             </div>
                             <Switch

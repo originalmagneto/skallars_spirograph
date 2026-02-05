@@ -48,6 +48,7 @@ Tables referenced in app code:
 - `articles` (title_*, excerpt_*, content_*, slug, cover_image_url, tags, is_published, published_at, author_id).
 - `tags`, `article_tags` (tagging for articles).
 - `settings` (gemini_api_key, gemini_image_api_key, gemini_model, gemini_image_model, image_model, image_count, linkedin_default_org_urn).
+- `settings` (gemini_article_model, gemini_article_thinking_budget) for Article Studio overrides.
 - `ai_usage_logs` (token tracking and usage records).
 - `ai_generation_logs` (AI generation diagnostics).
 - `admin_access_logs` (admin permission diagnostics).
@@ -97,7 +98,8 @@ Storage buckets referenced:
 - Prompt is built by `getAIArticlePrompt` and supports type, length, and target languages.
 - **Enhanced Formatting**: Prompts now strictly enforce semantic HTML with bolding (`<strong>`) for skimmability, blockquotes for insights, and frequent subheadings (`<h3>`).
 - **Citations**: Inline citations (`<sup>[1]</sup>`) and clickable source links are enforced when grounding is used.
-- Grounding uses `googleSearch` tool; JSON response mode is avoided when grounding is enabled.
+- Grounding uses `googleSearch` tool; JSON is still enforced and parsed with repair fallback.
+- Article Studio can override the global model with `gemini_article_model` and `gemini_article_thinking_budget`.
 - Image generation uses a two-tier system:
   - Turbo: Pollinations (Flux) for fast, no-key images.
   - Pro: Gemini native image models use `generateContent` with `responseModalities` + `imageConfig`, Imagen models use `predict`; fallback to Turbo on failure.
