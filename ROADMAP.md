@@ -14,6 +14,7 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Preserve **Team Member photo positioning** when editing. ✅
 - Implement **image batch generation** honoring `image_count` or remove the setting. ✅
 - Update **AI Usage cost estimates** to reflect selected model or remove the estimate if unknown. ✅
+- Fix **Blog Rendering** by installing `@tailwindcss/typography` plugin. ✅
 
 ## Phase 1: Content System Foundation (Text-First, Core Admin UX)
 - Create a **content model registry** to define editable sections, fields, and field types. ✅
