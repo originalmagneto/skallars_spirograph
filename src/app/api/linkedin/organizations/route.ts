@@ -38,7 +38,9 @@ export async function GET(req: NextRequest) {
       Authorization: `Bearer ${account.access_token}`,
       'X-Restli-Protocol-Version': '2.0.0',
       'LinkedIn-Version': '202401',
+      'Linkedin-Version': '202401',
       Accept: 'application/json',
+      'Content-Type': 'application/json',
     };
 
     const restEndpoint =
