@@ -77,12 +77,12 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Add **fact-check checklist** and **legal compliance disclaimer** blocks. ✅
 - Add **AI Image Generator in Article Editor** (Gemini/Turbo, aspect ratios, save to media library, set cover). ✅
 - Align **Gemini/Imagen image endpoints** + allow **custom model overrides**. ✅
-- Fix **JSON output with Google grounding** (prompt + response config + repair). ⏳
-- Increase **outline timeouts** for deep research and clarify the outline workflow in UI. ⏳
-- Add **Article Model** + **Thinking Budget** controls directly in AI Article Generator (override global AI settings). ⏳
-- Keep **Main AI Settings** for translations/shared tasks and label accordingly. ⏳
-- Add **Lite vs Advanced** image generation modes in Article Editor. ⏳
-- Fix **link-only outputs** when links are provided without grounding (output token budget + validation). ⏳
+- Fix **JSON output with Google grounding** (prompt + response config + repair). ✅
+- Increase **outline timeouts** for deep research and clarify the outline workflow in UI. ✅
+- Add **Article Model** + **Thinking Budget** controls directly in AI Article Generator (override global AI settings). ✅
+- Keep **Main AI Settings** for translations/shared tasks and label accordingly. ✅
+- Add **Lite vs Advanced** image generation modes in Article Editor. ✅
+- Fix **link-only outputs** when links are provided without grounding (output token budget + validation). ✅
 
 ## Phase 4: AI Image Studio (Only After Content Editing Is Strong)
 - Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets. ✅

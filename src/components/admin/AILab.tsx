@@ -369,23 +369,34 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const validLinks = links.filter(l => l.trim() !== '');
             let researchFindings = '';
             let researchSourcesLocal: Array<{ title?: string; url?: string }> = [];
+            let useGroundingForArticle = researchDepth === 'Deep';
 
             if (researchDepth === 'Deep') {
                 setGenerationStatus('Gathering sources and research...');
-                const researchPack = await generateAIResearchPack(prompt || customPrompt, validLinks, {
-                    type: articleType,
-                    length: articleLength,
-                    targetWordCount,
-                    tone: toneStyle,
-                    toneInstructions,
-                    modelOverride: currentModel,
-                    thinkingBudgetOverride: thinkingBudget,
-                    signal: controller.signal
-                });
-                researchFindings = buildResearchFindings(researchPack);
-                researchSourcesLocal = researchPack.sources || [];
-                setResearchSources(researchSourcesLocal);
-                setResearchSummary(researchPack.summary || '');
+                try {
+                    const researchPack = await generateAIResearchPack(prompt || customPrompt, validLinks, {
+                        type: articleType,
+                        length: articleLength,
+                        targetWordCount,
+                        tone: toneStyle,
+                        toneInstructions,
+                        modelOverride: currentModel,
+                        thinkingBudgetOverride: thinkingBudget,
+                        signal: controller.signal
+                    });
+                    researchFindings = buildResearchFindings(researchPack);
+                    researchSourcesLocal = researchPack.sources || [];
+                    setResearchSources(researchSourcesLocal);
+                    setResearchSummary(researchPack.summary || '');
+                    // We already grounded in research phase; avoid double grounding in generation.
+                    useGroundingForArticle = false;
+                } catch (researchError: any) {
+                    console.warn('Research pre-pass failed, falling back to direct grounded generation:', researchError);
+                    setResearchSources([]);
+                    setResearchSummary('');
+                    useGroundingForArticle = true;
+                    toast.warning('Research pre-pass failed. Continuing with direct grounded generation.');
+                }
             }
 
             if (useOutlineWorkflow && !outlineText && !showPromptEditor) {
@@ -409,10 +420,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const content = await generateAIArticle(prompt, validLinks, {
                 type: articleType,
                 length: articleLength,
-                useGrounding: false,
+                useGrounding: useGroundingForArticle,
                 customPrompt: customPromptOverride,
                 targetLanguages,
-                researchDepth: researchDepth === 'Deep' ? 'Quick' : researchDepth,
+                researchDepth,
                 targetWordCount,
                 tone: toneStyle,
                 toneInstructions,

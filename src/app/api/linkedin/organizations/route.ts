@@ -27,8 +27,9 @@ export async function GET(req: NextRequest) {
         .from('settings')
         .select('value')
         .eq('key', 'linkedin_default_org_urn')
-        .maybeSingle();
-      const fallback = defaultOrg?.value ? [{ urn: defaultOrg.value, name: 'Default Organization' }] : [];
+        .limit(1);
+      const defaultOrgUrn = defaultOrg?.[0]?.value || '';
+      const fallback = defaultOrgUrn ? [{ urn: defaultOrgUrn, name: 'Default Organization' }] : [];
       return NextResponse.json(
         {
           organizations: fallback,
@@ -42,8 +43,8 @@ export async function GET(req: NextRequest) {
       .from('settings')
       .select('value')
       .eq('key', 'linkedin_default_org_urn')
-      .maybeSingle();
-    const defaultOrgUrn = defaultOrgSetting?.value || '';
+      .limit(1);
+    const defaultOrgUrn = defaultOrgSetting?.[0]?.value || '';
 
     const scopes = Array.isArray(account.scopes) ? account.scopes : [];
     const hasOrgScope =

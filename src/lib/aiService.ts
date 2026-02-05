@@ -129,6 +129,21 @@ const tryParseJson = (content: string) => {
     }
 };
 
+const hasMeaningfulArticleHtml = (html?: string) => {
+    if (!html) return false;
+    const normalized = String(html).trim();
+    if (!normalized) return false;
+    const textOnly = normalized.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    const paragraphCount = (normalized.match(/<p[\s>]/gi) || []).length;
+    const headingCount = (normalized.match(/<h[23][\s>]/gi) || []).length;
+    return textOnly.length >= 320 && paragraphCount >= 2 && headingCount >= 1;
+};
+
+const hasCompleteMultilingualContent = (payload: any, targetLanguages: string[]) => {
+    if (!payload || typeof payload !== 'object') return false;
+    return targetLanguages.every((lang) => hasMeaningfulArticleHtml(payload[`content_${lang}`]));
+};
+
 const repairJsonWithGemini = async (
     rawContent: string,
     selectedModel: string,
@@ -720,89 +735,104 @@ export async function generateAIArticle(
     const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
     const finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
-
-    const body: any = {
-        contents: [{ parts: [{ text: finalPrompt }] }],
-        generationConfig: {
-            // JSON mode is incompatible with Grounding/Tools in some Gemini versions
-            // We'll try to use it if Grounding is OFF, otherwise we rely on the prompt to request JSON
-            responseMimeType: "application/json",
-            response_mime_type: "application/json",
-            maxOutputTokens,
-            ...(thinkingConfig || {}),
-            ...(useGrounding ? {} : { responseSchema: getArticleResponseSchema(targetLanguages), response_schema: getArticleResponseSchema(targetLanguages) })
-        }
+    const languageLabels: Record<string, string> = {
+        sk: 'Slovak (SK)',
+        en: 'English (EN)',
+        de: 'German (DE)',
+        cn: 'Chinese (CN)',
     };
 
-    if (useGrounding) {
-        body.tools = [{ googleSearch: {} }];
-    }
+    const requestModelOutput = async (promptText: string) => {
+        const body: any = {
+            contents: [{ parts: [{ text: promptText }] }],
+            generationConfig: {
+                // Some Gemini models reject responseSchema with grounding/tools.
+                responseMimeType: "application/json",
+                response_mime_type: "application/json",
+                maxOutputTokens,
+                ...(thinkingConfig || {}),
+                ...(useGrounding ? {} : { responseSchema: getArticleResponseSchema(targetLanguages), response_schema: getArticleResponseSchema(targetLanguages) })
+            }
+        };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(body),
-        signal
-    });
-
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Gemini API Error: ${response.statusText} - ${errorBody}`);
-    }
-
-    const result = await response.json();
-    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
-    const groundingMetadata = result?.candidates?.[0]?.groundingMetadata;
-    const usageMetadata = result?.usageMetadata;
-
-    if (!content) throw new Error(formatGeminiError(result));
-
-    try {
-        let parsedContent = tryParseJson(content);
-        if (!parsedContent) {
-            parsedContent = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
+        if (useGrounding) {
+            body.tools = [{ googleSearch: {} }];
         }
 
-        // Normalize HTML formatting for each language before appending sources
-        parsedContent.content_sk = normalizeArticleHtml(parsedContent.content_sk || '');
-        parsedContent.content_en = normalizeArticleHtml(parsedContent.content_en || '');
-        parsedContent.content_de = normalizeArticleHtml(parsedContent.content_de || '');
-        parsedContent.content_cn = normalizeArticleHtml(parsedContent.content_cn || '');
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify(body),
+            signal
+        });
 
-        // Enhance formatting if the output is too plain
-        const languageLabels: Record<string, string> = {
-            sk: 'Slovak (SK)',
-            en: 'English (EN)',
-            de: 'German (DE)',
-            cn: 'Chinese (CN)',
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Gemini API Error: ${response.statusText} - ${errorBody}`);
+        }
+
+        const result = await response.json();
+        const modelText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!modelText) throw new Error(formatGeminiError(result));
+        return {
+            content: modelText as string,
+            groundingMetadata: result?.candidates?.[0]?.groundingMetadata,
+            usageMetadata: result?.usageMetadata
         };
-        const enhancements = await Promise.all([
-            enhanceArticleFormatting(parsedContent.content_sk || '', languageLabels.sk, signal),
-            enhanceArticleFormatting(parsedContent.content_en || '', languageLabels.en, signal),
-            enhanceArticleFormatting(parsedContent.content_de || '', languageLabels.de, signal),
-            enhanceArticleFormatting(parsedContent.content_cn || '', languageLabels.cn, signal),
-        ]);
-        parsedContent.content_sk = addHeadingAnchors(enhancements[0] || parsedContent.content_sk || '');
-        parsedContent.content_en = addHeadingAnchors(enhancements[1] || parsedContent.content_en || '');
-        parsedContent.content_de = addHeadingAnchors(enhancements[2] || parsedContent.content_de || '');
-        parsedContent.content_cn = addHeadingAnchors(enhancements[3] || parsedContent.content_cn || '');
+    };
+
+    try {
+        let output = await requestModelOutput(finalPrompt);
+        let parsedContent = tryParseJson(output.content);
+        if (!parsedContent) {
+            parsedContent = await repairJsonWithGemini(output.content, selectedModel, apiKey, signal);
+        }
+
+        if (!hasCompleteMultilingualContent(parsedContent, targetLanguages) && links.length > 0) {
+            const retryPrompt = `${finalPrompt}
+
+### RETRY REQUIREMENT
+Your previous output was incomplete. You must return full HTML article bodies for all requested languages.
+- Every \`content_*\` field must include at least 4 <p> paragraphs and multiple headings.
+- Do not return title-only or excerpt-only output.
+- Return valid raw JSON only.`;
+            output = await requestModelOutput(retryPrompt);
+            parsedContent = tryParseJson(output.content) || await repairJsonWithGemini(output.content, selectedModel, apiKey, signal);
+        }
+
+        if (!hasCompleteMultilingualContent(parsedContent, targetLanguages)) {
+            throw new Error('Generated content was incomplete for one or more target languages.');
+        }
+
+        for (const lang of targetLanguages) {
+            const field = `content_${lang}`;
+            parsedContent[field] = normalizeArticleHtml(parsedContent[field] || '');
+        }
+
+        const enhancements = await Promise.all(
+            targetLanguages.map((lang) => enhanceArticleFormatting(parsedContent[`content_${lang}`] || '', languageLabels[lang] || lang, signal))
+        );
+        targetLanguages.forEach((lang, index) => {
+            const field = `content_${lang}`;
+            parsedContent[field] = addHeadingAnchors(enhancements[index] || parsedContent[field] || '');
+        });
 
         const appendSources = (sourceItems: Array<{ url: string; title?: string }>) => {
             if (!sourceItems.length) return;
-            const hasSources = ['content_sk', 'content_en', 'content_de', 'content_cn']
+            const contentFields = targetLanguages.map((lang) => `content_${lang}`);
+            const hasSources = contentFields
                 .some((field) => String((parsedContent as any)[field] || '').includes('Sources & References'));
             if (!hasSources) {
                 const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ol>${sourceItems.map((s) => `<li><a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.title || s.url}</a></li>`).join('')}</ol>`;
-                parsedContent.content_sk = (parsedContent.content_sk || '') + sourcesHtml;
-                parsedContent.content_en = (parsedContent.content_en || '') + sourcesHtml;
-                parsedContent.content_de = (parsedContent.content_de || '') + sourcesHtml;
-                parsedContent.content_cn = (parsedContent.content_cn || '') + sourcesHtml;
+                contentFields.forEach((field) => {
+                    parsedContent[field] = (parsedContent[field] || '') + sourcesHtml;
+                });
             }
             parsedContent.sources = sourceItems;
         };
 
-        if (groundingMetadata?.groundingChunks) {
-            const sourceItems = groundingMetadata.groundingChunks
+        if (output.groundingMetadata?.groundingChunks) {
+            const sourceItems = output.groundingMetadata.groundingChunks
                 .map((chunk: any) => {
                     const uri = chunk.web?.uri;
                     if (!uri) return null;
@@ -821,17 +851,20 @@ export async function generateAIArticle(
         }
 
         // Add usage metadata if available
-        if (usageMetadata) {
+        if (output.usageMetadata) {
             parsedContent.usage = {
-                promptTokens: usageMetadata.promptTokenCount || 0,
-                completionTokens: usageMetadata.candidatesTokenCount || 0,
-                totalTokens: usageMetadata.totalTokenCount || 0
+                promptTokens: output.usageMetadata.promptTokenCount || 0,
+                completionTokens: output.usageMetadata.candidatesTokenCount || 0,
+                totalTokens: output.usageMetadata.totalTokenCount || 0
             };
         }
 
         return parsedContent;
     } catch (e) {
-        console.error("Failed to parse Gemini response as JSON", content);
+        console.error("Failed to parse Gemini response as JSON");
+        if (e instanceof Error && e.message) {
+            throw e;
+        }
         throw new Error('Generated content was not in valid JSON format.');
     }
 }
@@ -973,16 +1006,10 @@ export async function generateAIOutline(
     };
 
     try {
-        const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/);
-        let cleanContent = jsonMatch ? jsonMatch[1] : content;
-
-        const firstOpen = cleanContent.indexOf('{');
-        const lastClose = cleanContent.lastIndexOf('}');
-        if (firstOpen !== -1 && lastClose !== -1) {
-            cleanContent = cleanContent.substring(firstOpen, lastClose + 1);
+        let parsed = tryParseJson(content);
+        if (!parsed) {
+            parsed = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
         }
-
-        const parsed = JSON.parse(cleanContent);
         if (!parsed.outline || !Array.isArray(parsed.outline)) {
             return fallbackParse(content);
         }

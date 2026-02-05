@@ -106,9 +106,9 @@ export async function POST(req: NextRequest) {
         .from('settings')
         .select('value')
         .eq('key', 'linkedin_default_org_urn')
-        .maybeSingle();
-      if (orgSetting?.value) {
-        organizationUrn = orgSetting.value;
+        .limit(1);
+      if (orgSetting?.[0]?.value) {
+        organizationUrn = orgSetting[0].value;
       }
     }
     if (shareTarget === 'organization' && !organizationUrn && Array.isArray(account?.organization_urns)) {

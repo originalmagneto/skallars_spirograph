@@ -80,8 +80,8 @@ export async function GET(req: NextRequest) {
       .from('settings')
       .select('value')
       .eq('key', 'linkedin_default_org_urn')
-      .maybeSingle();
-    const defaultOrgUrn = defaultOrgSetting?.value || '';
+      .limit(1);
+    const defaultOrgUrn = defaultOrgSetting?.[0]?.value || '';
 
     const { data: logs } = await supabase
       .from('linkedin_share_logs')
