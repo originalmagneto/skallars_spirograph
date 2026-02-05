@@ -35,17 +35,34 @@ $$;
 -- Content registry policies (admin/editor read, admin write)
 ALTER TABLE public.content_registry ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "content_registry_read_profiles_role"
-  ON public.content_registry
-  FOR SELECT
-  TO authenticated
-  USING (public.is_profile_editor(auth.uid()));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'content_registry'
+      AND policyname = 'content_registry_read_profiles_role'
+  ) THEN
+    CREATE POLICY "content_registry_read_profiles_role"
+      ON public.content_registry
+      FOR SELECT
+      TO authenticated
+      USING (public.is_profile_editor(auth.uid()));
+  END IF;
 
-CREATE POLICY "content_registry_manage_profiles_role"
-  ON public.content_registry
-  FOR ALL
-  TO authenticated
-  USING (public.is_profile_admin(auth.uid()));
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'content_registry'
+      AND policyname = 'content_registry_manage_profiles_role'
+  ) THEN
+    CREATE POLICY "content_registry_manage_profiles_role"
+      ON public.content_registry
+      FOR ALL
+      TO authenticated
+      USING (public.is_profile_admin(auth.uid()));
+  END IF;
+END $$;
 
 -- Site content policies (public read, admin write)
 ALTER TABLE public.site_content ENABLE ROW LEVEL SECURITY;

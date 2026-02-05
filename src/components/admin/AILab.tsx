@@ -310,7 +310,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         generationTimeoutRef.current = window.setTimeout(() => {
             setGenerationStatus('Request timed out. Cancelling...');
             controller.abort();
-        }, 120000);
+        }, 600000);
 
         await logGenerationEvent({ request_id: requestId, status: 'started' });
         const startTime = Date.now();
