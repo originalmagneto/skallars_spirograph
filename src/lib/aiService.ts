@@ -633,7 +633,6 @@ export async function generateAIResearchPack(
     const { signal } = options;
     const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
     const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
-    const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
     const body: any = {
         contents: [{ parts: [{ text: promptText }] }],
