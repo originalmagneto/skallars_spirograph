@@ -813,13 +813,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
             const data = await res.json();
-            if (res.ok && Array.isArray(data.organizations)) {
+            if (Array.isArray(data.organizations)) {
                 setLinkedinOrganizations(data.organizations);
                 if (data.organizations.length === 1) {
                     setLinkedinOrganizationUrn(data.organizations[0].urn);
                 }
+                if (!res.ok && data?.error) {
+                    toast.error(data.error);
+                }
+            } else if (data?.error) {
+                toast.error(data.error);
             } else {
-                toast.error(data?.error || 'Failed to load LinkedIn organizations.');
+                toast.error('Failed to load LinkedIn organizations.');
             }
         } catch {
             toast.error('Failed to load LinkedIn organizations.');

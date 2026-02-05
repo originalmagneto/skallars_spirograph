@@ -34,25 +34,42 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const orgEndpoint = 'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))';
-    const response = await fetch(orgEndpoint, {
-      headers: {
-        Authorization: `Bearer ${account.access_token}`,
-        'X-Restli-Protocol-Version': '2.0.0',
-        'LinkedIn-Version': '202401',
-      },
-    });
+    const headers = {
+      Authorization: `Bearer ${account.access_token}`,
+      'X-Restli-Protocol-Version': '2.0.0',
+      'LinkedIn-Version': '202401',
+      Accept: 'application/json',
+    };
 
-    const body = await response.json().catch(() => ({}));
+    const restEndpoint =
+      'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))';
+    const legacyEndpoint =
+      'https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))';
+
+    let response = await fetch(restEndpoint, { headers });
+    let body = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-      return NextResponse.json(
-        {
-          error: body?.message || body?.error?.message || 'Failed to load organizations.',
-          details: body,
-          hint: 'Ensure your LinkedIn app has Organization/Community Management access and the token includes w_organization_social.',
-        },
-        { status: response.status }
-      );
+      // Fallback to legacy endpoint in case REST is not enabled
+      const legacyResponse = await fetch(legacyEndpoint, { headers });
+      const legacyBody = await legacyResponse.json().catch(() => ({}));
+      if (legacyResponse.ok) {
+        response = legacyResponse;
+        body = legacyBody;
+      } else {
+        const fallbackOrgs = Array.isArray(account.organization_urns)
+          ? account.organization_urns.map((urn) => ({ urn, name: urn }))
+          : [];
+        return NextResponse.json(
+          {
+            organizations: fallbackOrgs,
+            error: body?.message || body?.error?.message || legacyBody?.message || legacyBody?.error?.message || 'Failed to load organizations.',
+            details: { rest: body, legacy: legacyBody },
+            hint: 'Ensure your LinkedIn app has Organization/Community Management access and the token includes w_organization_social.',
+          },
+          { status: 200 }
+        );
+      }
     }
 
     const orgs = Array.isArray(body?.elements)
