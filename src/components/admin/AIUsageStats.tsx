@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fetchAISettings } from '@/lib/aiSettings';
@@ -27,10 +28,17 @@ interface UsageLog {
     input_tokens: number;
     output_tokens: number;
     total_tokens: number;
+    profiles?: {
+        full_name: string | null;
+        avatar_url: string | null;
+        email: string | null;
+    } | null;
 }
 
 interface UserStat {
     userId: string;
+    fullName: string;
+    avatarUrl: string | null;
     totalRequests: number;
     totalTokens: number;
     totalCost: number;
@@ -61,9 +69,10 @@ const AIUsageStats = () => {
                 const priceOutput = Number(settings.priceOutputPerM) || 0;
                 setPrices({ input: priceInput, output: priceOutput });
 
+                // Fetch Logs with Profiles server-side
                 const { data: logsData, error } = await supabase
                     .from('ai_usage_logs')
-                    .select('*')
+                    .select('*, profiles(full_name, avatar_url, email)')
                     .order('created_at', { ascending: false })
                     .limit(500);
 
@@ -74,6 +83,7 @@ const AIUsageStats = () => {
 
             } catch (err) {
                 console.error('Failed to load usage stats:', err);
+                // Fallback or empty state could be set here
             } finally {
                 setLoading(false);
             }
@@ -96,7 +106,13 @@ const AIUsageStats = () => {
 
             // User Stats
             const userId = log.user_id || 'unknown';
-            const uStat = userMap.get(userId) || { userId, totalRequests: 0, totalTokens: 0, totalCost: 0 };
+            const userProfile = log.profiles;
+            const uStat = userMap.get(userId) || {
+                userId,
+                fullName: userProfile?.full_name || userProfile?.email || 'Unknown User',
+                avatarUrl: userProfile?.avatar_url || null,
+                totalRequests: 0, totalTokens: 0, totalCost: 0
+            };
             uStat.totalRequests++;
             uStat.totalTokens += log.total_tokens;
             uStat.totalCost += cost;
@@ -149,7 +165,7 @@ const AIUsageStats = () => {
                             <CpuIcon size={16} /> Total Tokens
                         </CardDescription>
                         <CardTitle className="text-3xl font-bold tracking-tight text-emerald-950">
-                            {totals.tokens.toLocaleString()}
+                            {(totals.tokens / 1000).toFixed(1)}k
                         </CardTitle>
                     </CardHeader>
                     <div className="absolute right-[-20px] top-[-20px] opacity-10 group-hover:opacity-20 transition-opacity">
@@ -248,12 +264,16 @@ const AIUsageStats = () => {
                             {userStats.slice(0, 3).map(user => (
                                 <div key={user.userId} className="flex items-center justify-between group">
                                     <div className="flex items-center gap-2.5">
-                                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
-                                            {user.userId.slice(0, 2).toUpperCase()}
-                                        </div>
+                                        {user.avatarUrl ? (
+                                            <img src={user.avatarUrl} alt={user.fullName} className="h-8 w-8 rounded-full object-cover ring-1 ring-border" />
+                                        ) : (
+                                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
+                                                {user.fullName.slice(0, 2).toUpperCase()}
+                                            </div>
+                                        )}
                                         <div className="flex flex-col">
-                                            <span className="text-xs font-semibold leading-tight">{user.userId.slice(0, 8)}...</span>
-                                            <span className="text-[10px] text-muted-foreground">{user.totalRequests} calls</span>
+                                            <span className="text-xs font-semibold leading-tight">{user.fullName}</span>
+                                            <span className="text-[10px] text-muted-foreground">{user.totalRequests} articles</span>
                                         </div>
                                     </div>
                                     <Badge variant="secondary" className="font-mono text-[10px] bg-muted/50 group-hover:bg-primary/5 transition-colors">
@@ -277,26 +297,38 @@ const AIUsageStats = () => {
                         <ScrollArea className="h-full absolute inset-0">
                             <div className="p-4 space-y-4">
                                 {logs.slice(0, 10).map((log) => (
-                                    <div key={log.id} className="flex flex-col gap-1 pb-3 border-b border-border/40 last:border-0 last:pb-0">
+                                    <div key={log.id} className="flex flex-col gap-2 pb-3 border-b border-border/40 last:border-0 last:pb-0 group">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                            <div className="flex items-center gap-2">
+                                                {log.profiles?.avatar_url ? (
+                                                    <img src={log.profiles.avatar_url} className="w-4 h-4 rounded-full" />
+                                                ) : (
+                                                    <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center text-[8px]">{log.profiles?.full_name?.slice(0, 1) || '?'}</div>
+                                                )}
+                                                <span className="text-[10px] text-muted-foreground font-medium">
+                                                    {log.profiles?.full_name || 'Unknown'}
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] font-mono text-muted-foreground">
                                                 {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
                                             </span>
-                                            <span className="text-[10px] font-medium text-emerald-600">
-                                                ${(((log.input_tokens * prices.input) + (log.output_tokens * prices.output)) / 1_000_000).toFixed(5)}
-                                            </span>
                                         </div>
+
                                         <div className="flex items-start gap-2">
                                             <BubbleChatIcon size={12} className="mt-0.5 text-primary/60 shrink-0" />
-                                            <p className="text-xs font-medium leading-tight line-clamp-2" title={log.action}>
+                                            <p className="text-xs font-medium leading-tight line-clamp-2 text-slate-800" title={log.action}>
                                                 {log.action.replace('generate_article', 'Article Generation').replace(/^Article: /, '')}
                                             </p>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 border-border/60">{log.model}</Badge>
-                                            <span className="text-[9px] text-muted-foreground ml-auto">
-                                                {log.total_tokens.toLocaleString()} tok
-                                            </span>
+
+                                        <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-50">
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className="text-[9px] h-4 px-1 py-0 border-border/60 text-slate-500">{log.model}</Badge>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-[9px] font-mono text-slate-400">
+                                                <span className="text-indigo-600 font-semibold">{log.total_tokens.toLocaleString()}</span> tok
+                                                <span className="text-slate-300">(${(((log.input_tokens * prices.input) + (log.output_tokens * prices.output)) / 1_000_000).toFixed(4)})</span>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -310,3 +342,4 @@ const AIUsageStats = () => {
 };
 
 export default AIUsageStats;
+

@@ -381,9 +381,12 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             // Log token usage if available
             if (user && content.usage) {
                 try {
+                    const articleTitle = content.title_en || content.title_sk || content.title_de || content.title_cn || prompt;
+                    const truncatedTitle = articleTitle.length > 80 ? `${articleTitle.slice(0, 80)}…` : articleTitle;
+
                     await supabase.from('ai_usage_logs').insert({
                         user_id: user.id,
-                        action: prompt.length > 60 ? `Article: ${prompt.slice(0, 60)}…` : `Article: ${prompt}`,
+                        action: `Article: ${truncatedTitle}`,
                         model: await supabase.from('settings').select('value').eq('key', 'gemini_model').single().then(r => r.data?.value || 'gemini-2.0-flash'),
                         input_tokens: content.usage.promptTokens,
                         output_tokens: content.usage.completionTokens,

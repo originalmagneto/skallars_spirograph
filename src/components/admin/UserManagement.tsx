@@ -10,13 +10,20 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Delete01Icon, UserIcon, Shield01Icon } from 'hugeicons-react';
+import {
+    Delete01Icon,
+    UserIcon,
+    Shield01Icon,
+    PencilEdit01Icon,
+    Cancel01Icon
+} from 'hugeicons-react';
 import { toast } from 'sonner';
 
 interface UserProfile {
     id: string;
     email: string | null;
     full_name: string | null;
+    avatar_url: string | null;
     role: 'admin' | 'editor' | 'user';
     created_at: string;
 }
@@ -55,6 +62,25 @@ const UserManagement = () => {
         },
     });
 
+    const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+    const [editForm, setEditForm] = useState({ full_name: '', avatar_url: '' });
+
+    const updateProfileMutation = useMutation({
+        mutationFn: async (data: { userId: string, full_name: string, avatar_url: string }) => {
+            const { error } = await supabase
+                .from('profiles')
+                .update({ full_name: data.full_name, avatar_url: data.avatar_url })
+                .eq('id', data.userId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            toast.success('Profile updated');
+            setEditingUser(null);
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+        },
+        onError: (e: any) => toast.error(e.message)
+    });
+
     if (isLoading) {
         return <div className="text-center py-8 text-muted-foreground">Loading users...</div>;
     }
@@ -79,14 +105,31 @@ const UserManagement = () => {
                     {users.map((user) => (
                         <div
                             key={user.id}
-                            className="flex items-center gap-4 p-4 bg-card border hover:border-primary/50 transition-colors rounded-lg"
+                            className="flex items-center gap-4 p-4 bg-card border hover:border-primary/50 transition-colors rounded-lg group"
                         >
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className="p-2 bg-muted rounded-full">
-                                    <UserIcon size={20} className="text-muted-foreground" />
-                                </div>
+                                {user.avatar_url ? (
+                                    <img src={user.avatar_url} alt={user.full_name || 'User'} className="w-10 h-10 rounded-full object-cover bg-muted" />
+                                ) : (
+                                    <div className="p-2 bg-muted rounded-full w-10 h-10 flex items-center justify-center">
+                                        <UserIcon size={20} className="text-muted-foreground" />
+                                    </div>
+                                )}
                                 <div className="min-w-0 flex-1">
-                                    <h3 className="font-medium truncate">{user.full_name || 'Unnamed User'}</h3>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-medium truncate">{user.full_name || 'Unnamed User'}</h3>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                                            onClick={() => {
+                                                setEditingUser(user);
+                                                setEditForm({ full_name: user.full_name || '', avatar_url: user.avatar_url || '' });
+                                            }}
+                                        >
+                                            <PencilEdit01Icon size={12} />
+                                        </Button>
+                                    </div>
                                     <p className="text-sm text-muted-foreground truncate">{user.email || 'No email access'}</p>
                                 </div>
                             </div>
@@ -122,6 +165,49 @@ const UserManagement = () => {
                 <div className="text-center py-12 border-2 border-dashed border-border rounded-lg">
                     <UserIcon size={48} className="mx-auto text-muted-foreground mb-4" />
                     <p className="text-muted-foreground mb-4">No users found.</p>
+                </div>
+            )}
+
+            {/* Edit User Dialog */}
+            {editingUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
+                        <div className="px-6 py-4 border-b flex justify-between items-center bg-slate-50">
+                            <h3 className="font-semibold">Edit User Profile</h3>
+                            <Button variant="ghost" size="sm" onClick={() => setEditingUser(null)}>
+                                <Cancel01Icon size={18} />
+                            </Button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Display Name</label>
+                                <input
+                                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    value={editForm.full_name}
+                                    onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
+                                    placeholder="John Doe"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Avatar URL</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={editForm.avatar_url}
+                                        onChange={e => setEditForm(f => ({ ...f, avatar_url: e.target.value }))}
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                                <p className="text-xs text-muted-foreground">Paste an image URL for the profile photo.</p>
+                            </div>
+                        </div>
+                        <div className="bg-slate-50 px-6 py-4 flex justify-end gap-2 border-t">
+                            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
+                            <Button onClick={() => updateProfileMutation.mutate({ userId: editingUser.id, ...editForm })}>
+                                Save Changes
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
