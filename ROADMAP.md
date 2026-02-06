@@ -152,6 +152,12 @@ Progress notes (current pass):
 - `CountriesSettingsPanel` refactored to compact bento cards with clear visibility and default-focus groups.
 - `SectionTemplatesPanel` migrated from long single-column selects to compact two-column card controls.
 - `PageSEOSettings` action and field group density aligned with the same bento/action-bar pattern.
+- `ArticlesManager` now uses shared admin header/action primitives with compact status summary cards and denser list controls.
+- `PublishingCalendar` now includes top-level status bento stats and a unified month navigation action bar.
+- `AnalyticsDashboard` now uses the shared header style, denser KPI cards, and a normalized 14-day chart scale with readable date labels.
+- `ArticlesManager` now includes quick action filters (`Needs Action`, `Scheduled`, `Published`, `LinkedIn Shared`) and sort controls (`Newest/Oldest`) for faster triage.
+- `PublishingCalendar` now supports status visibility toggles (draft/review/scheduled/published) and horizontal-safe mobile rendering for month grids.
+- `AnalyticsDashboard` now supports chart range toggles (`7d/14d/30d`) and horizontal-safe chart rendering for narrow screens.
 
 ---
 

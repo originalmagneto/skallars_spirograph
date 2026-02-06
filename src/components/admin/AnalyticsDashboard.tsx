@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { AdminActionBar, AdminPanelHeader } from "@/components/admin/AdminPrimitives";
 
 type ArticleRow = {
   id: string;
@@ -29,7 +30,7 @@ const daysAgo = (days: number) => {
 
 const formatDate = (value: string) => {
   try {
-    return new Date(value).toLocaleDateString();
+    return new Date(value).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   } catch {
     return value;
   }
@@ -37,6 +38,7 @@ const formatDate = (value: string) => {
 
 export default function AnalyticsDashboard() {
   const sinceIso = useMemo(() => daysAgo(30), []);
+  const [rangeDays, setRangeDays] = useState<7 | 14 | 30>(14);
 
   const { data: articles = [] } = useQuery({
     queryKey: ["analytics-articles"],
@@ -84,17 +86,19 @@ export default function AnalyticsDashboard() {
 
   const totalViews = views.length;
   const publishedCount = articles.filter((a) => a.is_published).length;
+  const viewedArticleCount = Object.keys(totals).length;
+  const maxDaily = Math.max(1, ...Object.values(dailyCounts));
 
   const chartDays = useMemo(() => {
     const days: string[] = [];
     const now = new Date();
-    for (let i = 13; i >= 0; i -= 1) {
+    for (let i = rangeDays - 1; i >= 0; i -= 1) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       days.push(d.toISOString().slice(0, 10));
     }
     return days;
-  }, []);
+  }, [rangeDays]);
 
   if (viewsError) {
     return (
@@ -112,7 +116,12 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <AdminPanelHeader
+        title="Analytics"
+        description="View article performance and recent traffic trends."
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">Total Views (30d)</CardTitle>
@@ -136,30 +145,59 @@ export default function AnalyticsDashboard() {
             {publishedCount ? Math.round(totalViews / publishedCount) : 0}
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Viewed Articles</CardTitle>
+            <CardDescription>At least one view in 30d</CardDescription>
+          </CardHeader>
+          <CardContent className="text-3xl font-semibold">{viewedArticleCount}</CardContent>
+        </Card>
       </div>
+
+      <AdminActionBar>
+        <div className="flex w-full items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">Chart window</div>
+          <div className="flex items-center gap-2">
+            {[7, 14, 30].map((days) => (
+              <Button
+                key={days}
+                size="sm"
+                variant={rangeDays === days ? "default" : "outline"}
+                className="h-8"
+                onClick={() => setRangeDays(days as 7 | 14 | 30)}
+              >
+                {days}d
+              </Button>
+            ))}
+          </div>
+        </div>
+      </AdminActionBar>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Daily Views (14d)</CardTitle>
+          <CardTitle className="text-sm">Daily Views ({rangeDays}d)</CardTitle>
           <CardDescription>Recent traffic trend</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-2 text-[11px] text-muted-foreground">
-            {chartDays.map((day) => {
-              const count = dailyCounts[day] || 0;
-              return (
-                <div key={day} className="flex flex-col items-center gap-2">
-                  <div className="w-full h-16 rounded bg-muted/40 flex items-end">
-                    <div
-                      className="w-full rounded bg-primary/70"
-                      style={{ height: `${Math.min(100, count * 10)}%` }}
-                    />
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[700px] grid-cols-7 gap-2 text-[10px] text-muted-foreground lg:min-w-0 lg:grid-cols-14">
+              {chartDays.map((day) => {
+                const count = dailyCounts[day] || 0;
+                const barHeight = Math.max(8, Math.round((count / maxDaily) * 100));
+                return (
+                  <div key={day} className="flex flex-col items-center gap-2">
+                    <div className="w-full h-16 rounded bg-muted/40 flex items-end">
+                      <div
+                        className="w-full rounded bg-primary/70"
+                        style={{ height: `${barHeight}%` }}
+                      />
+                    </div>
+                    <span>{formatDate(day)}</span>
+                    <span className="text-xs font-semibold text-foreground">{count}</span>
                   </div>
-                  <span>{formatDate(day)}</span>
-                  <span className="text-xs font-semibold text-foreground">{count}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>

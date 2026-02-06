@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const roleFetchInFlightRef = useRef<Promise<void> | null>(null);
     const roleFetchUserRef = useRef<string | null>(null);
     const lastRoleCheckRef = useRef<Record<string, number>>({});
+    const consecutiveRoleFailuresRef = useRef<Record<string, number>>({});
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
     const ROLE_RECHECK_MIN_INTERVAL_MS = 1000 * 60 * 2; // 2 minutes
@@ -98,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsEditor(role === 'editor' || role === 'admin');
             writeRoleCache(userId, role);
             lastRoleCheckRef.current[userId] = Date.now();
+            consecutiveRoleFailuresRef.current[userId] = 0;
         };
 
         if (cachedRole) {
@@ -151,10 +153,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             }
         }
+        const failureCount = (consecutiveRoleFailuresRef.current[userId] || 0) + 1;
+        consecutiveRoleFailuresRef.current[userId] = failureCount;
         if (!cachedRole) {
             setIsAdmin(false);
             setIsEditor(false);
-            setHealthWarning('Role verification is currently slow or unavailable. Access checks may be temporarily delayed.');
+            if (failureCount >= 2) {
+                setHealthWarning('Role verification is currently slow or unavailable. Access checks may be temporarily delayed.');
+            }
             return;
         }
         setHealthWarning(null);
@@ -207,7 +213,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setSession(session);
                 setUser(session?.user ?? null);
                 if (session?.user) {
-                    await fetchRoles(session.user.id);
+                    const shouldRefreshRole =
+                        event === 'SIGNED_IN' ||
+                        event === 'USER_UPDATED' ||
+                        event === 'PASSWORD_RECOVERY' ||
+                        !lastRoleCheckRef.current[session.user.id];
+                    if (shouldRefreshRole) {
+                        await fetchRoles(session.user.id);
+                    }
                 } else {
                     setIsAdmin(false);
                     setIsEditor(false);
