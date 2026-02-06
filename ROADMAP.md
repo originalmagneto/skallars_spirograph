@@ -115,6 +115,7 @@ Progress notes (current pass):
 - `AILab` now force-resets advanced controls when switching to `Basic` mode (`custom prompt`, `outline workflow`, `power controls`).
 - `AILab` now keeps source-link editor hidden in `Basic` mode unless explicitly toggled on (default is off).
 - `Power` mode auto-enables source-link editing to preserve full control workflow.
+- Advanced controls in `AILab` were regrouped into compact cards (word count, tone, outline, prompt) to reduce long-form scrolling and make power settings easier to scan.
 
 Exit criteria:
 - average user can generate + save draft + publish without opening Power mode
@@ -138,6 +139,13 @@ Deliverables:
 Exit criteria:
 - no stretched one-field rows for short controls
 - settings visually consistent with same card/action patterns
+
+Progress notes (current pass):
+- `AISettings` moved to a denser 12-column bento layout.
+- Image settings split into two focused cards:
+  - `Image Studio Mode`
+  - `Image Advanced Configuration`
+- Short controls now sit in smaller cards instead of one full-width stretched panel.
 
 ---
 

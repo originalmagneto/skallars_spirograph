@@ -1005,174 +1005,178 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                         </div>
                                     )}
 
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <Label htmlFor="targetWordCount">Target Word Count</Label>
-                                            <Input
-                                                id="targetWordCount"
-                                                type="number"
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                        <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="targetWordCount">Target Word Count</Label>
+                                                <Input
+                                                    id="targetWordCount"
+                                                    type="number"
+                                                    min={300}
+                                                    max={3000}
+                                                    name="targetWordCount"
+                                                    autoComplete="off"
+                                                    value={targetWordCount}
+                                                    onChange={(e) => setTargetWordCount(Math.max(300, Math.min(3000, parseInt(e.target.value) || 0)))}
+                                                    className="w-28"
+                                                />
+                                            </div>
+                                            <Slider
                                                 min={300}
                                                 max={3000}
-                                                name="targetWordCount"
-                                                autoComplete="off"
-                                                value={targetWordCount}
-                                                onChange={(e) => setTargetWordCount(Math.max(300, Math.min(3000, parseInt(e.target.value) || 0)))}
-                                                className="w-28"
-                                            />
-                                        </div>
-                                        <Slider
-                                            min={300}
-                                            max={3000}
-                                            step={50}
-                                            value={[targetWordCount]}
-                                            onValueChange={(value) => setTargetWordCount(value[0] ?? 800)}
-                                        />
-                                        <p className="text-[10px] text-muted-foreground">
-                                            Word count target is enforced in the prompt (+/-10%).
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Tone / Voice</Label>
-                                        <Select value={toneStyle} onValueChange={(value) => { setToneStyle(value); setToneCustom(false); }}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select tone" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="Client-Friendly">Client-Friendly</SelectItem>
-                                                <SelectItem value="Legal Memo">Legal Memo</SelectItem>
-                                                <SelectItem value="News Brief">News Brief</SelectItem>
-                                                <SelectItem value="Executive">Executive</SelectItem>
-                                                <SelectItem value="Neutral">Neutral</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <Label htmlFor="toneInstructions" className="text-xs text-muted-foreground">Tone Instructions (customizable)</Label>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 text-xs"
-                                                    onClick={() => {
-                                                        setToneInstructions(toneDefaults[toneStyle] || '');
-                                                        setToneCustom(false);
-                                                    }}
-                                                >
-                                                    Reset to Default
-                                                </Button>
-                                            </div>
-                                            <Textarea
-                                                id="toneInstructions"
-                                                name="toneInstructions"
-                                                autoComplete="off"
-                                                value={toneInstructions}
-                                                onChange={(e) => {
-                                                    setToneInstructions(e.target.value);
-                                                    setToneCustom(true);
-                                                }}
-                                                rows={3}
-                                                placeholder="Add your own tone instructions..."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-sm font-medium flex items-center gap-2">
-                                                <PlusSignIcon size={16} className="text-primary" />
-                                                Outline-First Workflow
-                                            </Label>
-                                            <p className="text-xs text-muted-foreground">
-                                                Generate a structured outline, review/edit it, then create the full article. Deep research can take several minutes.
-                                            </p>
-                                        </div>
-                                        <Switch
-                                            checked={useOutlineWorkflow}
-                                            onCheckedChange={(value) => {
-                                                setUseOutlineWorkflow(value);
-                                                if (!value) {
-                                                    setOutlineText('');
-                                                    setOutlineNotes('');
-                                                    setOutlineSources([]);
-                                                }
-                                            }}
-                                        />
-                                    </div>
-                                    {useOutlineWorkflow && showPromptEditor && (
-                                        <p className="text-[10px] text-muted-foreground">
-                                            Outline workflow is disabled while the custom prompt editor is enabled.
-                                        </p>
-                                    )}
-
-                                    {useOutlineWorkflow && !showPromptEditor && (
-                                        <div className="space-y-2">
-                                            <Label>Outline (editable)</Label>
-                                            <Textarea
-                                                value={outlineText}
-                                                onChange={(e) => setOutlineText(e.target.value)}
-                                                rows={6}
-                                                placeholder="Generate an outline or write your own structure here..."
+                                                step={50}
+                                                value={[targetWordCount]}
+                                                onValueChange={(value) => setTargetWordCount(value[0] ?? 800)}
                                             />
                                             <p className="text-[10px] text-muted-foreground">
-                                                Outline is injected into the prompt for the final article.
+                                                Word count target is enforced in the prompt (+/-10%).
                                             </p>
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => handleGenerateOutline()}
-                                                    disabled={outlineGenerating}
-                                                >
-                                                    {outlineGenerating ? 'Generating…' : 'Generate Outline'}
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => {
+                                        </div>
+
+                                        <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                            <Label>Tone / Voice</Label>
+                                            <Select value={toneStyle} onValueChange={(value) => { setToneStyle(value); setToneCustom(false); }}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select tone" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Client-Friendly">Client-Friendly</SelectItem>
+                                                    <SelectItem value="Legal Memo">Legal Memo</SelectItem>
+                                                    <SelectItem value="News Brief">News Brief</SelectItem>
+                                                    <SelectItem value="Executive">Executive</SelectItem>
+                                                    <SelectItem value="Neutral">Neutral</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <Label htmlFor="toneInstructions" className="text-xs text-muted-foreground">Tone Instructions (customizable)</Label>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-xs"
+                                                        onClick={() => {
+                                                            setToneInstructions(toneDefaults[toneStyle] || '');
+                                                            setToneCustom(false);
+                                                        }}
+                                                    >
+                                                        Reset to Default
+                                                    </Button>
+                                                </div>
+                                                <Textarea
+                                                    id="toneInstructions"
+                                                    name="toneInstructions"
+                                                    autoComplete="off"
+                                                    value={toneInstructions}
+                                                    onChange={(e) => {
+                                                        setToneInstructions(e.target.value);
+                                                        setToneCustom(true);
+                                                    }}
+                                                    rows={3}
+                                                    placeholder="Add your own tone instructions..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-0.5">
+                                                <Label className="text-sm font-medium flex items-center gap-2">
+                                                    <PlusSignIcon size={16} className="text-primary" />
+                                                    Outline-First Workflow
+                                                </Label>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Generate a structured outline, review/edit it, then create the full article. Deep research can take several minutes.
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                checked={useOutlineWorkflow}
+                                                onCheckedChange={(value) => {
+                                                    setUseOutlineWorkflow(value);
+                                                    if (!value) {
                                                         setOutlineText('');
                                                         setOutlineNotes('');
                                                         setOutlineSources([]);
-                                                    }}
-                                                >
-                                                    Clear
-                                                </Button>
-                                            </div>
-                                            {outlineNotes && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    <strong>Notes:</strong> {outlineNotes}
-                                                </div>
-                                            )}
-                                            {outlineSources.length > 0 && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    <strong>Outline Sources:</strong>
-                                                    <ul className="list-disc list-inside">
-                                                        {outlineSources.map((source, idx) => (
-                                                            <li key={`${source.url}-${idx}`}>
-                                                                {source.title || source.url}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                            {researchSummary && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    <strong>Research Summary:</strong> {researchSummary}
-                                                </div>
-                                            )}
-                                            {researchSources.length > 0 && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    <strong>Research Sources (last run):</strong>
-                                                    <ul className="list-disc list-inside">
-                                                        {researchSources.map((source, idx) => (
-                                                            <li key={`research-${source.url}-${idx}`}>
-                                                                {source.title || source.url}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
+                                                    }
+                                                }}
+                                            />
                                         </div>
-                                    )}
+                                        {useOutlineWorkflow && showPromptEditor && (
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Outline workflow is disabled while the custom prompt editor is enabled.
+                                            </p>
+                                        )}
+
+                                        {useOutlineWorkflow && !showPromptEditor && (
+                                            <div className="space-y-2">
+                                                <Label>Outline (editable)</Label>
+                                                <Textarea
+                                                    value={outlineText}
+                                                    onChange={(e) => setOutlineText(e.target.value)}
+                                                    rows={6}
+                                                    placeholder="Generate an outline or write your own structure here..."
+                                                />
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Outline is injected into the prompt for the final article.
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => handleGenerateOutline()}
+                                                        disabled={outlineGenerating}
+                                                    >
+                                                        {outlineGenerating ? 'Generating…' : 'Generate Outline'}
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => {
+                                                            setOutlineText('');
+                                                            setOutlineNotes('');
+                                                            setOutlineSources([]);
+                                                        }}
+                                                    >
+                                                        Clear
+                                                    </Button>
+                                                </div>
+                                                {outlineNotes && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        <strong>Notes:</strong> {outlineNotes}
+                                                    </div>
+                                                )}
+                                                {outlineSources.length > 0 && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        <strong>Outline Sources:</strong>
+                                                        <ul className="list-disc list-inside">
+                                                            {outlineSources.map((source, idx) => (
+                                                                <li key={`${source.url}-${idx}`}>
+                                                                    {source.title || source.url}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                                {researchSummary && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        <strong>Research Summary:</strong> {researchSummary}
+                                                    </div>
+                                                )}
+                                                {researchSources.length > 0 && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                        <strong>Research Sources (last run):</strong>
+                                                        <ul className="list-disc list-inside">
+                                                            {researchSources.map((source, idx) => (
+                                                                <li key={`research-${source.url}-${idx}`}>
+                                                                    {source.title || source.url}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {showPowerControls && (
                                         <>

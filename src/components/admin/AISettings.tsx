@@ -264,10 +264,10 @@ const AISettings = () => {
             />
 
             {/* 3. Main Setting Grid */}
-            <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
 
                 {/* A. Core API Config */}
-                <Card className="xl:col-span-4 shadow-sm border-border/60">
+                <Card className="xl:col-span-7 shadow-sm border-border/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                             <Key01Icon size={18} className="text-primary" /> Core Credentials
@@ -325,7 +325,7 @@ const AISettings = () => {
                 </Card>
 
                 {/* B. Cost & Pricing */}
-                <Card className="xl:col-span-2 shadow-sm border-border/60">
+                <Card className="xl:col-span-5 shadow-sm border-border/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                             <Coins01Icon size={18} className="text-primary" /> Cost Settings
@@ -359,120 +359,119 @@ const AISettings = () => {
                     </CardContent>
                 </Card>
 
-                {/* C. Image Generation Settings */}
+                {/* C. Image Generation Mode */}
                 <Card className="xl:col-span-6 shadow-sm border-border/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <Image01Icon size={18} className="text-primary" /> Image Studio Config
+                            <Image01Icon size={18} className="text-primary" /> Image Studio Mode
                         </CardTitle>
-                        <CardDescription>Configure models and preferences for article cover generation.</CardDescription>
+                        <CardDescription>Choose default quality profile for article cover generation.</CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                    <CardContent className="space-y-4">
+                        <Label className="text-sm font-semibold flex items-center gap-2">
+                            <MagicWand01Icon size={14} /> Default Quality Mode
+                        </Label>
+                        <div className="grid grid-cols-1 gap-3">
+                            <button
+                                className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'turbo' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
+                                onClick={() => handleUpdate('image_model', 'turbo')}
+                            >
+                                <div className={`p-2 rounded-lg ${currentImageModel === 'turbo' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                    <ZapIcon size={20} className={currentImageModel === 'turbo' ? "fill-current" : ""} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-bold text-sm">Standard (Fast)</span>
+                                        <Badge variant="outline" className="text-[9px] h-5 bg-background">FLUX</Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Uses Flux Schnell via Pollinations.ai. Free and extremely fast. Best for abstract or simple covers.
+                                    </p>
+                                </div>
+                            </button>
 
-                        {/* Mode Selection */}
-                        <div className="space-y-4 xl:col-span-7">
-                            <Label className="text-sm font-semibold flex items-center gap-2">
-                                <MagicWand01Icon size={14} /> Default Quality Mode
-                            </Label>
-                            <div className="grid grid-cols-1 gap-3">
-                                <button
-                                    className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'turbo' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
-                                    onClick={() => handleUpdate('image_model', 'turbo')}
-                                >
-                                    <div className={`p-2 rounded-lg ${currentImageModel === 'turbo' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                        <ZapIcon size={20} className={currentImageModel === 'turbo' ? "fill-current" : ""} />
+                            <button
+                                className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'pro' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
+                                onClick={() => handleUpdate('image_model', 'pro')}
+                            >
+                                <div className={`p-2 rounded-lg ${currentImageModel === 'pro' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                    <SparklesIcon size={20} className={currentImageModel === 'pro' ? "fill-current" : ""} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-bold text-sm">High Quality</span>
+                                        <Badge variant="secondary" className="text-[9px] h-5 bg-indigo-100 text-indigo-700">IMAGEN 3</Badge>
                                     </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="font-bold text-sm">Standard (Fast)</span>
-                                            <Badge variant="outline" className="text-[9px] h-5 bg-background">FLUX</Badge>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground leading-relaxed">
-                                            Uses Flux Schnell via Pollinations.ai. Free and extremely fast. Best for abstract or simple covers.
-                                        </p>
-                                    </div>
-                                </button>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Uses Google Imagen/Gemini. Requires API Key. Best for <strong className="text-foreground">Slovak Text</strong>, photorealism, and complex scenes.
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+                    </CardContent>
+                </Card>
 
-                                <button
-                                    className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'pro' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
-                                    onClick={() => handleUpdate('image_model', 'pro')}
-                                >
-                                    <div className={`p-2 rounded-lg ${currentImageModel === 'pro' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                        <SparklesIcon size={20} className={currentImageModel === 'pro' ? "fill-current" : ""} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="font-bold text-sm">High Quality</span>
-                                            <Badge variant="secondary" className="text-[9px] h-5 bg-indigo-100 text-indigo-700">IMAGEN 3</Badge>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground leading-relaxed">
-                                            Uses Google Imagen/Gemini. Requires API Key. Best for <strong className="text-foreground">Slovak Text</strong>, photorealism, and complex scenes.
-                                        </p>
-                                    </div>
-                                </button>
+                {/* D. Image Generation Advanced */}
+                <Card className="xl:col-span-6 shadow-sm border-border/60">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <SparklesIcon size={18} className="text-primary" /> Image Advanced Configuration
+                        </CardTitle>
+                        <CardDescription>Optional key split and direct model override for quality mode.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-xs">Separate Image API Key (Optional)</Label>
+                                {imageKeyValid !== null && (
+                                    <span className={`text-[10px] flex items-center gap-1 ${imageKeyValid ? 'text-green-600' : 'text-destructive'}`}>
+                                        {imageKeyValid ? <CheckmarkBadge01Icon size={12} /> : <Cancel01Icon size={12} />}
+                                    </span>
+                                )}
                             </div>
+                            <Input
+                                type="password"
+                                value={geminiImageApiKey}
+                                onChange={(e) => handleUpdate('gemini_image_api_key', e.target.value)}
+                                placeholder="Use different key for images..."
+                                className="h-8 text-xs font-mono"
+                            />
                         </div>
 
-                        {/* Advanced Image Keys & Model Override */}
-                        <div className="space-y-4 xl:col-span-5 xl:border-l xl:pl-6">
-                            <div className="space-y-3">
-                                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advanced Configuration</Label>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-xs">Separate Image API Key (Optional)</Label>
-                                        {imageKeyValid !== null && (
-                                            <span className={`text-[10px] flex items-center gap-1 ${imageKeyValid ? 'text-green-600' : 'text-destructive'}`}>
-                                                {imageKeyValid ? <CheckmarkBadge01Icon size={12} /> : <Cancel01Icon size={12} />}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <Input
-                                        type="password"
-                                        value={geminiImageApiKey}
-                                        onChange={(e) => handleUpdate('gemini_image_api_key', e.target.value)}
-                                        placeholder="Use different key for images..."
-                                        className="h-8 text-xs font-mono"
-                                    />
-                                </div>
-
-                                <div className="space-y-2 pt-2">
-                                    <Label className="text-xs">Model Override</Label>
-                                    {availableImageModels.length > 0 ? (
-                                        <Select
-                                            value={useCustomImageModel ? '' : (settings.find(s => s.key === 'gemini_image_model')?.value || '')}
-                                            onValueChange={(v) => {
-                                                setUseCustomImageModel(false);
-                                                handleUpdate('gemini_image_model', v);
-                                            }}
-                                        >
-                                            <SelectTrigger className="h-8 text-xs">
-                                                <SelectValue placeholder="Default (Imagen 3)" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {availableImageModels.map((m) => (
-                                                    <SelectItem key={m.name} value={m.name} className="text-xs max-w-[300px]">
-                                                        {m.displayName}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Input
-                                            value={customImageModel}
-                                            onChange={(e) => {
-                                                setCustomImageModel(e.target.value);
-                                                handleUpdate('gemini_image_model', e.target.value);
-                                            }}
-                                            placeholder="e.g. imagen-3.0-generate-001"
-                                            className="h-8 text-xs font-mono"
-                                        />
-                                    )}
-                                    <p className="text-[10px] text-muted-foreground">Specific model ID for High Quality mode.</p>
-                                </div>
-                            </div>
+                        <div className="space-y-2 pt-1">
+                            <Label className="text-xs">Model Override</Label>
+                            {availableImageModels.length > 0 ? (
+                                <Select
+                                    value={useCustomImageModel ? '' : (settings.find(s => s.key === 'gemini_image_model')?.value || '')}
+                                    onValueChange={(v) => {
+                                        setUseCustomImageModel(false);
+                                        handleUpdate('gemini_image_model', v);
+                                    }}
+                                >
+                                    <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue placeholder="Default (Imagen 3)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableImageModels.map((m) => (
+                                            <SelectItem key={m.name} value={m.name} className="text-xs max-w-[300px]">
+                                                {m.displayName}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <Input
+                                    value={customImageModel}
+                                    onChange={(e) => {
+                                        setCustomImageModel(e.target.value);
+                                        handleUpdate('gemini_image_model', e.target.value);
+                                    }}
+                                    placeholder="e.g. imagen-3.0-generate-001"
+                                    className="h-8 text-xs font-mono"
+                                />
+                            )}
+                            <p className="text-[10px] text-muted-foreground">Specific model ID for High Quality mode.</p>
                         </div>
-
                     </CardContent>
                 </Card>
 
