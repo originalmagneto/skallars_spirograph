@@ -10,10 +10,12 @@ interface AuthContextType {
     loading: boolean;
     isAdmin: boolean;
     isEditor: boolean;
+    healthWarning: string | null;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
     signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
     refreshRoles: () => Promise<void>;
+    dismissHealthWarning: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,10 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isEditor, setIsEditor] = useState(false);
+    const [healthWarning, setHealthWarning] = useState<string | null>(null);
     const roleRetryRef = useRef(0);
+    const initialSessionResolvedRef = useRef(false);
+    const roleFetchInFlightRef = useRef<Promise<void> | null>(null);
+    const roleFetchUserRef = useRef<string | null>(null);
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
     const ROLE_CHECK_TIMEOUT_MS = 15000;
+    const INITIAL_AUTH_TIMEOUT_MS = 12000;
 
     const readRoleCache = (userId: string) => {
         try {
@@ -67,6 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const fetchRoles = useCallback(async (userId: string) => {
+        if (roleFetchInFlightRef.current && roleFetchUserRef.current === userId) {
+            await roleFetchInFlightRef.current;
+            return;
+        }
+
+        const run = async () => {
         const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
         const applyRole = (role: string) => {
             setIsAdmin(role === 'admin');
@@ -103,12 +116,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const data = await res.json();
                     const role = data?.role || 'user';
                     applyRole(role);
+                    setHealthWarning(null);
                     return;
                 }
 
                 // Treat auth failures as unauthenticated user role.
                 if (res.status === 401) {
                     applyRole('user');
+                    setHealthWarning(null);
                     return;
                 }
             } catch {
@@ -123,6 +138,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAdmin(false);
             setIsEditor(false);
         }
+        setHealthWarning('Role verification is currently slow or unavailable. Access checks may be temporarily delayed.');
+        };
+
+        let promise: Promise<void> | null = null;
+        promise = run().finally(() => {
+            if (roleFetchInFlightRef.current === promise) {
+                roleFetchInFlightRef.current = null;
+                roleFetchUserRef.current = null;
+            }
+        });
+        roleFetchInFlightRef.current = promise;
+        roleFetchUserRef.current = userId;
+        await promise;
     }, [session?.access_token]);
 
     const refreshRoles = useCallback(async () => {
@@ -134,11 +162,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         // Create a safety timeout to prevent infinite loading
         const timeoutId = setTimeout(() => {
-            setLoading(false);
-        }, 3000);
+            if (!initialSessionResolvedRef.current) {
+                setLoading(false);
+            }
+        }, INITIAL_AUTH_TIMEOUT_MS);
 
         // Get initial session
         supabase.auth.getSession().then(async ({ data: { session } }) => {
+            initialSessionResolvedRef.current = true;
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
@@ -151,6 +182,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (event, session) => {
+                if (event === 'INITIAL_SESSION' && initialSessionResolvedRef.current) {
+                    return;
+                }
                 setSession(session);
                 setUser(session?.user ?? null);
                 if (session?.user) {
@@ -158,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 } else {
                     setIsAdmin(false);
                     setIsEditor(false);
+                    setHealthWarning(null);
                 }
                 setLoading(false);
             }
@@ -210,7 +245,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null);
             setIsAdmin(false);
             setIsEditor(false);
+            setHealthWarning(null);
         }
+    };
+
+    const dismissHealthWarning = () => {
+        setHealthWarning(null);
     };
 
     return (
@@ -221,10 +261,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 loading,
                 isAdmin,
                 isEditor,
+                healthWarning,
                 signIn,
                 signUp,
                 signOut,
                 refreshRoles,
+                dismissHealthWarning,
             }}
         >
             {children}

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,6 +77,22 @@ const SECTION_CONFIG: Record<string, { sk: string; en: string; icon: any }> = {
     map: { sk: 'Mapa', en: 'Map', icon: null },
     footer: { sk: 'Päta', en: 'Footer', icon: null },
     general: { sk: 'Všeobecné', en: 'General', icon: null },
+};
+
+const SECTION_OWNERSHIP: Record<string, { copyOwner: string; structuredOwnerTab?: string; structuredLabel?: string }> = {
+    navigation: { copyOwner: 'Content Manager' },
+    hero: { copyOwner: 'Content Manager' },
+    about: { copyOwner: 'Content Manager' },
+    services: { copyOwner: 'Content Manager', structuredOwnerTab: 'services', structuredLabel: 'Services Manager' },
+    countries: { copyOwner: 'Content Manager', structuredOwnerTab: 'map', structuredLabel: 'Map Cities Manager' },
+    team: { copyOwner: 'Content Manager', structuredOwnerTab: 'team', structuredLabel: 'Team Manager' },
+    news: { copyOwner: 'Content Manager', structuredOwnerTab: 'news-settings', structuredLabel: 'News Manager' },
+    clients: { copyOwner: 'Content Manager', structuredOwnerTab: 'clients', structuredLabel: 'Clients Manager' },
+    network: { copyOwner: 'Content Manager', structuredOwnerTab: 'map', structuredLabel: 'Map Cities Manager' },
+    contact: { copyOwner: 'Content Manager' },
+    map: { copyOwner: 'Content Manager', structuredOwnerTab: 'map', structuredLabel: 'Map Cities Manager' },
+    footer: { copyOwner: 'Content Manager', structuredOwnerTab: 'footer', structuredLabel: 'Footer Manager' },
+    general: { copyOwner: 'Content Manager' },
 };
 
 // -- Components --
@@ -333,6 +350,7 @@ const ContentManager = () => {
     const [activeSection, setActiveSection] = useState('hero');
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const activeOwnership = SECTION_OWNERSHIP[activeSection];
 
     // Fetch Content
     const { data: content = [] } = useQuery({
@@ -498,6 +516,29 @@ const ContentManager = () => {
                     })}
                 </div>
             </AdminActionBar>
+
+            {!searchQuery && activeOwnership && (
+                <AdminSectionCard className="border-blue-100 bg-blue-50/40">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="space-y-1">
+                            <h4 className="text-sm font-semibold text-[#210059]">Section Ownership</h4>
+                            <p className="text-sm text-slate-600">
+                                Copy and translations for <strong>{SECTION_CONFIG[activeSection]?.en}</strong> are managed here.
+                                {activeOwnership.structuredOwnerTab
+                                    ? ` Structured entities are managed in ${activeOwnership.structuredLabel}.`
+                                    : ' Structured entities are not split for this section.'}
+                            </p>
+                        </div>
+                        {activeOwnership.structuredOwnerTab && (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={`/admin?workspace=site&tab=${activeOwnership.structuredOwnerTab}`}>
+                                    Open {activeOwnership.structuredLabel}
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+                </AdminSectionCard>
+            )}
 
             <AdminSectionCard className="p-0 overflow-hidden">
                 <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

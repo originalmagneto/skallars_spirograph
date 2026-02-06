@@ -188,6 +188,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [linkedinOrganizations, setLinkedinOrganizations] = useState<Array<{ urn: string; name: string }>>([]);
     const [linkedinOrganizationUrn, setLinkedinOrganizationUrn] = useState('');
     const [linkedinDefaultOrgUrn, setLinkedinDefaultOrgUrn] = useState('');
+    const [linkedinOrgNotice, setLinkedinOrgNotice] = useState('');
     const [linkedinSharing, setLinkedinSharing] = useState(false);
     const [linkedinShareMode, setLinkedinShareMode] = useState<'article' | 'image'>('article');
     const [linkedinShareModeTouched, setLinkedinShareModeTouched] = useState(false);
@@ -863,6 +864,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     const loadLinkedInOrganizations = async () => {
         if (!session?.access_token) return;
+        setLinkedinOrgNotice('');
         try {
             const res = await fetch('/api/linkedin/organizations', {
                 headers: { Authorization: `Bearer ${session.access_token}` },
@@ -895,9 +897,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 }
                 if (data?.error) {
                     if (baseList.length > 0) {
-                        toast.warning(`${data.error} Using fallback organization.`);
+                        setLinkedinOrgNotice(`${data.error} Using fallback organization list.`);
                     } else {
-                        toast.error(data.error);
+                        setLinkedinOrgNotice(data.error);
                     }
                 }
             } else if (!res.ok) {
@@ -907,20 +909,20 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         setLinkedinOrganizationUrn(fallbackList[0].urn);
                     }
                     if (data?.error) {
-                        toast.warning(`${data.error} Using fallback organization.`);
+                        setLinkedinOrgNotice(`${data.error} Using fallback organization list.`);
                     } else {
-                        toast.warning('LinkedIn org API is unavailable. Using fallback organization.');
+                        setLinkedinOrgNotice('LinkedIn org API is temporarily unavailable. Using fallback organization list.');
                     }
                     return;
                 }
-                toast.error(data?.error || 'Failed to load LinkedIn organizations.');
+                setLinkedinOrgNotice(data?.error || 'Failed to load LinkedIn organizations.');
             } else if (data?.error) {
-                toast.error(data.error);
+                setLinkedinOrgNotice(data.error);
             } else {
-                toast.error('Failed to load LinkedIn organizations.');
+                setLinkedinOrgNotice('Failed to load LinkedIn organizations.');
             }
         } catch {
-            toast.error('Failed to load LinkedIn organizations.');
+            setLinkedinOrgNotice('Failed to load LinkedIn organizations.');
         }
     };
 
@@ -1750,6 +1752,9 @@ Rules:
                                             If the list is empty, paste your company URN (from LinkedIn page admin URL or API).
                                         </p>
                                     </div>
+                                )}
+                                {linkedinOrgNotice && (
+                                    <p className="text-[10px] text-amber-700">{linkedinOrgNotice}</p>
                                 )}
                             </div>
                         )}

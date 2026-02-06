@@ -1,197 +1,213 @@
-# Roadmap: Admin Panel (Content-First) + AI Adjustments
+# ROADMAP (Reset Pass) - Admin UX, CMS Dedupe, AI Control
 
-This roadmap is based on the current codebase, the UI vs functionality audit, and your stated priorities.
+Last updated: Feb 6, 2026
 
-**Status (Feb 3, 2026)**
-- Phase 0 complete.
-- Phase 1 (text-first editing) complete.
-- Phase 1 media tools moved to Phase 2 (you said no image fields right now).
-- Runtime stabilization pass (Feb 6, 2026) in progress: admin permission gating simplification + LinkedIn graceful fallbacks.
+## 0) Why This Reset
 
-**Status (Feb 6, 2026 - current pass)**
-- LinkedIn resilience + fallback cleanup in progress.
-- Article Editor LinkedIn UI simplification in progress (Basic vs Power).
-- Residual runtime noise cleanup in progress (`settings` fetch noise + non-blocking LinkedIn API handling).
+The admin currently works, but it is still hard to operate:
+- too many controls shown at once (especially Article + Image + model settings)
+- overlapping CMS editing surfaces (generic content vs module-specific managers)
+- inconsistent panel density and layout patterns across modules
+- recurring reliability noise (role-check timeouts, non-blocking API errors)
 
-**Status (Feb 6, 2026 - step update)**
-- Step 2 hardening pass applied:
-  - LinkedIn Settings/Article Editor now tolerate non-JSON and non-200 org/analytics responses with fallback behavior.
-  - Initial role resolution now blocks auth loading completion to reduce transient "Permission Required" states.
-  - Role check timeout window increased for cold starts and slower API responses.
+This roadmap prioritizes **clarity and consistency first**, then deeper capabilities.
 
-## Step 5 (Current): Reliability + UX Cleanup
-- Remove residual `settings`-fetch runtime noise by consolidating reads through tolerant map fetches and avoiding strict single-row expectations. ✅
-- Make LinkedIn status the single source of truth for default organization URN in UI (remove duplicate client-side settings fetches). ✅
-- Harden LinkedIn API routes to handle mixed scope formats and always return non-blocking fallback payloads for organizations/analytics. ✅
-- Replace strict singular reads in LinkedIn API routes (`settings`, `linkedin_accounts`) with tolerant list reads (`limit(1)`) to prevent 406/false-disconnect edge cases. ✅
-- Simplify Article Editor LinkedIn panel with **Basic vs Power** mode:
-  - Basic: connect, target, org, message, share.
-  - Power: share type, image post controls, scheduling, logs, diagnostics. ✅
-- Validate full production build after cleanup and close remaining regressions before next feature work. ✅
+---
 
-## Step 1 (Now): Stability Hardening (LinkedIn + Admin Access)
-- Make LinkedIn endpoints **degrade gracefully** (no hard-fail UI when org scopes/org APIs are unavailable). ✅
-- Make admin role checks **server-first** to reduce `Profile role check timed out` false negatives. ✅
-- Ensure LinkedIn Settings and Article Editor can proceed with a **saved default org URN** fallback. ✅
-- Reduce noisy UX errors from expected non-critical states (missing analytics scope, no org list yet, disconnected account). ✅
+## 1) Product Direction (Locked)
 
-### Step 1 Acceptance Criteria
-- `/api/linkedin/organizations` returns a usable response with fallback organizations when possible.
-- LinkedIn Settings does not block on analytics/org fetch failures and keeps the page usable.
-- Article Editor can share to company when a valid default org URN exists, even if org list fetch fails.
-- Admin access checks no longer depend primarily on slow client-side profile queries.
-- Repeated `Profile role check timed out` errors are significantly reduced in normal usage.
+- Keep power-user controls, but hide them behind clear progressive disclosure.
+- Default UX must be understandable in under 30 seconds.
+- Preserve stable systems:
+  - map cities coordinate logic
+  - hero spirograph
+- LinkedIn flow stays in product; company posting remains a required path.
 
-## Step 2 (Now): UX Simplification Pass (Article + Publishing)
-- Move non-essential AI controls behind a single **Advanced Controls** panel in Article Studio. ✅
-- Keep default article flow focused on 5 actions: topic, links, type, depth, generate. ✅
-- Default cover generation to **Lite mode** so first-time users are not forced into provider/model choices. ✅
-- Move LinkedIn scheduling/log diagnostics into **Advanced LinkedIn Tools** while keeping Share as the primary action. ✅
-- Reduce noisy permission flow by removing automatic admin diagnostics and preventing overlapping access checks. ✅
-- Fix Gemini 2.5 thinking-budget detection so Article Studio budget overrides are actually applied on 2.5 models. ✅
-- Add grounded-generation fallback to schema-constrained JSON pass when Deep mode returns incomplete multi-language content. ✅
+---
 
-## Step 3 (Now): Runtime Noise + Fallback Hardening
-- Remove duplicated admin role resolution logic in `admin/layout` and use `AuthContext` as source of truth. ✅
-- Make LinkedIn organizations + analytics endpoints return non-blocking fallback payloads for transient auth/session gaps. ✅
-- Reduce repeated per-key settings reads for AI services by switching to short-lived settings map cache. ✅
-- Keep company-share UX usable when org list is unavailable by preserving default org fallback paths. ✅
+## 2) Current Admin Audit Summary
 
-## Step 4 (Now): Progressive Disclosure UX + Auth Noise Reduction
-- Add **Basic vs Power mode** in Article Generator so non-technical users only see core controls by default. ✅
-- Add **Basic vs Power mode** in LinkedIn Settings so diagnostics/scheduling are hidden until needed. ✅
-- Remove noisy client-side admin role fallbacks and rely on **server-first role check** + cache. ✅
-- Keep advanced controls fully available for power users without removing any capability. ✅
+## Confirmed strengths
+- Workspace split (`Site Editor` vs `Publishing & AI`) exists and is directionally correct.
+- Article Studio flow (`Generate -> Edit & Publish`) exists.
+- Shared admin primitives are already partially adopted.
 
-### Step 4 Acceptance Criteria
-- In Article Studio, first-time users can generate with a minimal form and no prompt/model overload.
-- In LinkedIn Settings, primary connect/default-org flow is visible without logs/analytics clutter.
-- Repeated `Profile role check timed out` console errors are no longer emitted from client-side profile RPC/query fallback paths.
+## Main problems to fix next
+- **CMS overlap**:
+  - `ContentManager` and module managers can both control related content zones.
+  - ownership boundaries are not explicit.
+- **Settings sprawl**:
+  - global AI settings vs article-specific settings vs LinkedIn settings are mixed.
+- **UI density inconsistency**:
+  - some panels are bento/compact, others are stretched full-width forms.
+- **Reliability friction**:
+  - transient role timeout and API fallback noise still leaks into UX.
 
-### Step 2 Acceptance Criteria
-- Average users can generate an article without opening advanced sections.
-- Power users can still access model/thinking/tone/prompt controls in one place.
-- LinkedIn section presents share-first flow; scheduling and logs remain available but secondary.
-- Admin page no longer auto-runs diagnostics during normal access checks.
+---
 
-## Phase 0: Fix UI vs Functionality Mismatches (Immediate)
-- Wire **admin content edits to the actual frontend** (replace or augment `translations.ts` with Supabase content for public pages). ✅
-- Fix **Article Editor copy** (“Markdown” vs HTML) or implement a true rich editor that matches output. ✅
-- Persist **Map Display Settings** (store in Supabase or localStorage) so “saved automatically” is true. ✅
-- Preserve **Team Member photo positioning** when editing. ✅
-- Implement **image batch generation** honoring `image_count` or remove the setting. ✅
-- Update **AI Usage cost estimates** to reflect selected model or remove the estimate if unknown. ✅
-- Fix **Blog Rendering** by installing `@tailwindcss/typography` plugin. ✅
+## 3) Phase Plan (Next Execution)
 
-## Phase 1: Content System Foundation (Text-First, Core Admin UX)
-- Create a **content model registry** to define editable sections, fields, and field types. ✅
-- Connect this registry to **public pages** and migrate existing `translations.ts` strings into Supabase content. ✅
-- Provide **preview modes** for each section and a full-page preview in admin. ✅
-- Add **draft vs published** state with per-item and per-section publish actions. ✅
-- Add **role-aware editing**: editors can propose changes, admins publish. ✅
-- Extend **Team Members** with bio + icon fields for richer text-only profiles. ✅
-- Add **admin preview bar** with section highlights and deep links into Content Manager. ✅
+## Phase 1 - Stabilize + Remove Noise (Immediate)
+Goal: eliminate recurring false-error states and unblock smooth daily use.
 
-## Phase 2: Full-Fidelity Page Editing
-- Implement a **page/section editor** (block-based) to edit homepage and key pages without code.
-- Add **layout control** for homepage section order + visibility (Phase 2 kickoff). ✅
-- Add **Services block list** (reorder + enable/disable + multilingual titles/descriptions). ✅
-- Add **News block settings** (limit, autoplay speed, show/hide View All). ✅
-- Add **Clients block settings** (visible logos + autoplay speed). ✅
-- Add **Team block settings** (columns + show/hide icons, bios, LinkedIn). ✅
-- Add **Footer block settings** (show/hide contact, solutions, newsletter, social). ✅
-- Add **Countries block settings** (controls, labels, stats, default view). ✅
-- Add **Footer links manager** (solutions + social URLs, multilingual labels). ✅
-- Add **Homepage blocks** (callout block type + layout integration). ✅
-- Add **Block templates** (testimonials + FAQ with item editor). ✅
-- Add **drag-and-drop ordering** inside Blocks (items list). ✅
-- Make **Services sticky images** editable via content overrides (non-hero). ✅
-- Make **Contact image** editable via content overrides (footer contact block). ✅
-- Support **reorderable blocks** (now available in Blocks manager). ✅
-- Support **section templates** (Hero, Services, Team, Testimonials, Contact). ✅
-- Add **multilingual editing UX** with side-by-side view and translation helpers.
-- Add **live preview** with “before/after” diff for reviewers. ✅
-- Add **SEO editor** (meta title/desc/keywords) for articles. ✅
-- Add **SEO editor** (OpenGraph, structured data) per page. ✅
+Deliverables:
+- [x] unify role check path (single source + consistent timeout/retry behavior)
+- [x] remove non-critical red toasts for expected fallback responses
+- [x] normalize settings fetches to tolerant patterns (no strict-single where optional)
+- [x] add lightweight admin health banner for actionable errors only
 
-## Phase 2.1: Media + History (Moved from Phase 1)
-- Introduce **media library** with tags + search for all images. ✅
-- Add **image upload tools** for `site_content` graphics and section assets (crop later). ✅
-- Add **content history** (versioning + restore) for published `site_content`. ✅
-- Add **crop tools** (square + landscape) for Team/Clients/Content image fields. ✅
-- Allow **Team + Clients** to pick images from the Media Library. ✅
+Progress notes (current pass):
+- Auth startup timeout increased and role-fetch deduplicated in `AuthContext` to reduce false permission screens.
+- LinkedIn organization fallback errors are now shown inline (non-blocking) instead of repeated destructive toasts.
+- Admin shell now shows a lightweight warning banner only when role verification degrades, with retry and dismiss actions.
+- Production build passes locally after this pass.
 
-## Phase 3: AI Article Studio (Targeted Adjustments)
-- Add **research mode** controls: Quick vs Deep with clear time/quality tradeoff. ✅
- - Improve **sources panel**: show citations inline and in a dedicated references block. ✅
-- Add **voice & tone controls** (formal legal memo, client-friendly, news brief). ✅
-- Add **length control** slider with target word count and estimated cost/time. ✅
-- Add **outline-first workflow**: generate outline, approve, then generate full draft. ✅
-- Add **editorial tools**: rewrite sections, expand/shorten, simplify. ✅
-- Add **fact-check checklist** and **legal compliance disclaimer** blocks. ✅
-- Add **AI Image Generator in Article Editor** (Gemini/Turbo, aspect ratios, save to media library, set cover). ✅
-- Align **Gemini/Imagen image endpoints** + allow **custom model overrides**. ✅
-- Fix **JSON output with Google grounding** (prompt + response config + repair). ✅
-- Increase **outline timeouts** for deep research and clarify the outline workflow in UI. ✅
-- Add **Article Model** + **Thinking Budget** controls directly in AI Article Generator (override global AI settings). ✅
-- Keep **Main AI Settings** for translations/shared tasks and label accordingly. ✅
-- Add **Lite vs Advanced** image generation modes in Article Editor. ✅
-- Fix **link-only outputs** when links are provided without grounding (output token budget + validation). ✅
+Exit criteria:
+- no repeated `Profile role check timed out` during normal admin usage
+- no blocking UX from recoverable `400/406` settings/org endpoints
+- diagnostics are manual, not auto-intrusive
 
-## Phase 4: AI Image Studio (Only After Content Editing Is Strong)
-- Create a dedicated **Image Studio** with prompt builder, styles, and aspect ratio presets. ✅
-- Add **batch generation** with previews, history, and comparisons. ✅
-- Add **in-app editor** (crop, focal point, color adjustments, text overlay). ✅
-- Add **template-based social images** for blog and announcements. ✅
-- Store **generation metadata** (prompt, model, seed) and allow regeneration. ✅
+---
 
-## Phase 5: Publishing Workflow + Analytics
-- Add **approval workflow** (review, approve, publish, schedule). ✅
-- Add **scheduled publishing** and **content calendars**. ✅ (scheduling UI + API gating)
-- Add **engagement analytics** for articles and content blocks. ✅ (articles; block tracking placeholder)
-- Add **audit logs** for admin actions and AI usage. ✅ (article audit logs)
+## Phase 2 - CMS Ownership Dedupe (High Impact)
+Goal: one obvious place to edit each type of website content.
 
-## Phase 6: Publishing Calendar + Engagement Tracking
-- Add **Publishing Calendar** view with scheduled + review queues. ✅
-- Add **engagement event tracking** (CTA clicks, view-all clicks). ✅
-- Add **analytics events table + API** for custom events. ✅
+Deliverables:
+- define and implement ownership matrix:
+  - `ContentManager`: global copy and shared text keys only
+  - module managers: structured entities only (team, clients, services, footer links, etc.)
+- remove or hide duplicate fields where module manager is canonical
+- add inline “source of truth” labels in editors
 
-## Phase 7: Admin IA + Workflow Simplification (Complete)
-- Split admin into **two workspaces**: Site Editor vs Publishing & AI. ✅
-- Replace the mega-tab bar with a **left sidebar** grouped by workflow. ✅
-- Ensure **URL deep links** reflect tab/workspace selection. ✅
-- Consolidate article workflows into **Article Studio** (AI Lab → Draft → Media → Publish). ✅
-- Unify AI settings into **one source of truth** with clear override UX. ✅
-- Widen admin layout + reduce cramped workspace controls. ✅
+Progress notes (current pass):
+- Added section-level ownership guidance in `ContentManager`.
+- Added direct “Open <Manager>” links from copy sections to their canonical structured managers.
+- Next pass will hide/retire duplicate structured fields after key-by-key ownership mapping.
 
-## Phase 7.1: Admin Design System Unification (In Progress)
-- Enforce one canonical admin shell and remove mixed legacy page layouts. ✅
-- Normalize navigation patterns (workspace switch + section nav + consistent panel header). ✅
-- Route legacy `/admin/*` pages to canonical query-based shell to prevent parallel UI systems. ✅
-- Standardize internal manager component headers/actions to shared primitives (`AdminPanelHeader`, `AdminSectionCard`) for core modules (`ArticleStudio`, `AILab`, `ArticleEditor`, `LinkedInSettings`, `ContentManager`, `PageLayoutManager`, `MediaLibraryManager`, `UserManagement`). ✅
-- Next: apply shared primitives to remaining secondary managers (Blocks, Team, Clients, Footer, Services, News) for full design parity. ✅
-- Compact visual noise in advanced controls across AI + LinkedIn panels without losing power-user depth. ✅
-- Settings workspace bento layout pass (AI left column, LinkedIn + SEO right column; compact cards). ✅
-- Apply the same bento density pattern to secondary settings managers (News, Footer, Team, Clients) for consistency. ✅
-- Next: normalize form-card density in member/client create-edit forms (reduce horizontal sprawl while preserving fields). ✅
+Exit criteria:
+- no user-visible duplicate edit pathways for same field
+- each section has one canonical edit surface
 
-## Phase 8: Social Distribution (LinkedIn) (In Progress)
-- Define **LinkedIn app setup** steps + required permissions (Organization + Member posting). ✅
-- Add **LinkedIn OAuth** per user with secure token storage + refresh.
-- Add **LinkedIn post preview** (image + headline + excerpt). ✅
-- Allow **share now / schedule** with per-user accounts. (Share now ✅, scheduling UI ✅, cron runner ✅)
-- Track share status + errors in a **share log**. ✅
-- Support **image shares** (LinkedIn asset upload). ✅
+---
 
-## Enablers and Infrastructure
-- Define **Supabase schema migrations** for new content blocks, media metadata, revisions, and AI research logs.
-- Add **RLS policies** for admin/editor/user roles.
-- Add **rate limits** and **usage quotas** for AI generation.
-- Add **per-article budget controls** (token caps and cost estimates).
+## Phase 3 - Publishing UX Simplification (Article + Image)
+Goal: make Article Studio simple by default, powerful when expanded.
 
-## Test Plan (AI Reliability)
-- Generate article with **Deep** research and grounding; verify JSON fields and sources list.
-- Generate article with **Quick** mode + external links; verify full content (not title-only).
-- Run **Outline-first** flow with Deep research; ensure outline completes within 10 minutes.
-- Switch **Article Model** + **Thinking Budget** in AILab; verify generation uses new model in logs.
-- Run **Lite** image mode (Turbo, 1 variant) and **Advanced** mode (custom provider/model).
+Deliverables:
+- enforce `Simple` and `Power` modes consistently across:
+  - article generation
+  - outline workflow
+  - image generation controls
+- move advanced controls into grouped accordions:
+  - model/thinking budget
+  - prompt internals
+  - grounding detail
+- simplify first-run defaults:
+  - strong default model
+  - sane thinking budget
+  - lite image mode default
+
+Exit criteria:
+- average user can generate + save draft + publish without opening Power mode
+- power user can still override model, thinking budget, prompt and image model
+
+---
+
+## Phase 4 - Unified Settings IA + Bento Density Pass
+Goal: settings pages feel coherent and scannable.
+
+Deliverables:
+- split settings into explicit groups:
+  - AI Providers (global)
+  - Article Generation Defaults
+  - Image Generation Defaults
+  - LinkedIn Distribution
+  - SEO/Metadata
+- apply compact two-column bento cards where fields are short
+- keep long-form text fields full-width only where needed
+
+Exit criteria:
+- no stretched one-field rows for short controls
+- settings visually consistent with same card/action patterns
+
+---
+
+## Phase 5 - LinkedIn System Polish
+Goal: stable personal/company sharing with clear state.
+
+Deliverables:
+- finalize default organization strategy:
+  - saved default org URN in settings
+  - clear fallback when discovery endpoints fail
+- add explicit share-state indicators on articles:
+  - not shared / shared personal / shared company / scheduled
+- analytics panel quality pass:
+  - clear “available vs unavailable due to scope/API” states
+
+Note:
+- if LinkedIn link preview image is still inconsistent, treat as platform behavior unless OpenGraph fetch path is proven broken.
+
+Exit criteria:
+- company-page flow works without manual URN entry per article
+- editor shows last share status at article level
+
+---
+
+## Phase 6 - AI Governance (Budgets, Limits, Quotas)
+Goal: control cost/perf without hurting UX.
+
+Deliverables:
+- add per-request budget guardrails in Article Studio
+- add daily/monthly quota policy settings (admin-level)
+- add rate-limit UX messaging (friendly, precise, no stack traces)
+- usage dashboard rollup by user/model/action
+
+Exit criteria:
+- budget overruns are prevented before request dispatch
+- quota breaches are clear and recoverable
+
+---
+
+## 4) UX Rules To Enforce Across Admin
+
+- one primary action per panel (others secondary/ghost)
+- max 5 controls visible in default mode before “Advanced”
+- consistent card header anatomy: title, short description, right-aligned actions
+- avoid mixed navigation patterns inside same workspace
+- do not surface low-level provider details unless in Power mode
+
+---
+
+## 5) Testing Strategy Per Phase
+
+- Functional smoke:
+  - site editing flow (save, publish, frontend reflect)
+  - article flow (generate, outline, draft, edit, publish)
+  - LinkedIn flow (connect, share personal/company, status update)
+- UX smoke:
+  - first-run path without docs
+  - power-user override path
+- Reliability:
+  - slow network simulation
+  - missing optional settings rows
+  - degraded LinkedIn endpoints
+
+---
+
+## 6) Execution Order (Recommended)
+
+1. Phase 1
+2. Phase 2
+3. Phase 3
+4. Phase 4
+5. Phase 5
+6. Phase 6
+
+---
+
+## 7) Immediate Next Step
+
+Start Phase 1 with a focused bug/noise sweep:
+- role-check timeout handling
+- tolerant settings/org fetch cleanup
+- non-blocking fallback message normalization

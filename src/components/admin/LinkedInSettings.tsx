@@ -81,6 +81,7 @@ export default function LinkedInSettings() {
     const [defaultOrgUrn, setDefaultOrgUrn] = useState("");
     const [orgsLoading, setOrgsLoading] = useState(false);
     const [organizations, setOrganizations] = useState<LinkedInOrg[]>([]);
+    const [orgsNotice, setOrgsNotice] = useState<string | null>(null);
     const [savingDefaults, setSavingDefaults] = useState(false);
     const [logs, setLogs] = useState<LinkedInLog[]>([]);
     const [logsLoading, setLogsLoading] = useState(false);
@@ -170,6 +171,7 @@ export default function LinkedInSettings() {
             return;
         }
         setOrgsLoading(true);
+        setOrgsNotice(null);
         try {
             const res = await fetch("/api/linkedin/organizations", {
                 headers: { Authorization: `Bearer ${session.access_token}` },
@@ -200,18 +202,18 @@ export default function LinkedInSettings() {
                     setOrganizations(fallbackList);
                 }
                 if (data?.error) {
-                    toast.warning(data.error);
+                    setOrgsNotice(data.error);
                 } else {
-                    toast.warning("LinkedIn org API is temporarily unavailable. Using fallback organizations.");
+                    setOrgsNotice("LinkedIn org API is temporarily unavailable. Using fallback organizations.");
                 }
                 return;
             }
 
             if (data?.error) {
                 if (Array.isArray(data.organizations) || fallbackList.length > 0) {
-                    toast.warning(`${data.error} Using fallback organization.`);
+                    setOrgsNotice(`${data.error} Using fallback organization list.`);
                 } else {
-                    toast.error(data.error);
+                    setOrgsNotice(data.error);
                 }
             }
         } catch {
@@ -224,10 +226,10 @@ export default function LinkedInSettings() {
             const fallbackList = Array.from(dedup.values());
             if (fallbackList.length > 0) {
                 setOrganizations(fallbackList);
-                toast.warning("LinkedIn org API failed. Fallback organizations loaded.");
+                setOrgsNotice("LinkedIn org API failed. Fallback organizations loaded.");
                 return;
             }
-            toast.error("Failed to load LinkedIn organizations.");
+            setOrgsNotice("Failed to load LinkedIn organizations.");
         } finally {
             setOrgsLoading(false);
         }
@@ -486,6 +488,9 @@ export default function LinkedInSettings() {
                             <p className="text-[10px] text-muted-foreground">
                                 Paste the URN if the list is empty or you need a specific organization.
                             </p>
+                            {orgsNotice && (
+                                <p className="text-[10px] text-amber-700">{orgsNotice}</p>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-2">

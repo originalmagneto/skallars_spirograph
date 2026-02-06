@@ -6,9 +6,10 @@ import { useEffect, useState } from "react";
 import { AiMagicIcon, Logout01Icon, UserMultipleIcon } from "hugeicons-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { AlertTriangle } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const { user, loading, isAdmin, isEditor, signOut, refreshRoles } = useAuth();
+    const { user, loading, isAdmin, isEditor, signOut, refreshRoles, healthWarning, dismissHealthWarning } = useAuth();
     const router = useRouter();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [accessMessage, setAccessMessage] = useState("");
@@ -105,6 +106,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
             </header>
             <main className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-8">
+                {healthWarning && (
+                    <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex items-start gap-2">
+                                <AlertTriangle size={16} className="mt-0.5 text-amber-600" />
+                                <p className="text-sm text-amber-900">{healthWarning}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
+                                    {isRefreshing ? "Checking..." : "Retry Check"}
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={dismissHealthWarning}>
+                                    Dismiss
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {children}
             </main>
         </div>
