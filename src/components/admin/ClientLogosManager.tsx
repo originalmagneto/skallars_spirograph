@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -393,6 +394,17 @@ const ClientLogosManager = () => {
                     </>
                 )}
             />
+
+            <AdminSectionCard className="border-blue-100 bg-blue-50/40">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <p className="text-sm text-slate-600">
+                        <strong>Source of truth:</strong> client entities and logos are managed here. Shared clients section copy is edited in Site Editor Content.
+                    </p>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/admin?workspace=site&tab=content">Open Site Content</Link>
+                    </Button>
+                </div>
+            </AdminSectionCard>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
                 <AdminSectionCard className="space-y-4 bg-muted/20 xl:col-span-8">

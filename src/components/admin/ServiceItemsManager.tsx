@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -176,6 +177,17 @@ export default function ServiceItemsManager() {
           Reorder with arrows and toggle visibility per service.
         </div>
       </AdminActionBar>
+
+      <AdminSectionCard className="border-blue-100 bg-blue-50/40">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-slate-600">
+            <strong>Source of truth:</strong> service cards are managed here. Shared section copy is edited in Site Editor Content.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin?workspace=site&tab=content">Open Site Content</Link>
+          </Button>
+        </div>
+      </AdminSectionCard>
 
       {isAdding && (
         <AdminSectionCard className="space-y-4 bg-muted/20">

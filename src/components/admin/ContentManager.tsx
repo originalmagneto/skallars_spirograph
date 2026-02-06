@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -56,6 +57,10 @@ interface ContentItem extends SiteContent {
     label?: string;
     sort_order?: number;
     registered?: boolean;
+    structuredOwner?: {
+        tab: string;
+        label: string;
+    } | null;
 }
 
 // -- Configuration --
@@ -94,6 +99,13 @@ const SECTION_OWNERSHIP: Record<string, { copyOwner: string; structuredOwnerTab?
     footer: { copyOwner: 'Content Manager', structuredOwnerTab: 'footer', structuredLabel: 'Footer Manager' },
     general: { copyOwner: 'Content Manager' },
 };
+
+const STRUCTURED_KEY_OWNERSHIP: Array<{ prefix: string; tab: string; label: string }> = [
+    { prefix: 'services.items.', tab: 'services', label: 'Services Manager' },
+    { prefix: 'team.members.', tab: 'team', label: 'Team Manager' },
+    { prefix: 'footer.solutionsItems', tab: 'footer', label: 'Footer Manager' },
+    { prefix: 'countries.officeInfo.', tab: 'map', label: 'Map Cities Manager' },
+];
 
 // -- Components --
 
@@ -170,6 +182,11 @@ const ContentRow = ({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <h3 className="text-sm font-semibold text-slate-900">{item.label || item.key}</h3>
+                        {item.structuredOwner && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                Managed in {item.structuredOwner.label}
+                            </span>
+                        )}
                         {hasDraft && (
                             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
                                 Draft
@@ -350,6 +367,7 @@ const ContentManager = () => {
     const [activeSection, setActiveSection] = useState('hero');
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showStructuredKeys, setShowStructuredKeys] = useState(false);
     const activeOwnership = SECTION_OWNERSHIP[activeSection];
 
     // Fetch Content
@@ -431,6 +449,11 @@ const ContentManager = () => {
     // Data Processing
     const registryMap = new Map(registry.map(r => [r.key, r]));
     const contentMap = new Map(content.map(c => [c.key, c]));
+    const getStructuredOwner = (key: string) => {
+        const match = STRUCTURED_KEY_OWNERSHIP.find((owner) => key.startsWith(owner.prefix));
+        if (!match) return null;
+        return { tab: match.tab, label: match.label };
+    };
 
     // Merge
     const allItems: ContentItem[] = [
@@ -442,23 +465,28 @@ const ContentManager = () => {
             value_en: contentMap.get(reg.key)?.value_en || '',
             value_de: contentMap.get(reg.key)?.value_de || '',
             value_cn: contentMap.get(reg.key)?.value_cn || '',
+            structuredOwner: getStructuredOwner(reg.key),
         } as ContentItem)),
         ...content.filter(c => !registryMap.has(c.key)).map(c => ({
             ...c,
             label: c.key,
             sort_order: 9999,
-            registered: false
+            registered: false,
+            structuredOwner: getStructuredOwner(c.key),
         }))
     ];
 
     const filteredItems = allItems
         .filter(item => {
+            if (!showStructuredKeys && item.structuredOwner) return false;
             if (searchQuery) return item.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 item.label?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 item.value_sk.toLowerCase().includes(searchQuery.toLowerCase());
             return item.section === activeSection;
         })
         .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+
+    const hiddenStructuredCount = allItems.filter((item) => item.section === activeSection && item.structuredOwner).length;
 
     const sectionCounts = allItems.reduce((acc, item) => {
         acc[item.section] = (acc[item.section] || 0) + 1;
@@ -515,6 +543,13 @@ const ContentManager = () => {
                         );
                     })}
                 </div>
+                <div className="ml-auto inline-flex items-center gap-2 rounded-md border bg-white px-3 py-2">
+                    <Switch checked={showStructuredKeys} onCheckedChange={setShowStructuredKeys} />
+                    <span className="text-xs text-slate-600">
+                        Show structured keys
+                        {!showStructuredKeys && hiddenStructuredCount > 0 ? ` (${hiddenStructuredCount} hidden)` : ''}
+                    </span>
+                </div>
             </AdminActionBar>
 
             {!searchQuery && activeOwnership && (
@@ -546,9 +581,9 @@ const ContentManager = () => {
                         <h3 className="text-lg font-semibold text-[#210059]">
                             {searchQuery ? 'Search Results' : SECTION_CONFIG[activeSection]?.en}
                         </h3>
-                        <span className="text-sm text-slate-500">{filteredItems.length} items</span>
-                    </div>
-                    <div className="flex gap-3 text-xs text-slate-500">
+                    <span className="text-sm text-slate-500">{filteredItems.length} items</span>
+                </div>
+                <div className="flex gap-3 text-xs text-slate-500">
                         <div className="flex items-center gap-1">
                             <div className="w-2 h-2 rounded-full bg-orange-100 ring-1 ring-orange-200" /> Draft
                         </div>

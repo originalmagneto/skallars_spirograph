@@ -73,16 +73,18 @@ Exit criteria:
 Goal: one obvious place to edit each type of website content.
 
 Deliverables:
-- define and implement ownership matrix:
+- [x] define and implement ownership matrix:
   - `ContentManager`: global copy and shared text keys only
   - module managers: structured entities only (team, clients, services, footer links, etc.)
-- remove or hide duplicate fields where module manager is canonical
-- add inline “source of truth” labels in editors
+- [x] remove or hide duplicate fields where module manager is canonical
+- [x] add inline “source of truth” labels in editors
 
 Progress notes (current pass):
 - Added section-level ownership guidance in `ContentManager`.
 - Added direct “Open <Manager>” links from copy sections to their canonical structured managers.
-- Next pass will hide/retire duplicate structured fields after key-by-key ownership mapping.
+- Added structured-key ownership detection in `ContentManager` and hidden-by-default rendering with a “Show structured keys” power toggle.
+- Added source-of-truth hint cards to Services, Team, Clients, and Footer managers.
+- Next pass: key-by-key cleanup to retire remaining legacy duplicate keys.
 
 Exit criteria:
 - no user-visible duplicate edit pathways for same field

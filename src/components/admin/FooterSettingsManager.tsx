@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,17 @@ export default function FooterSettingsManager() {
         description="Control footer column visibility and global footer links."
         actions={<Badge variant="secondary">Sections</Badge>}
       />
+
+      <AdminSectionCard className="border-blue-100 bg-blue-50/40">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-slate-600">
+            <strong>Source of truth:</strong> footer structured links and visibility are managed here. Shared footer copy is edited in Site Editor Content.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin?workspace=site&tab=content">Open Site Content</Link>
+          </Button>
+        </div>
+      </AdminSectionCard>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <AdminSectionCard className="space-y-3 xl:col-span-8">
