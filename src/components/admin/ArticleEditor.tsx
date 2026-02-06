@@ -28,7 +28,7 @@ import {
 import Link from 'next/link';
 import { generateAIEdit, generateAIImage } from '@/lib/aiService';
 import { fetchAISettings } from '@/lib/aiSettings';
-import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
+import { AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface ArticleFormData {
     title_sk: string;
@@ -1429,8 +1429,9 @@ Rules:
                 </div>
             )}
 
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             {/* Cover Image */}
-            <div className="space-y-2">
+            <AdminSectionCard className="space-y-2 xl:col-span-4">
                 <Label>Cover Image</Label>
                 {formData.cover_image_url ? (
                     <div className="relative group">
@@ -1471,10 +1472,10 @@ Rules:
                         </Button>
                     </div>
                 )}
-            </div>
+            </AdminSectionCard>
 
             {/* AI Cover Image Generator */}
-            <div className="space-y-3 border rounded-lg p-4 bg-muted/20">
+            <AdminSectionCard className="space-y-3 bg-muted/20 xl:col-span-8">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Sparkles size={16} className="text-primary" />
@@ -1651,10 +1652,12 @@ Rules:
                         ))}
                     </div>
                 )}
+            </AdminSectionCard>
             </div>
 
             {/* LinkedIn Share */}
-            <div ref={linkedinSectionRef} className="rounded-lg border bg-muted/20 p-4 space-y-4">
+            <div ref={linkedinSectionRef}>
+            <AdminSectionCard className="space-y-4 bg-muted/20">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <Label className="text-sm font-semibold">LinkedIn Share</Label>
@@ -2080,10 +2083,12 @@ Rules:
                         </AccordionItem>
                     </Accordion>
                 )}
+            </AdminSectionCard>
             </div>
 
             {/* Language Tabs */}
-            <div className="flex gap-2 border-b">
+            <AdminSectionCard className="overflow-x-auto p-0">
+            <div className="flex min-w-[560px] gap-2 border-b px-4">
                 <button
                     onClick={() => setActiveTab('sk')}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'sk'
@@ -2121,9 +2126,10 @@ Rules:
                     🇨🇳 Chinese
                 </button>
             </div>
+            </AdminSectionCard>
 
             {/* Title & Excerpt */}
-            <div className="space-y-4">
+            <AdminSectionCard className="space-y-4">
                 <div className="space-y-2">
                     <Label>{getLabel('Title', 'Titulok')}</Label>
                     <Input
@@ -2133,25 +2139,27 @@ Rules:
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <Label>Slug (URL)</Label>
-                    <Input
-                        value={formData.slug}
-                        onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                        placeholder="article-url-slug"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Tags (comma separated)</Label>
-                    <Input
-                        value={tagsInput}
-                        onChange={(e) => {
-                            const next = e.target.value;
-                            setTagsInput(next);
-                            setFormData(prev => ({ ...prev, tags: parseTagsInput(next) }));
-                        }}
-                        placeholder="ai, regulation, compliance"
-                    />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                        <Label>Slug (URL)</Label>
+                        <Input
+                            value={formData.slug}
+                            onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                            placeholder="article-url-slug"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Tags (comma separated)</Label>
+                        <Input
+                            value={tagsInput}
+                            onChange={(e) => {
+                                const next = e.target.value;
+                                setTagsInput(next);
+                                setFormData(prev => ({ ...prev, tags: parseTagsInput(next) }));
+                            }}
+                            placeholder="ai, regulation, compliance"
+                        />
+                    </div>
                 </div>
 
                 <div className="space-y-2">
@@ -2163,10 +2171,10 @@ Rules:
                         rows={3}
                     />
                 </div>
-            </div>
+            </AdminSectionCard>
 
             {/* Content Editor */}
-            <div className="space-y-2">
+            <AdminSectionCard className="space-y-2">
                 <div className="flex items-center justify-between">
                     <Label>{getLabel('Content', 'Obsah')}</Label>
                     <div className="flex gap-2">
@@ -2257,10 +2265,11 @@ Rules:
                         className="font-mono text-sm"
                     />
                 )}
-            </div>
+            </AdminSectionCard>
 
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             {/* SEO Metadata */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+            <AdminSectionCard className="space-y-4 bg-muted/30 xl:col-span-5">
                 <div className="flex items-center justify-between gap-2">
                     <Label className="text-sm font-semibold">SEO Metadata</Label>
                     {seoFieldsAvailable && (
@@ -2284,22 +2293,13 @@ Rules:
                         SEO fields are not available in the database. Run `supabase/articles_meta_fields.sql` in Supabase to enable them.
                     </div>
                 )}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                     <Label>Meta Title</Label>
                     <Input
                         value={getCurrentMetaTitle()}
                         onChange={(e) => updateMetaField('meta_title', e.target.value)}
                         placeholder="SEO title (max ~60 chars)"
-                        disabled={!seoFieldsAvailable}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Meta Description</Label>
-                    <Textarea
-                        value={getCurrentMetaDescription()}
-                        onChange={(e) => updateMetaField('meta_description', e.target.value)}
-                        placeholder="SEO description (max ~160 chars)"
-                        rows={3}
                         disabled={!seoFieldsAvailable}
                     />
                 </div>
@@ -2312,10 +2312,21 @@ Rules:
                         disabled={!seoFieldsAvailable}
                     />
                 </div>
-            </div>
+                </div>
+                <div className="space-y-2">
+                    <Label>Meta Description</Label>
+                    <Textarea
+                        value={getCurrentMetaDescription()}
+                        onChange={(e) => updateMetaField('meta_description', e.target.value)}
+                        placeholder="SEO description (max ~160 chars)"
+                        rows={3}
+                        disabled={!seoFieldsAvailable}
+                    />
+                </div>
+            </AdminSectionCard>
 
             {/* Editorial Tools */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+            <AdminSectionCard className="space-y-3 bg-muted/30 xl:col-span-7">
                 <div className="flex items-center gap-2">
                     <Sparkles size={16} />
                     <Label className="text-sm font-semibold">Editorial Tools (AI)</Label>
@@ -2387,10 +2398,11 @@ Rules:
                         </div>
                     </div>
                 )}
+            </AdminSectionCard>
             </div>
 
             {/* Compliance & Fact Check */}
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+            <AdminSectionCard className="space-y-4 bg-muted/30">
                 <Label className="text-sm font-semibold">Fact-Check & Compliance</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {factChecklistDefaults.map((item) => (
@@ -2429,7 +2441,7 @@ Rules:
                         placeholder="Add a legal disclaimer for this language..."
                     />
                 </div>
-            </div>
+            </AdminSectionCard>
         </div>
     );
 }
