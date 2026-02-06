@@ -37,6 +37,7 @@ import { fetchAISettings, fetchGeminiModels, filterTextModels, GeminiModel } fro
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatArticleHtml } from '@/lib/articleFormat';
+import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
 
 type AILabProps = {
     redirectTab?: string;
@@ -742,16 +743,20 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
 
     return (
         <div className="space-y-6">
+            <AdminPanelHeader
+                title="AI Article Generator"
+                description="Create structured, multilingual articles with optional deep research and saved draft handoff."
+            />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Input Pane */}
                 <Card>
                     <CardHeader>
                         <div className="flex items-center gap-2">
                             <AiMagicIcon size={24} className="text-primary" />
-                            <CardTitle>AI Article Generator</CardTitle>
+                            <CardTitle>Generation Inputs</CardTitle>
                         </div>
                         <CardDescription>
-                            Provide a topic and research links to generate a complete, bilingual article.
+                            Define topic, language, depth, and controls before generation.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">

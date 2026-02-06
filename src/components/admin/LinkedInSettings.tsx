@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, RefreshCw, XCircle } from "lucide-react";
+import { AdminPanelHeader, AdminSectionCard } from "@/components/admin/AdminPrimitives";
 
 type LinkedInStatus = {
     connected: boolean;
@@ -311,14 +311,12 @@ export default function LinkedInSettings() {
     const scopeBadges = status?.scopes || [];
 
     return (
-        <Card className="w-full">
-            <CardHeader>
-                <CardTitle>LinkedIn Settings</CardTitle>
-                <CardDescription>
-                    Connect LinkedIn accounts, set default company URN, and review share activity.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
+        <div className="space-y-4">
+            <AdminPanelHeader
+                title="LinkedIn Settings"
+                description="Manage account connection, company defaults, share history, and basic post analytics."
+            />
+            <AdminSectionCard className="space-y-8">
                 <div className="rounded-lg border bg-muted/10 p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
@@ -564,7 +562,7 @@ export default function LinkedInSettings() {
                         </TableBody>
                     </Table>
                 </div>
-            </CardContent>
-        </Card>
+            </AdminSectionCard>
+        </div>
     );
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AILab from "@/components/admin/AILab";
 import ArticleEditor from "@/components/admin/ArticleEditor";
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from "@/components/admin/AdminPrimitives";
 
 type Stage = "generate" | "edit";
 
@@ -28,14 +29,11 @@ export default function ArticleStudio() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <h2 className="text-xl font-semibold">Article Studio</h2>
-                    <p className="text-sm text-muted-foreground">
-                        Generate, refine, and publish articles from one workspace.
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+            <AdminPanelHeader
+                title="Article Studio"
+                description="Generate, refine, and publish articles from one workspace."
+                actions={
+                    <>
                     <Button
                         variant="outline"
                         onClick={() => router.push("/admin?workspace=publishing&tab=articles")}
@@ -49,10 +47,11 @@ export default function ArticleStudio() {
                     >
                         Advanced AI Lab
                     </Button>
-                </div>
-            </div>
+                    </>
+                }
+            />
 
-            <div className="flex flex-wrap items-center gap-2">
+            <AdminActionBar>
                 <Button
                     size="sm"
                     variant={stage === "generate" ? "default" : "outline"}
@@ -69,7 +68,7 @@ export default function ArticleStudio() {
                     2. Edit & Publish
                 </Button>
                 {badgeLabel && <Badge variant="secondary">{badgeLabel}</Badge>}
-            </div>
+            </AdminActionBar>
 
             {stage === "generate" && (
                 <AILab
@@ -88,9 +87,9 @@ export default function ArticleStudio() {
                         }}
                     />
                 ) : (
-                    <div className="rounded-lg border bg-muted/30 p-6 text-sm text-muted-foreground">
+                    <AdminSectionCard className="text-sm text-muted-foreground">
                         Generate an article first to begin editing, or open one from the Articles list.
-                    </div>
+                    </AdminSectionCard>
                 )
             )}
         </div>

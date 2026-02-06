@@ -13,7 +13,6 @@ import {
     Tick01Icon,
     Cancel01Icon,
     Loading01Icon,
-    Settings01Icon,
     Image01Icon,
     Coins01Icon,
     MagicWand01Icon,
@@ -23,6 +22,7 @@ import {
 } from 'hugeicons-react';
 import { Badge } from '@/components/ui/badge';
 import AIUsageStats from './AIUsageStats';
+import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
 
 interface GeminiModel {
     name: string;
@@ -252,21 +252,16 @@ const AISettings = () => {
             <AIUsageStats />
 
             {/* 2. Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <Settings01Icon size={24} className="text-primary" />
-                        AI Configuration
-                    </h2>
-                    <p className="text-muted-foreground">
-                        Manage global credentials, models, and generation preferences. Article Studio uses its own model settings.
-                    </p>
-                </div>
-                <Button onClick={saveSettings} disabled={saving} size="lg" className="shadow-sm">
-                    {saving ? <Loading01Icon className="mr-2 animate-spin" /> : <FloppyDiskIcon className="mr-2" />}
-                    {saving ? 'Saving...' : 'Save Changes'}
-                </Button>
-            </div>
+            <AdminPanelHeader
+                title="AI Configuration"
+                description="Manage global credentials, models, and generation preferences. Article Studio has separate article model controls."
+                actions={(
+                    <Button onClick={saveSettings} disabled={saving} size="lg" className="shadow-sm">
+                        {saving ? <Loading01Icon className="mr-2 animate-spin" /> : <FloppyDiskIcon className="mr-2" />}
+                        {saving ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                )}
+            />
 
             {/* 3. Main Setting Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
