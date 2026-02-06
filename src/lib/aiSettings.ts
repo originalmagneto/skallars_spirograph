@@ -11,6 +11,11 @@ export type AISettingsSnapshot = {
     priceInputPerM: number | null;
     priceOutputPerM: number | null;
     geminiRequestBudgetUsd: number | null;
+    geminiQuotaDailyTokens: number | null;
+    geminiQuotaMonthlyTokens: number | null;
+    geminiQuotaDailyUsd: number | null;
+    geminiQuotaMonthlyUsd: number | null;
+    geminiRequestCooldownSeconds: number | null;
 };
 
 export type GeminiModel = {
@@ -51,6 +56,11 @@ export const fetchAISettings = async (): Promise<AISettingsSnapshot> => {
         priceInputPerM: toNumber(map.gemini_price_input_per_million),
         priceOutputPerM: toNumber(map.gemini_price_output_per_million),
         geminiRequestBudgetUsd: toNumber(map.gemini_request_budget_usd),
+        geminiQuotaDailyTokens: toNumber(map.gemini_quota_daily_tokens),
+        geminiQuotaMonthlyTokens: toNumber(map.gemini_quota_monthly_tokens),
+        geminiQuotaDailyUsd: toNumber(map.gemini_quota_daily_usd),
+        geminiQuotaMonthlyUsd: toNumber(map.gemini_quota_monthly_usd),
+        geminiRequestCooldownSeconds: toNumber(map.gemini_request_cooldown_seconds),
     };
 };
 

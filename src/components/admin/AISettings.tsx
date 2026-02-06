@@ -232,7 +232,12 @@ const AISettings = () => {
             { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
             { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
             { key: 'gemini_price_input_per_million', value: '', description: 'Optional: price per 1M input tokens (USD)' },
-            { key: 'gemini_price_output_per_million', value: '', description: 'Optional: price per 1M output tokens (USD)' }
+            { key: 'gemini_price_output_per_million', value: '', description: 'Optional: price per 1M output tokens (USD)' },
+            { key: 'gemini_quota_daily_tokens', value: '', description: 'Optional: per-user daily token quota' },
+            { key: 'gemini_quota_monthly_tokens', value: '', description: 'Optional: per-user monthly token quota' },
+            { key: 'gemini_quota_daily_usd', value: '', description: 'Optional: per-user daily USD quota' },
+            { key: 'gemini_quota_monthly_usd', value: '', description: 'Optional: per-user monthly USD quota' },
+            { key: 'gemini_request_cooldown_seconds', value: '', description: 'Optional: minimum seconds between generation requests per user' }
         ];
         setSettings(defaults);
     };
@@ -245,6 +250,11 @@ const AISettings = () => {
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
     const priceInput = settings.find(s => s.key === 'gemini_price_input_per_million')?.value || '';
     const priceOutput = settings.find(s => s.key === 'gemini_price_output_per_million')?.value || '';
+    const quotaDailyTokens = settings.find(s => s.key === 'gemini_quota_daily_tokens')?.value || '';
+    const quotaMonthlyTokens = settings.find(s => s.key === 'gemini_quota_monthly_tokens')?.value || '';
+    const quotaDailyUsd = settings.find(s => s.key === 'gemini_quota_daily_usd')?.value || '';
+    const quotaMonthlyUsd = settings.find(s => s.key === 'gemini_quota_monthly_usd')?.value || '';
+    const cooldownSeconds = settings.find(s => s.key === 'gemini_request_cooldown_seconds')?.value || '';
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -355,6 +365,80 @@ const AISettings = () => {
                         </div>
                         <p className="text-[10px] text-muted-foreground leading-tight">
                             Rates are used to calculate the estimated cost shown in analytics and usage reports.
+                        </p>
+                    </CardContent>
+                </Card>
+
+                {/* B2. Quotas & Rate Limits */}
+                <Card className="xl:col-span-5 shadow-sm border-border/60">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <ZapIcon size={18} className="text-primary" /> AI Quotas & Limits
+                        </CardTitle>
+                        <CardDescription>Per-user guardrails for Article Studio request volume and spend.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Daily Token Quota</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    step="1000"
+                                    value={quotaDailyTokens}
+                                    onChange={(e) => handleUpdate('gemini_quota_daily_tokens', e.target.value)}
+                                    placeholder="0 = off"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Monthly Token Quota</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    step="10000"
+                                    value={quotaMonthlyTokens}
+                                    onChange={(e) => handleUpdate('gemini_quota_monthly_tokens', e.target.value)}
+                                    placeholder="0 = off"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Daily USD Quota</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={quotaDailyUsd}
+                                    onChange={(e) => handleUpdate('gemini_quota_daily_usd', e.target.value)}
+                                    placeholder="0 = off"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Monthly USD Quota</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={quotaMonthlyUsd}
+                                    onChange={(e) => handleUpdate('gemini_quota_monthly_usd', e.target.value)}
+                                    placeholder="0 = off"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Request Cooldown (seconds)</Label>
+                            <Input
+                                type="number"
+                                min={0}
+                                step="1"
+                                value={cooldownSeconds}
+                                onChange={(e) => handleUpdate('gemini_request_cooldown_seconds', e.target.value)}
+                                placeholder="0 = off"
+                            />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                            Quotas are checked before dispatch in Article Studio. USD quotas require token pricing values above.
                         </p>
                     </CardContent>
                 </Card>

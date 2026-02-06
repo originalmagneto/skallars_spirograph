@@ -73,6 +73,12 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [savedModel, setSavedModel] = useState<string>('');
     const [savedThinkingBudget, setSavedThinkingBudget] = useState<number>(0);
     const [savedRequestBudgetUsd, setSavedRequestBudgetUsd] = useState<number>(0);
+    const [dailyTokenQuota, setDailyTokenQuota] = useState<number>(0);
+    const [monthlyTokenQuota, setMonthlyTokenQuota] = useState<number>(0);
+    const [dailyUsdQuota, setDailyUsdQuota] = useState<number>(0);
+    const [monthlyUsdQuota, setMonthlyUsdQuota] = useState<number>(0);
+    const [requestCooldownSeconds, setRequestCooldownSeconds] = useState<number>(0);
+    const [lastGenerationStartedAt, setLastGenerationStartedAt] = useState<number | null>(null);
     const [modelOptions, setModelOptions] = useState<GeminiModel[]>([]);
     const [modelLoading, setModelLoading] = useState(false);
     const [articleSettingsSaving, setArticleSettingsSaving] = useState(false);
@@ -158,6 +164,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const requestBudget = settings.geminiRequestBudgetUsd ?? 0;
             setRequestBudgetUsd(requestBudget);
             setSavedRequestBudgetUsd(requestBudget);
+            setDailyTokenQuota(settings.geminiQuotaDailyTokens ?? 0);
+            setMonthlyTokenQuota(settings.geminiQuotaMonthlyTokens ?? 0);
+            setDailyUsdQuota(settings.geminiQuotaDailyUsd ?? 0);
+            setMonthlyUsdQuota(settings.geminiQuotaMonthlyUsd ?? 0);
+            setRequestCooldownSeconds(settings.geminiRequestCooldownSeconds ?? 0);
             setPriceInputPerM(settings.priceInputPerM);
             setPriceOutputPerM(settings.priceOutputPerM);
 
@@ -267,9 +278,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     };
     const shouldShowLinksEditor = uiMode === 'power' || showSourceLinks;
 
-    const estimateRequestCost = () => {
-        if (priceInputPerM === null || priceOutputPerM === null) return null;
-
+    const estimateRequestTokens = () => {
         const validLinks = links.filter((l) => l.trim() !== '');
         const promptValue = showPromptEditor ? customPrompt : prompt;
         const promptChars = [
@@ -280,9 +289,18 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             targetLanguages.join(','),
             ...validLinks
         ].join(' ').length;
-
         const promptTokens = Math.ceil(promptChars / 3.8) + (researchDepth === 'Deep' ? 1400 : 350);
         const outputTokens = Math.ceil(targetWordCount * 1.8) + (useOutlineWorkflow ? 250 : 0) + Math.max(0, thinkingBudget || 0);
+        return {
+            promptTokens,
+            outputTokens,
+            totalTokens: promptTokens + outputTokens
+        };
+    };
+
+    const estimateRequestCost = () => {
+        if (priceInputPerM === null || priceOutputPerM === null) return null;
+        const { promptTokens, outputTokens } = estimateRequestTokens();
         const inputCost = (promptTokens / 1_000_000) * priceInputPerM;
         const outputCost = (outputTokens / 1_000_000) * priceOutputPerM;
         return inputCost + outputCost;
@@ -318,6 +336,41 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         (requestBudgetUsd || 0) > 0 &&
         preflightCostEstimate !== null &&
         preflightCostEstimate > requestBudgetUsd;
+
+    const fetchUsageSnapshot = async (userId: string) => {
+        const now = Date.now();
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const monthStart = new Date(dayStart.getFullYear(), dayStart.getMonth(), 1);
+        const { data, error } = await supabase
+            .from('ai_usage_logs')
+            .select('total_tokens,input_tokens,output_tokens,created_at')
+            .eq('user_id', userId)
+            .gte('created_at', monthStart.toISOString());
+        if (error) throw error;
+
+        let dayTokens = 0;
+        let monthTokens = 0;
+        let dayUsd = 0;
+        let monthUsd = 0;
+        for (const row of data || []) {
+            const createdAtMs = row?.created_at ? new Date(row.created_at).getTime() : now;
+            const total = Number(row?.total_tokens || 0);
+            const input = Number(row?.input_tokens || 0);
+            const output = Number(row?.output_tokens || 0);
+            monthTokens += total;
+            if (priceInputPerM !== null && priceOutputPerM !== null) {
+                monthUsd += (input / 1_000_000) * priceInputPerM + (output / 1_000_000) * priceOutputPerM;
+            }
+            if (createdAtMs >= dayStart.getTime()) {
+                dayTokens += total;
+                if (priceInputPerM !== null && priceOutputPerM !== null) {
+                    dayUsd += (input / 1_000_000) * priceInputPerM + (output / 1_000_000) * priceOutputPerM;
+                }
+            }
+        }
+        return { dayTokens, monthTokens, dayUsd, monthUsd };
+    };
 
     const buildResearchFindings = (pack: { summary?: string; key_points?: string[]; facts?: string[]; outline?: string[]; sources?: Array<{ title?: string; url?: string }> }) => {
         const sections: string[] = [];
@@ -417,6 +470,61 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             return;
         }
 
+        if ((requestCooldownSeconds || 0) > 0 && lastGenerationStartedAt) {
+            const elapsedSeconds = Math.floor((Date.now() - lastGenerationStartedAt) / 1000);
+            if (elapsedSeconds < requestCooldownSeconds) {
+                const waitSeconds = requestCooldownSeconds - elapsedSeconds;
+                toast.error(`Rate limit active. Please wait ${waitSeconds}s before sending another generation request.`);
+                return;
+            }
+        }
+
+        const estimatedTokens = estimateRequestTokens();
+        if (
+            (dailyTokenQuota || 0) > 0 ||
+            (monthlyTokenQuota || 0) > 0 ||
+            (dailyUsdQuota || 0) > 0 ||
+            (monthlyUsdQuota || 0) > 0
+        ) {
+            if ((dailyUsdQuota || 0) > 0 || (monthlyUsdQuota || 0) > 0) {
+                if (priceInputPerM === null || priceOutputPerM === null) {
+                    toast.error('USD quota is configured, but token pricing is missing. Set pricing in AI Settings first.');
+                    return;
+                }
+            }
+            try {
+                if (!user?.id) {
+                    toast.error('You must be signed in to generate content.');
+                    return;
+                }
+                const usage = await fetchUsageSnapshot(user.id);
+                const projectedDayTokens = usage.dayTokens + estimatedTokens.totalTokens;
+                const projectedMonthTokens = usage.monthTokens + estimatedTokens.totalTokens;
+                const projectedDayUsd = usage.dayUsd + (effectivePreflightCost || 0);
+                const projectedMonthUsd = usage.monthUsd + (effectivePreflightCost || 0);
+
+                if ((dailyTokenQuota || 0) > 0 && projectedDayTokens > dailyTokenQuota) {
+                    toast.error(`Daily token quota reached. Projected ${projectedDayTokens.toLocaleString()} / ${dailyTokenQuota.toLocaleString()} tokens.`);
+                    return;
+                }
+                if ((monthlyTokenQuota || 0) > 0 && projectedMonthTokens > monthlyTokenQuota) {
+                    toast.error(`Monthly token quota reached. Projected ${projectedMonthTokens.toLocaleString()} / ${monthlyTokenQuota.toLocaleString()} tokens.`);
+                    return;
+                }
+                if ((dailyUsdQuota || 0) > 0 && projectedDayUsd > dailyUsdQuota) {
+                    toast.error(`Daily USD quota reached. Projected $${projectedDayUsd.toFixed(4)} / $${dailyUsdQuota.toFixed(4)}.`);
+                    return;
+                }
+                if ((monthlyUsdQuota || 0) > 0 && projectedMonthUsd > monthlyUsdQuota) {
+                    toast.error(`Monthly USD quota reached. Projected $${projectedMonthUsd.toFixed(4)} / $${monthlyUsdQuota.toFixed(4)}.`);
+                    return;
+                }
+            } catch (usageError: any) {
+                toast.error(`Could not verify quota usage: ${usageError?.message || 'Unknown error'}`);
+                return;
+            }
+        }
+
         if (articleSettingsDirty) {
             await saveArticleSettings(true);
         }
@@ -426,6 +534,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         setEstimatedCost(null);
         setGenerationStatus('Starting request...');
         setGenerationElapsedMs(0);
+        setLastGenerationStartedAt(Date.now());
         setResearchSources([]);
         setResearchSummary('');
         const requestId = (globalThis.crypto && 'randomUUID' in globalThis.crypto)
@@ -1419,6 +1528,14 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             </span>
                             <span>
                                 Request cap: {(requestBudgetUsd || 0) > 0 ? `$${requestBudgetUsd.toFixed(4)}` : 'Off'}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between w-full text-[11px] text-muted-foreground">
+                            <span>
+                                Quotas: {(dailyTokenQuota || monthlyTokenQuota || dailyUsdQuota || monthlyUsdQuota) ? 'On' : 'Off'}
+                            </span>
+                            <span>
+                                Cooldown: {(requestCooldownSeconds || 0) > 0 ? `${requestCooldownSeconds}s` : 'Off'}
                             </span>
                         </div>
                     </CardFooter>

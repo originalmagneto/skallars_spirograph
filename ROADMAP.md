@@ -181,8 +181,8 @@ Goal: control cost/perf without hurting UX.
 
 Deliverables:
 - [x] add per-request budget guardrails in Article Studio
-- add daily/monthly quota policy settings (admin-level)
-- add rate-limit UX messaging (friendly, precise, no stack traces)
+- [x] add daily/monthly quota policy settings (admin-level)
+- [x] add rate-limit UX messaging (friendly, precise, no stack traces)
 - usage dashboard rollup by user/model/action
 
 Progress notes (current pass):
@@ -190,6 +190,9 @@ Progress notes (current pass):
 - Added live preflight request-cost estimate (derived from prompt, word count, depth, thinking budget, and configured token pricing).
 - Added hard pre-dispatch guard: generation is blocked when estimated request cost exceeds cap, with actionable UX message.
 - Article Studio persists request cap with article model/thinking budget settings.
+- Added global quota controls in AI Settings: daily/monthly token quotas, daily/monthly USD quotas, and request cooldown.
+- Added pre-dispatch quota checks in Article Studio with explicit, user-readable limit messages (daily/monthly token and USD projections).
+- Added client-side request cooldown enforcement with clear remaining-wait feedback.
 
 Exit criteria:
 - budget overruns are prevented before request dispatch
