@@ -136,8 +136,14 @@ export default function LinkedInSettings() {
         }
         loadLogs();
         loadScheduled();
-        loadAnalytics();
     }, [session?.access_token, status?.connected]);
+
+    useEffect(() => {
+        if (!session?.access_token) return;
+        if (!status?.connected) return;
+        if (settingsMode !== "power") return;
+        loadAnalytics();
+    }, [session?.access_token, status?.connected, settingsMode]);
 
     const loadStatus = async () => {
         if (!session?.access_token) return;

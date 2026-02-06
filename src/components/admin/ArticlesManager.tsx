@@ -52,7 +52,20 @@ export default function ArticlesManager() {
     const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'scheduled' | 'published'>('all');
     const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
-    const [linkedinSummary, setLinkedinSummary] = useState<Record<string, { sharedAt: string; url: string | null }>>({});
+    const [linkedinSummary, setLinkedinSummary] = useState<
+        Record<
+            string,
+            {
+                sharedAt: string | null;
+                url: string | null;
+                shareTarget: 'member' | 'organization' | null;
+                shareMode: 'article' | 'image' | null;
+                scheduledAt: string | null;
+                scheduledStatus: string | null;
+                scheduledShareTarget: 'member' | 'organization' | null;
+            }
+        >
+    >({});
 
     useEffect(() => {
         const editId = searchParams.get('edit');
@@ -110,12 +123,33 @@ export default function ArticlesManager() {
                 if (!res.ok || !Array.isArray(data.summaries)) {
                     return;
                 }
-                const next: Record<string, { sharedAt: string; url: string | null }> = {};
+                const next: Record<
+                    string,
+                    {
+                        sharedAt: string | null;
+                        url: string | null;
+                        shareTarget: 'member' | 'organization' | null;
+                        shareMode: 'article' | 'image' | null;
+                        scheduledAt: string | null;
+                        scheduledStatus: string | null;
+                        scheduledShareTarget: 'member' | 'organization' | null;
+                    }
+                > = {};
                 data.summaries.forEach((item: any) => {
                     if (!item?.article_id) return;
                     next[item.article_id] = {
-                        sharedAt: item.last_shared_at,
+                        sharedAt: item.last_shared_at || null,
                         url: item.share_url || null,
+                        shareTarget: item.share_target === 'organization' ? 'organization' : item.share_target === 'member' ? 'member' : null,
+                        shareMode: item.share_mode === 'image' ? 'image' : item.share_mode === 'article' ? 'article' : null,
+                        scheduledAt: item.scheduled_at || null,
+                        scheduledStatus: item.scheduled_status || null,
+                        scheduledShareTarget:
+                            item.scheduled_share_target === 'organization'
+                                ? 'organization'
+                                : item.scheduled_share_target === 'member'
+                                ? 'member'
+                                : null,
                     };
                 });
                 setLinkedinSummary(next);
@@ -163,6 +197,20 @@ export default function ArticlesManager() {
             case 'review': return { label: 'In Review', variant: 'secondary' as const };
             default: return { label: 'Draft', variant: 'secondary' as const };
         }
+    };
+
+    const getLinkedInState = (articleId: string) => {
+        const summary = linkedinSummary[articleId];
+        if (!summary) return { label: 'Not shared', variant: 'outline' as const };
+        if (summary.scheduledAt) {
+            const target = summary.scheduledShareTarget === 'organization' ? 'Company' : 'Personal';
+            return { label: `Scheduled (${target})`, variant: 'secondary' as const };
+        }
+        if (summary.sharedAt) {
+            const target = summary.shareTarget === 'organization' ? 'Company' : 'Personal';
+            return { label: `Shared (${target})`, variant: 'secondary' as const };
+        }
+        return { label: 'Not shared', variant: 'outline' as const };
     };
 
     // Show editor view
@@ -294,13 +342,12 @@ export default function ArticlesManager() {
                                             </Badge>
                                         );
                                     })()}
-                                    {linkedinSummary[article.id] && (
-                                        <Badge variant="secondary">
-                                            <span className="flex items-center gap-1">
-                                                <Share2 size={12} /> LinkedIn
-                                            </span>
-                                        </Badge>
-                                    )}
+                                    <Badge variant={getLinkedInState(article.id).variant}>
+                                        <span className="flex items-center gap-1">
+                                            <Share2 size={12} />
+                                            {getLinkedInState(article.id).label}
+                                        </span>
+                                    </Badge>
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate">
                                     /{article.slug}
@@ -311,7 +358,12 @@ export default function ArticlesManager() {
                                     </span>
                                     {linkedinSummary[article.id]?.sharedAt && (
                                         <span>
-                                            LinkedIn: {new Date(linkedinSummary[article.id].sharedAt).toLocaleDateString()}
+                                            LinkedIn: {new Date(linkedinSummary[article.id].sharedAt as string).toLocaleDateString()}
+                                        </span>
+                                    )}
+                                    {linkedinSummary[article.id]?.scheduledAt && (
+                                        <span>
+                                            Next share: {new Date(linkedinSummary[article.id].scheduledAt as string).toLocaleString()}
                                         </span>
                                     )}
                                 </div>

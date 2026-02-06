@@ -168,16 +168,28 @@ Exit criteria:
 - company-page flow works without manual URN entry per article
 - editor shows last share status at article level
 
+Progress notes (current pass):
+- Article Editor no longer hard-blocks company shares when org picker is empty; API fallback can resolve saved default org URN.
+- LinkedIn basic mode now auto-resolves share type (image+link when cover image exists, otherwise link).
+- LinkedIn Settings now loads analytics only in `Power` mode to reduce unnecessary API noise in normal operation.
+- Article list now shows explicit LinkedIn state (`Not shared`, `Scheduled`, `Shared`) with target context.
+
 ---
 
 ## Phase 6 - AI Governance (Budgets, Limits, Quotas)
 Goal: control cost/perf without hurting UX.
 
 Deliverables:
-- add per-request budget guardrails in Article Studio
+- [x] add per-request budget guardrails in Article Studio
 - add daily/monthly quota policy settings (admin-level)
 - add rate-limit UX messaging (friendly, precise, no stack traces)
 - usage dashboard rollup by user/model/action
+
+Progress notes (current pass):
+- Added `gemini_request_budget_usd` support directly in Article Studio power controls.
+- Added live preflight request-cost estimate (derived from prompt, word count, depth, thinking budget, and configured token pricing).
+- Added hard pre-dispatch guard: generation is blocked when estimated request cost exceeds cap, with actionable UX message.
+- Article Studio persists request cap with article model/thinking budget settings.
 
 Exit criteria:
 - budget overruns are prevented before request dispatch

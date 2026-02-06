@@ -69,8 +69,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [currentModel, setCurrentModel] = useState<string>('');
     const [modelSupportsGrounding, setModelSupportsGrounding] = useState<boolean>(true);
     const [thinkingBudget, setThinkingBudget] = useState<number>(0);
+    const [requestBudgetUsd, setRequestBudgetUsd] = useState<number>(0);
     const [savedModel, setSavedModel] = useState<string>('');
     const [savedThinkingBudget, setSavedThinkingBudget] = useState<number>(0);
+    const [savedRequestBudgetUsd, setSavedRequestBudgetUsd] = useState<number>(0);
     const [modelOptions, setModelOptions] = useState<GeminiModel[]>([]);
     const [modelLoading, setModelLoading] = useState(false);
     const [articleSettingsSaving, setArticleSettingsSaving] = useState(false);
@@ -89,6 +91,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [testRunning, setTestRunning] = useState(false);
     const [researchSources, setResearchSources] = useState<Array<{ title?: string; url?: string }>>([]);
     const [researchSummary, setResearchSummary] = useState<string>('');
+    const [preflightCostEstimate, setPreflightCostEstimate] = useState<number | null>(null);
 
     const [isSavingDraft, setIsSavingDraft] = useState(false);
 
@@ -113,7 +116,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         'Neutral': 'Balanced and objective. Avoid strong opinions or marketing language.',
     };
 
-    const articleSettingsDirty = currentModel !== savedModel || thinkingBudget !== savedThinkingBudget;
+    const articleSettingsDirty =
+        currentModel !== savedModel ||
+        thinkingBudget !== savedThinkingBudget ||
+        requestBudgetUsd !== savedRequestBudgetUsd;
 
     const saveArticleSettings = async (silent = false) => {
         if (articleSettingsSaving) return true;
@@ -122,11 +128,13 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const payload = [
                 { key: 'gemini_article_model', value: currentModel || 'gemini-2.0-flash' },
                 { key: 'gemini_article_thinking_budget', value: String(Math.max(0, thinkingBudget || 0)) },
+                { key: 'gemini_request_budget_usd', value: String(Math.max(0, requestBudgetUsd || 0)) },
             ];
             const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'key' });
             if (error) throw error;
             setSavedModel(currentModel || 'gemini-2.0-flash');
             setSavedThinkingBudget(Math.max(0, thinkingBudget || 0));
+            setSavedRequestBudgetUsd(Math.max(0, requestBudgetUsd || 0));
             if (!silent) toast.success('Article model settings saved.');
             return true;
         } catch (err: any) {
@@ -147,6 +155,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const budget = settings.geminiArticleThinkingBudget ?? 0;
             setThinkingBudget(budget);
             setSavedThinkingBudget(budget);
+            const requestBudget = settings.geminiRequestBudgetUsd ?? 0;
+            setRequestBudgetUsd(requestBudget);
+            setSavedRequestBudgetUsd(requestBudget);
             setPriceInputPerM(settings.priceInputPerM);
             setPriceOutputPerM(settings.priceOutputPerM);
 
@@ -256,12 +267,57 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     };
     const shouldShowLinksEditor = uiMode === 'power' || showSourceLinks;
 
+    const estimateRequestCost = () => {
+        if (priceInputPerM === null || priceOutputPerM === null) return null;
+
+        const validLinks = links.filter((l) => l.trim() !== '');
+        const promptValue = showPromptEditor ? customPrompt : prompt;
+        const promptChars = [
+            promptValue,
+            toneInstructions,
+            articleType,
+            articleLength,
+            targetLanguages.join(','),
+            ...validLinks
+        ].join(' ').length;
+
+        const promptTokens = Math.ceil(promptChars / 3.8) + (researchDepth === 'Deep' ? 1400 : 350);
+        const outputTokens = Math.ceil(targetWordCount * 1.8) + (useOutlineWorkflow ? 250 : 0) + Math.max(0, thinkingBudget || 0);
+        const inputCost = (promptTokens / 1_000_000) * priceInputPerM;
+        const outputCost = (outputTokens / 1_000_000) * priceOutputPerM;
+        return inputCost + outputCost;
+    };
+
     const formatDuration = (ms: number) => {
         const totalSeconds = Math.floor(ms / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
+
+    useEffect(() => {
+        setPreflightCostEstimate(estimateRequestCost());
+    }, [
+        prompt,
+        customPrompt,
+        links,
+        showPromptEditor,
+        toneInstructions,
+        articleType,
+        articleLength,
+        targetLanguages,
+        researchDepth,
+        targetWordCount,
+        useOutlineWorkflow,
+        thinkingBudget,
+        priceInputPerM,
+        priceOutputPerM
+    ]);
+
+    const budgetExceeded =
+        (requestBudgetUsd || 0) > 0 &&
+        preflightCostEstimate !== null &&
+        preflightCostEstimate > requestBudgetUsd;
 
     const buildResearchFindings = (pack: { summary?: string; key_points?: string[]; facts?: string[]; outline?: string[]; sources?: Array<{ title?: string; url?: string }> }) => {
         const sections: string[] = [];
@@ -350,6 +406,14 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
 
         if (targetLanguages.length === 0) {
             toast.error('Please select at least one language');
+            return;
+        }
+
+        const effectivePreflightCost = preflightCostEstimate ?? estimateRequestCost();
+        if ((requestBudgetUsd || 0) > 0 && effectivePreflightCost !== null && effectivePreflightCost > requestBudgetUsd) {
+            toast.error(
+                `Estimated request cost $${effectivePreflightCost.toFixed(4)} exceeds budget cap $${requestBudgetUsd.toFixed(4)}. Adjust model, depth, or budget.`
+            );
             return;
         }
 
@@ -936,7 +1000,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                                     <Badge variant="outline">Unsaved</Badge>
                                                 )}
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                                 <div className="space-y-2">
                                                     <Label className="text-xs text-muted-foreground">Article Model</Label>
                                                     {modelOptions.length > 0 ? (
@@ -974,6 +1038,19 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                                     />
                                                     <p className="text-[10px] text-muted-foreground">
                                                         Set `0` to disable.
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-muted-foreground">Per-request Budget (USD)</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        step="0.0001"
+                                                        value={requestBudgetUsd}
+                                                        onChange={(e) => setRequestBudgetUsd(Math.max(0, parseFloat(e.target.value) || 0))}
+                                                    />
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        Set `0` for no cap. Blocks generation when estimate exceeds this value.
                                                     </p>
                                                 </div>
                                             </div>
@@ -1297,7 +1374,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                         <div className="flex w-full gap-2">
                             <Button
                                 onClick={handleGenerate}
-                                disabled={generating}
+                                disabled={generating || budgetExceeded}
                                 className="flex-1 bg-primary hover:bg-primary/90"
                             >
                                 {generating ? (
@@ -1324,7 +1401,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                 <span>
                                     {generationStatus
                                         ? `${generationStatus}${generationElapsedMs ? ` • ${formatDuration(generationElapsedMs)}` : ''}`
-                                        : 'Ready'}
+                                        : (budgetExceeded ? 'Blocked by budget cap' : 'Ready')}
                                 </span>
                                 {lastRequestId && generating && (
                                     <span className="text-[10px]">Request ID: {lastRequestId}</span>
@@ -1335,6 +1412,14 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             ) : (
                                 <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Essentials mode</span>
                             )}
+                        </div>
+                        <div className="flex items-center justify-between w-full text-[11px] text-muted-foreground">
+                            <span>
+                                Preflight estimate: {preflightCostEstimate !== null ? `$${preflightCostEstimate.toFixed(4)}` : 'Set token pricing in AI Settings'}
+                            </span>
+                            <span>
+                                Request cap: {(requestBudgetUsd || 0) > 0 ? `$${requestBudgetUsd.toFixed(4)}` : 'Off'}
+                            </span>
                         </div>
                     </CardFooter>
                 </Card>

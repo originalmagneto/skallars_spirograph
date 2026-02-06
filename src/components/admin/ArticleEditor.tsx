@@ -237,6 +237,13 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         linkedinStatus?.organization_urns?.[0] ||
         organizationOptions[0]?.urn ||
         '';
+    const resolveEffectiveLinkedInShareMode = (): 'article' | 'image' => {
+        if (linkedinUiMode === 'power') return linkedinShareMode;
+        const candidateImageUrl = (linkedinImageUrl || formData.cover_image_url || '').trim();
+        return candidateImageUrl ? 'image' : 'article';
+    };
+    const resolveEffectiveLinkedInImageUrl = () =>
+        (linkedinImageUrl || formData.cover_image_url || '').trim();
 
     const parseJsonSafe = async (res: Response) => {
         try {
@@ -941,16 +948,13 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             return;
         }
         const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
-        if (linkedinTarget === 'organization' && !organizationUrn) {
-            toast.error('Select a LinkedIn organization or set a default organization URN in Settings.');
-            return;
-        }
         if (linkedinTarget === 'organization' && !hasOrgScope) {
             toast.error('Company page sharing requires LinkedIn organization scopes.');
             return;
         }
-        const effectiveShareMode = linkedinUiMode === 'basic' ? 'article' : linkedinShareMode;
-        if (effectiveShareMode === 'image' && !linkedinImageUrl) {
+        const effectiveShareMode = resolveEffectiveLinkedInShareMode();
+        const effectiveImageUrl = resolveEffectiveLinkedInImageUrl();
+        if (effectiveShareMode === 'image' && !effectiveImageUrl) {
             toast.error('Add an image URL for LinkedIn.');
             return;
         }
@@ -972,7 +976,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     shareTarget: linkedinTarget,
                     organizationUrn: organizationUrn || null,
                     shareMode: effectiveShareMode,
-                    imageUrl: effectiveShareMode === 'image' ? linkedinImageUrl : null,
+                    imageUrl: effectiveShareMode === 'image' ? effectiveImageUrl : null,
                 }),
             });
             const data = await res.json();
@@ -1001,14 +1005,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error('Pick a schedule time.');
             return;
         }
-        const effectiveShareMode = linkedinUiMode === 'basic' ? 'article' : linkedinShareMode;
+        const effectiveShareMode = resolveEffectiveLinkedInShareMode();
+        const effectiveImageUrl = resolveEffectiveLinkedInImageUrl();
         const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
-        if (linkedinTarget === 'organization' && !organizationUrn) {
-            toast.error('Select a LinkedIn organization.');
-            return;
-        }
         if (linkedinTarget === 'organization' && !hasOrgScope) {
             toast.error('Company page sharing requires LinkedIn organization scopes.');
+            return;
+        }
+        if (effectiveShareMode === 'image' && !effectiveImageUrl) {
+            toast.error('Add an image URL for LinkedIn.');
             return;
         }
 
@@ -1027,7 +1032,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     shareTarget: linkedinTarget,
                     organizationUrn: organizationUrn || null,
                     shareMode: effectiveShareMode,
-                    imageUrl: effectiveShareMode === 'image' ? linkedinImageUrl : null,
+                    imageUrl: effectiveShareMode === 'image' ? effectiveImageUrl : null,
                 }),
             });
             const data = await res.json();
@@ -1084,7 +1089,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     const displayImageProvider = useGlobalImageSettings ? globalImageProvider : overrideImageProvider;
     const displayImageModel = useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel);
-    const effectiveLinkedInShareMode = linkedinUiMode === 'basic' ? 'article' : linkedinShareMode;
+    const effectiveLinkedInShareMode = resolveEffectiveLinkedInShareMode();
+    const effectiveLinkedInImageUrl = resolveEffectiveLinkedInImageUrl();
 
     const parseTagsInput = (value: string) => {
         return value
@@ -1798,10 +1804,10 @@ Rules:
                     <div className="rounded-lg border bg-white p-3 space-y-2">
                         <div className="text-xs text-muted-foreground">Preview</div>
                         <div className="flex flex-col gap-3">
-                            {(effectiveLinkedInShareMode === 'image' ? linkedinImageUrl || formData.cover_image_url : formData.cover_image_url) && (
+                            {(effectiveLinkedInShareMode === 'image' ? effectiveLinkedInImageUrl : formData.cover_image_url) && (
                                 <img
                                     src={effectiveLinkedInShareMode === 'image'
-                                        ? (linkedinImageUrl || formData.cover_image_url)
+                                        ? effectiveLinkedInImageUrl
                                         : formData.cover_image_url}
                                     alt="LinkedIn preview"
                                     width={1200}
@@ -1829,7 +1835,7 @@ Rules:
                             disabled={
                                 linkedinSharing ||
                                 linkedinStatus?.expired ||
-                                (effectiveLinkedInShareMode === 'article' ? !getArticleUrl() : !linkedinImageUrl)
+                                (effectiveLinkedInShareMode === 'article' ? !getArticleUrl() : !effectiveLinkedInImageUrl)
                             }
                         >
                             {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
@@ -1883,12 +1889,12 @@ Rules:
                                             variant="outline"
                                             onClick={handleLinkedInSchedule}
                                             disabled={
-                                                !linkedinScheduleAt ||
-                                                !articleId ||
-                                                isNew ||
-                                                (linkedinShareMode === 'image' && !linkedinImageUrl)
-                                            }
-                                        >
+                                            !linkedinScheduleAt ||
+                                            !articleId ||
+                                            isNew ||
+                                            (effectiveLinkedInShareMode === 'image' && !effectiveLinkedInImageUrl)
+                                        }
+                                    >
                                             Schedule
                                         </Button>
                                     </div>
