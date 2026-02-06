@@ -191,6 +191,12 @@ Progress notes (current pass):
 - Article Editor share/schedule now attempts org discovery on-demand before failing, reducing manual URN friction.
 - LinkedIn schedule API now mirrors share API fallback order (`settings default -> env default -> cached org URNs -> recent successful org share`).
 - LinkedIn Settings now hydrates default org from cached connected account URNs when explicit default is not set.
+- LinkedIn org URN parsing is now canonical across `share`, `schedule`, `run-scheduled`, `status`, and `analytics` APIs:
+  - accepts `urn:li:organization:*`
+  - accepts plain numeric org IDs
+  - accepts extractable LinkedIn company URL/id formats
+- LinkedIn Settings now normalizes and saves org input to canonical URN format, so users can paste either URN or numeric id.
+- Scheduled runner now applies the same org normalization and env/default fallback chain as direct share flow.
 
 ---
 

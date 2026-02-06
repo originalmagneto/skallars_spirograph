@@ -7,7 +7,13 @@ export const dynamic = 'force-dynamic';
 const toOrgUrn = (value?: string | null) => {
   if (!value) return null;
   const trimmed = value.trim();
-  return trimmed.startsWith('urn:li:organization:') ? trimmed : null;
+  if (!trimmed) return null;
+  if (trimmed.startsWith('urn:li:organization:')) return trimmed;
+  if (/^\d+$/.test(trimmed)) return `urn:li:organization:${trimmed}`;
+  const match = trimmed.match(/organization:(\d+)|company\/(\d+)/i);
+  const extracted = match?.[1] || match?.[2];
+  if (extracted) return `urn:li:organization:${extracted}`;
+  return null;
 };
 
 export async function GET(req: NextRequest) {
@@ -66,11 +72,15 @@ export async function GET(req: NextRequest) {
       ? rawScopes.split(/[\s,]+/).filter(Boolean)
       : [];
     const mergedOrganizations = Array.from(
-      new Set([
-        ...(Array.isArray(account.organization_urns) ? account.organization_urns : []),
-        ...(defaultOrgUrn ? [defaultOrgUrn] : []),
-      ])
-    );
+      new Set(
+        [
+          ...(Array.isArray(account.organization_urns) ? account.organization_urns : []),
+          ...(defaultOrgUrn ? [defaultOrgUrn] : []),
+        ]
+          .map((value) => toOrgUrn(value))
+          .filter(Boolean)
+      )
+    ) as string[];
 
     return NextResponse.json({
       connected: true,

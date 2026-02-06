@@ -4,6 +4,18 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const toOrgUrn = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('urn:li:organization:')) return trimmed;
+  if (/^\d+$/.test(trimmed)) return `urn:li:organization:${trimmed}`;
+  const match = trimmed.match(/organization:(\d+)|company\/(\d+)/i);
+  const extracted = match?.[1] || match?.[2];
+  if (extracted) return `urn:li:organization:${extracted}`;
+  return null;
+};
+
 const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || '';
 
 const registerLinkedInImage = async (
@@ -153,7 +165,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const scopes = Array.isArray(account.scopes) ? account.scopes : [];
+      const scopes = Array.isArray(account.scopes)
+        ? account.scopes
+        : typeof account.scopes === 'string'
+        ? account.scopes.split(/[\s,]+/).filter(Boolean)
+        : [];
       const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
 
       let linkUrl = getSiteUrl();
@@ -195,14 +211,17 @@ export async function POST(req: NextRequest) {
       const message = item.message || title || 'New article from Skallars.';
       const shareTarget = item.share_target === 'organization' ? 'organization' : 'member';
       const shareMode = item.share_mode === 'image' ? 'image' : 'article';
-      let organizationUrn = item.organization_urn;
+      let organizationUrn = toOrgUrn(item.organization_urn) || null;
       if (shareTarget === 'organization' && !organizationUrn) {
         const { data: orgSettingRows } = await supabase
           .from('settings')
           .select('value')
           .eq('key', 'linkedin_default_org_urn')
           .limit(1);
-        organizationUrn = orgSettingRows?.[0]?.value || null;
+        organizationUrn =
+          toOrgUrn(orgSettingRows?.[0]?.value || null) ||
+          toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null) ||
+          null;
       }
       const author = shareTarget === 'organization' ? organizationUrn : account.member_urn;
 

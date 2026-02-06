@@ -7,7 +7,13 @@ export const dynamic = 'force-dynamic';
 const toOrgUrn = (value?: string | null) => {
   if (!value) return null;
   const trimmed = value.trim();
-  return trimmed.startsWith('urn:li:organization:') ? trimmed : null;
+  if (!trimmed) return null;
+  if (trimmed.startsWith('urn:li:organization:')) return trimmed;
+  if (/^\d+$/.test(trimmed)) return `urn:li:organization:${trimmed}`;
+  const match = trimmed.match(/organization:(\d+)|company\/(\d+)/i);
+  const extracted = match?.[1] || match?.[2];
+  if (extracted) return `urn:li:organization:${extracted}`;
+  return null;
 };
 
 export async function POST(req: NextRequest) {
@@ -27,7 +33,7 @@ export async function POST(req: NextRequest) {
     const scheduledAt = payload?.scheduledAt;
     const message = payload?.message || null;
     const shareTarget = payload?.shareTarget === 'organization' ? 'organization' : 'member';
-    let organizationUrn = payload?.organizationUrn || null;
+    let organizationUrn = toOrgUrn(payload?.organizationUrn) || null;
     const visibility = payload?.visibility || 'PUBLIC';
     const shareMode = payload?.shareMode === 'image' ? 'image' : 'article';
     const imageUrl = payload?.imageUrl || null;

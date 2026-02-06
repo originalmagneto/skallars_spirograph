@@ -73,6 +73,17 @@ const formatDate = (value?: string | null) => {
     return date.toLocaleString();
 };
 
+const normalizeOrgUrn = (value?: string | null) => {
+    if (!value) return "";
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+    if (trimmed.startsWith("urn:li:organization:")) return trimmed;
+    if (/^\d+$/.test(trimmed)) return `urn:li:organization:${trimmed}`;
+    const match = trimmed.match(/organization:(\d+)|company\/(\d+)/i);
+    const extracted = match?.[1] || match?.[2];
+    return extracted ? `urn:li:organization:${extracted}` : "";
+};
+
 export default function LinkedInSettings() {
     const { session } = useAuth();
     const [settingsMode, setSettingsMode] = useState<"simple" | "power">("simple");
@@ -219,13 +230,20 @@ export default function LinkedInSettings() {
             if (Array.isArray(data.organizations)) {
                 const baseList = data.organizations.length > 0 ? data.organizations : fallbackList;
                 setOrganizations(baseList);
+                let detectedDefault = "";
                 if (!defaultOrgUrn && data?.default_org_urn) {
+                    detectedDefault = data.default_org_urn;
                     setDefaultOrgUrn(data.default_org_urn);
                 }
                 if (!defaultOrgUrn && baseList.length === 1) {
+                    detectedDefault = baseList[0].urn;
                     setDefaultOrgUrn(baseList[0].urn);
                 } else if (!defaultOrgUrn && Array.isArray(status?.organization_urns) && status.organization_urns.length > 0) {
+                    detectedDefault = status.organization_urns[0];
                     setDefaultOrgUrn(status.organization_urns[0]);
+                }
+                if (detectedDefault) {
+                    void persistDefaultOrg(detectedDefault, { silent: true });
                 }
             }
             if (!res.ok) {
@@ -384,20 +402,35 @@ export default function LinkedInSettings() {
         }
     };
 
+    const persistDefaultOrg = async (rawValue: string, opts?: { silent?: boolean }) => {
+        try {
+            const normalized = normalizeOrgUrn(rawValue);
+            if (rawValue.trim() && !normalized) {
+                if (!opts?.silent) {
+                    toast.error("Use an organization URN, numeric ID, or LinkedIn company URL.");
+                }
+                return false;
+            }
+            const payload = { key: "linkedin_default_org_urn", value: normalized };
+            const { error } = await supabase.from("settings").upsert(payload, { onConflict: "key" });
+            if (error) throw error;
+            setDefaultOrgUrn(normalized);
+            if (!opts?.silent) {
+                toast.success("LinkedIn defaults saved.");
+            }
+            return true;
+        } catch (error: any) {
+            if (!opts?.silent) {
+                toast.error(error?.message || "Failed to save LinkedIn settings.");
+            }
+            return false;
+        }
+    };
+
     const handleSaveDefaults = async () => {
         setSavingDefaults(true);
         try {
-            const trimmed = defaultOrgUrn.trim();
-            if (trimmed && !trimmed.startsWith("urn:li:organization:")) {
-                toast.error("Organization URN must start with urn:li:organization:");
-                return;
-            }
-            const payload = { key: "linkedin_default_org_urn", value: trimmed };
-            const { error } = await supabase.from("settings").upsert(payload, { onConflict: "key" });
-            if (error) throw error;
-            toast.success("LinkedIn defaults saved.");
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to save LinkedIn settings.");
+            await persistDefaultOrg(defaultOrgUrn);
         } finally {
             setSavingDefaults(false);
         }
@@ -524,7 +557,13 @@ export default function LinkedInSettings() {
                         {organizationOptions.length > 0 && (
                             <div className="space-y-2">
                                 <Label>Organization list</Label>
-                                <Select value={defaultOrgUrn || undefined} onValueChange={setDefaultOrgUrn}>
+                                <Select
+                                    value={defaultOrgUrn || undefined}
+                                    onValueChange={(value) => {
+                                        setDefaultOrgUrn(value);
+                                        void persistDefaultOrg(value, { silent: true });
+                                    }}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select organization" />
                                     </SelectTrigger>
@@ -544,7 +583,7 @@ export default function LinkedInSettings() {
                             <Input
                                 value={defaultOrgUrn}
                                 onChange={(e) => setDefaultOrgUrn(e.target.value)}
-                                placeholder="urn:li:organization:123456"
+                                placeholder="urn:li:organization:123456 or 123456"
                             />
                             <p className="text-[10px] text-muted-foreground">
                                 Paste the URN if the list is empty or you need a specific organization.
