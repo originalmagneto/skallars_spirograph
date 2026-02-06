@@ -229,6 +229,7 @@ const AISettings = () => {
             { key: 'gemini_api_key', value: '', description: 'API Key for Google Gemini (Vertex AI / Generative AI)' },
             { key: 'gemini_image_api_key', value: '', description: 'Optional: API Key for Gemini Image generation' },
             { key: 'gemini_model', value: '', description: 'Selected Gemini model for text generation' },
+            { key: 'gemini_request_budget_usd', value: '', description: 'Optional: per-request USD budget cap in Article Studio' },
             { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
             { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
             { key: 'gemini_price_input_per_million', value: '', description: 'Optional: price per 1M input tokens (USD)' },
@@ -248,6 +249,7 @@ const AISettings = () => {
     const geminiImageApiKey = settings.find(s => s.key === 'gemini_image_api_key')?.value || '';
     const selectedModel = settings.find(s => s.key === 'gemini_model')?.value || '';
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
+    const requestBudgetUsd = settings.find(s => s.key === 'gemini_request_budget_usd')?.value || '';
     const priceInput = settings.find(s => s.key === 'gemini_price_input_per_million')?.value || '';
     const priceOutput = settings.find(s => s.key === 'gemini_price_output_per_million')?.value || '';
     const quotaDailyTokens = settings.find(s => s.key === 'gemini_quota_daily_tokens')?.value || '';
@@ -255,6 +257,10 @@ const AISettings = () => {
     const quotaDailyUsd = settings.find(s => s.key === 'gemini_quota_daily_usd')?.value || '';
     const quotaMonthlyUsd = settings.find(s => s.key === 'gemini_quota_monthly_usd')?.value || '';
     const cooldownSeconds = settings.find(s => s.key === 'gemini_request_cooldown_seconds')?.value || '';
+    const hasRequestBudget = Number(requestBudgetUsd || 0) > 0;
+    const hasTokenQuota = Number(quotaDailyTokens || 0) > 0 || Number(quotaMonthlyTokens || 0) > 0;
+    const hasUsdQuota = Number(quotaDailyUsd || 0) > 0 || Number(quotaMonthlyUsd || 0) > 0;
+    const hasCooldown = Number(cooldownSeconds || 0) > 0;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -369,15 +375,40 @@ const AISettings = () => {
                     </CardContent>
                 </Card>
 
-                {/* B2. Quotas & Rate Limits */}
+                {/* B2. AI Policy */}
                 <Card className="xl:col-span-5 shadow-sm border-border/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <ZapIcon size={18} className="text-primary" /> AI Quotas & Limits
+                            <ZapIcon size={18} className="text-primary" /> AI Policy (Guardrails)
                         </CardTitle>
-                        <CardDescription>Per-user guardrails for Article Studio request volume and spend.</CardDescription>
+                        <CardDescription>Guardrails for request cost, quotas, and cooldown.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="flex flex-wrap gap-2">
+                            <Badge variant={hasRequestBudget ? 'secondary' : 'outline'} className="text-[10px]">
+                                Request Cap: {hasRequestBudget ? 'On' : 'Off'}
+                            </Badge>
+                            <Badge variant={hasTokenQuota ? 'secondary' : 'outline'} className="text-[10px]">
+                                Token Quotas: {hasTokenQuota ? 'On' : 'Off'}
+                            </Badge>
+                            <Badge variant={hasUsdQuota ? 'secondary' : 'outline'} className="text-[10px]">
+                                USD Quotas: {hasUsdQuota ? 'On' : 'Off'}
+                            </Badge>
+                            <Badge variant={hasCooldown ? 'secondary' : 'outline'} className="text-[10px]">
+                                Cooldown: {hasCooldown ? 'On' : 'Off'}
+                            </Badge>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Per-request Budget Cap (USD)</Label>
+                            <Input
+                                type="number"
+                                min={0}
+                                step="0.0001"
+                                value={requestBudgetUsd}
+                                onChange={(e) => handleUpdate('gemini_request_budget_usd', e.target.value)}
+                                placeholder="0 = off"
+                            />
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1.5">
                                 <Label className="text-xs text-muted-foreground">Daily Token Quota</Label>

@@ -336,6 +336,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         (requestBudgetUsd || 0) > 0 &&
         preflightCostEstimate !== null &&
         preflightCostEstimate > requestBudgetUsd;
+    const requestCapActive = (requestBudgetUsd || 0) > 0;
+    const tokenQuotaActive = (dailyTokenQuota || 0) > 0 || (monthlyTokenQuota || 0) > 0;
+    const usdQuotaActive = (dailyUsdQuota || 0) > 0 || (monthlyUsdQuota || 0) > 0;
+    const cooldownActive = (requestCooldownSeconds || 0) > 0;
 
     const fetchUsageSnapshot = async (userId: string) => {
         const now = Date.now();
@@ -465,7 +469,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         const effectivePreflightCost = preflightCostEstimate ?? estimateRequestCost();
         if ((requestBudgetUsd || 0) > 0 && effectivePreflightCost !== null && effectivePreflightCost > requestBudgetUsd) {
             toast.error(
-                `Estimated request cost $${effectivePreflightCost.toFixed(4)} exceeds budget cap $${requestBudgetUsd.toFixed(4)}. Adjust model, depth, or budget.`
+                `This request is blocked by request cap: estimated $${effectivePreflightCost.toFixed(4)} vs cap $${requestBudgetUsd.toFixed(4)}. Lower depth/length, switch model, or raise cap.`
             );
             return;
         }
@@ -474,7 +478,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const elapsedSeconds = Math.floor((Date.now() - lastGenerationStartedAt) / 1000);
             if (elapsedSeconds < requestCooldownSeconds) {
                 const waitSeconds = requestCooldownSeconds - elapsedSeconds;
-                toast.error(`Rate limit active. Please wait ${waitSeconds}s before sending another generation request.`);
+                toast.error(`Cooldown active. Wait ${waitSeconds}s before the next request.`);
                 return;
             }
         }
@@ -504,19 +508,19 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 const projectedMonthUsd = usage.monthUsd + (effectivePreflightCost || 0);
 
                 if ((dailyTokenQuota || 0) > 0 && projectedDayTokens > dailyTokenQuota) {
-                    toast.error(`Daily token quota reached. Projected ${projectedDayTokens.toLocaleString()} / ${dailyTokenQuota.toLocaleString()} tokens.`);
+                    toast.error(`Blocked by daily token quota: projected ${projectedDayTokens.toLocaleString()} / ${dailyTokenQuota.toLocaleString()} tokens.`);
                     return;
                 }
                 if ((monthlyTokenQuota || 0) > 0 && projectedMonthTokens > monthlyTokenQuota) {
-                    toast.error(`Monthly token quota reached. Projected ${projectedMonthTokens.toLocaleString()} / ${monthlyTokenQuota.toLocaleString()} tokens.`);
+                    toast.error(`Blocked by monthly token quota: projected ${projectedMonthTokens.toLocaleString()} / ${monthlyTokenQuota.toLocaleString()} tokens.`);
                     return;
                 }
                 if ((dailyUsdQuota || 0) > 0 && projectedDayUsd > dailyUsdQuota) {
-                    toast.error(`Daily USD quota reached. Projected $${projectedDayUsd.toFixed(4)} / $${dailyUsdQuota.toFixed(4)}.`);
+                    toast.error(`Blocked by daily USD quota: projected $${projectedDayUsd.toFixed(4)} / $${dailyUsdQuota.toFixed(4)}.`);
                     return;
                 }
                 if ((monthlyUsdQuota || 0) > 0 && projectedMonthUsd > monthlyUsdQuota) {
-                    toast.error(`Monthly USD quota reached. Projected $${projectedMonthUsd.toFixed(4)} / $${monthlyUsdQuota.toFixed(4)}.`);
+                    toast.error(`Blocked by monthly USD quota: projected $${projectedMonthUsd.toFixed(4)} / $${monthlyUsdQuota.toFixed(4)}.`);
                     return;
                 }
             } catch (usageError: any) {
@@ -1480,6 +1484,19 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                         )}
                     </CardContent>
                     <CardFooter className="flex flex-col gap-2">
+                        {(requestCapActive || tokenQuotaActive || usdQuotaActive || cooldownActive) && (
+                            <div className="w-full rounded-lg border border-primary/20 bg-muted/20 px-3 py-2">
+                                <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-wide">
+                                    <span className={`rounded-full px-2 py-0.5 ${requestCapActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>Request cap {requestCapActive ? 'on' : 'off'}</span>
+                                    <span className={`rounded-full px-2 py-0.5 ${tokenQuotaActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>Token quota {tokenQuotaActive ? 'on' : 'off'}</span>
+                                    <span className={`rounded-full px-2 py-0.5 ${usdQuotaActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>USD quota {usdQuotaActive ? 'on' : 'off'}</span>
+                                    <span className={`rounded-full px-2 py-0.5 ${cooldownActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>Cooldown {cooldownActive ? 'on' : 'off'}</span>
+                                </div>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                    Guardrails apply before dispatch. When blocked, tune generation inputs or update policy values in AI Settings.
+                                </p>
+                            </div>
+                        )}
                         <div className="flex w-full gap-2">
                             <Button
                                 onClick={handleGenerate}
@@ -1532,12 +1549,17 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                         </div>
                         <div className="flex items-center justify-between w-full text-[11px] text-muted-foreground">
                             <span>
-                                Quotas: {(dailyTokenQuota || monthlyTokenQuota || dailyUsdQuota || monthlyUsdQuota) ? 'On' : 'Off'}
+                                Quotas: {(tokenQuotaActive || usdQuotaActive) ? 'On' : 'Off'}
                             </span>
                             <span>
-                                Cooldown: {(requestCooldownSeconds || 0) > 0 ? `${requestCooldownSeconds}s` : 'Off'}
+                                Cooldown: {cooldownActive ? `${requestCooldownSeconds}s` : 'Off'}
                             </span>
                         </div>
+                        {budgetExceeded && (
+                            <div className="w-full rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
+                                Estimated request cost exceeds cap. Reduce depth/length, switch model, or raise per-request budget.
+                            </div>
+                        )}
                     </CardFooter>
                 </Card>
 

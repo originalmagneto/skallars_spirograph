@@ -224,6 +224,8 @@ Progress notes (current pass):
 - Added pre-dispatch quota checks in Article Studio with explicit, user-readable limit messages (daily/monthly token and USD projections).
 - Added client-side request cooldown enforcement with clear remaining-wait feedback.
 - Expanded AI Usage dashboard with explicit rollups by model and by action, plus quota overview cards (today/month tokens and USD vs configured caps).
+- Added a compact AI policy card in `AISettings` with explicit on/off guardrail state badges (request cap, token quotas, USD quotas, cooldown).
+- Added clearer Article Studio guardrail status and inline blocked-state messaging in the generate footer for faster operator diagnosis.
 
 Exit criteria:
 - budget overruns are prevented before request dispatch
