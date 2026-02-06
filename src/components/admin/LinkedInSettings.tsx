@@ -184,12 +184,13 @@ export default function LinkedInSettings() {
             const fallbackList = Array.from(dedup.values());
 
             if (Array.isArray(data.organizations)) {
-                setOrganizations(data.organizations);
+                const baseList = data.organizations.length > 0 ? data.organizations : fallbackList;
+                setOrganizations(baseList);
                 if (!defaultOrgUrn && data?.default_org_urn) {
                     setDefaultOrgUrn(data.default_org_urn);
                 }
-                if (!defaultOrgUrn && data.organizations.length === 1) {
-                    setDefaultOrgUrn(data.organizations[0].urn);
+                if (!defaultOrgUrn && baseList.length === 1) {
+                    setDefaultOrgUrn(baseList[0].urn);
                 } else if (!defaultOrgUrn && Array.isArray(status?.organization_urns) && status.organization_urns.length > 0) {
                     setDefaultOrgUrn(status.organization_urns[0]);
                 }
@@ -206,8 +207,12 @@ export default function LinkedInSettings() {
                 return;
             }
 
-            if (data?.error && (!Array.isArray(data.organizations) || data.organizations.length === 0)) {
-                toast.error(data.error);
+            if (data?.error) {
+                if (Array.isArray(data.organizations) || fallbackList.length > 0) {
+                    toast.warning(`${data.error} Using fallback organization.`);
+                } else {
+                    toast.error(data.error);
+                }
             }
         } catch {
             const fallback = [

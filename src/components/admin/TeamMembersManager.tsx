@@ -285,13 +285,11 @@ const TeamMembersManager = () => {
 
         return (
             <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Photo Upload & Positioning */}
-                    <div className="row-span-2 space-y-4">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                    <div className="space-y-4 rounded-lg border bg-white p-4 xl:col-span-4">
                         <Label className="text-xs">Photo & Positioning</Label>
                         <div className="flex flex-col items-center gap-2">
-                            {/* Preview Area */}
-                            <div className="relative w-48 h-48 bg-muted border rounded-lg overflow-hidden shadow-sm">
+                            <div className="relative h-52 w-full max-w-[240px] bg-muted border rounded-lg overflow-hidden shadow-sm">
                                 {values.photo_url ? (
                                     <img
                                         src={values.photo_url}
@@ -356,7 +354,6 @@ const TeamMembersManager = () => {
                             )}
                         </div>
 
-                        {/* Position Sliders */}
                         {values.photo_url && (
                             <div className="space-y-3 bg-card p-3 rounded border">
                                 <div className="space-y-1">
@@ -391,117 +388,107 @@ const TeamMembersManager = () => {
                         )}
                     </div>
 
-                    {/* Icon */}
-                    <div>
-                        <Label className="text-xs">Icon (Emoji or Short Label)</Label>
-                        <Input
-                            value={values.icon || ''}
-                            onChange={(e) => onChange({ ...values, icon: e.target.value })}
-                            placeholder="⚖️"
-                            className="mt-1"
-                        />
+                    <div className="space-y-3 rounded-lg border bg-white p-4 xl:col-span-8">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <Label className="text-xs">Full Name</Label>
+                                <Input
+                                    value={values.name}
+                                    onChange={(e) => onChange({ ...values, name: e.target.value })}
+                                    placeholder="John Doe"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Company</Label>
+                                <Input
+                                    value={values.company || ''}
+                                    onChange={(e) => onChange({ ...values, company: e.target.value })}
+                                    placeholder="Company name"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Role (Slovak)</Label>
+                                <Input
+                                    value={values.role_sk}
+                                    onChange={(e) => onChange({ ...values, role_sk: e.target.value })}
+                                    placeholder="Advokát"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Role (English)</Label>
+                                <Input
+                                    value={values.role_en}
+                                    onChange={(e) => onChange({ ...values, role_en: e.target.value })}
+                                    placeholder="Attorney"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs">Icon (Emoji or Short Label)</Label>
+                                <Input
+                                    value={values.icon || ''}
+                                    onChange={(e) => onChange({ ...values, icon: e.target.value })}
+                                    placeholder="⚖️"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs flex items-center gap-1">
+                                    <Linkedin01Icon size={12} />
+                                    LinkedIn URL
+                                </Label>
+                                <Input
+                                    value={values.linkedin_url || ''}
+                                    onChange={(e) => onChange({ ...values, linkedin_url: e.target.value })}
+                                    placeholder="https://linkedin.com/in/..."
+                                    className="mt-1"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                                <Label className="text-xs">Display Order</Label>
+                                <Input
+                                    type="number"
+                                    value={values.display_order}
+                                    onChange={(e) => onChange({ ...values, display_order: parseInt(e.target.value) || 0 })}
+                                    className="mt-1 w-24"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-2 sm:mt-6">
+                                <Switch
+                                    checked={values.is_active}
+                                    onCheckedChange={(v) => onChange({ ...values, is_active: v })}
+                                />
+                                <Label className="text-xs">Show on Website</Label>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Name */}
-                    <div>
-                        <Label className="text-xs">Full Name</Label>
-                        <Input
-                            value={values.name}
-                            onChange={(e) => onChange({ ...values, name: e.target.value })}
-                            placeholder="John Doe"
-                            className="mt-1"
-                        />
-                    </div>
-
-                    {/* Company */}
-                    <div>
-                        <Label className="text-xs">Company</Label>
-                        <Input
-                            value={values.company || ''}
-                            onChange={(e) => onChange({ ...values, company: e.target.value })}
-                            placeholder="Company name"
-                            className="mt-1"
-                        />
-                    </div>
-
-                    {/* Role SK */}
-                    <div>
-                        <Label className="text-xs">Role (Slovak)</Label>
-                        <Input
-                            value={values.role_sk}
-                            onChange={(e) => onChange({ ...values, role_sk: e.target.value })}
-                            placeholder="Advokát"
-                            className="mt-1"
-                        />
-                    </div>
-
-                    {/* Role EN */}
-                    <div>
-                        <Label className="text-xs">Role (English)</Label>
-                        <Input
-                            value={values.role_en}
-                            onChange={(e) => onChange({ ...values, role_en: e.target.value })}
-                            placeholder="Attorney"
-                            className="mt-1"
-                        />
-                    </div>
-
-                    {/* Bio SK */}
-                    <div className="md:col-span-2">
+                    <div className="rounded-lg border bg-white p-4 xl:col-span-6">
                         <Label className="text-xs">Bio (Slovak)</Label>
                         <Textarea
                             value={values.bio_sk || ''}
                             onChange={(e) => onChange({ ...values, bio_sk: e.target.value })}
                             placeholder="Krátky popis alebo zameranie."
-                            rows={3}
+                            rows={5}
                             className="mt-1"
                         />
                     </div>
 
-                    {/* Bio EN */}
-                    <div className="md:col-span-2">
+                    <div className="rounded-lg border bg-white p-4 xl:col-span-6">
                         <Label className="text-xs">Bio (English)</Label>
                         <Textarea
                             value={values.bio_en || ''}
                             onChange={(e) => onChange({ ...values, bio_en: e.target.value })}
                             placeholder="Short bio or focus area."
-                            rows={3}
+                            rows={5}
                             className="mt-1"
                         />
-                    </div>
-
-                    {/* LinkedIn */}
-                    <div>
-                        <Label className="text-xs flex items-center gap-1">
-                            <Linkedin01Icon size={12} />
-                            LinkedIn URL
-                        </Label>
-                        <Input
-                            value={values.linkedin_url || ''}
-                            onChange={(e) => onChange({ ...values, linkedin_url: e.target.value })}
-                            placeholder="https://linkedin.com/in/..."
-                            className="mt-1"
-                        />
-                    </div>
-
-                    {/* Display Order */}
-                    <div>
-                        <Label className="text-xs">Display Order</Label>
-                        <Input
-                            type="number"
-                            value={values.display_order}
-                            onChange={(e) => onChange({ ...values, display_order: parseInt(e.target.value) || 0 })}
-                            className="mt-1 w-20"
-                        />
-                    </div>
-
-                    {/* Active */}
-                    <div className="flex items-center gap-2 pt-5">
-                        <Switch
-                            checked={values.is_active}
-                            onCheckedChange={(v) => onChange({ ...values, is_active: v })}
-                        />
-                        <Label className="text-xs">Show on Website</Label>
                     </div>
                 </div>
 

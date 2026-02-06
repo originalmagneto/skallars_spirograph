@@ -16,11 +16,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
     }
 
-    const { data: account } = await supabase
+    const { data: accountRows } = await supabase
       .from('linkedin_accounts')
       .select('member_name, member_urn, expires_at, scopes, organization_urns, updated_at')
       .eq('user_id', data.user.id)
-      .maybeSingle();
+      .limit(1);
+    const account = accountRows?.[0];
 
     const { data: defaultOrgSetting } = await supabase
       .from('settings')

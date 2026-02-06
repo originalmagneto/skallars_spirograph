@@ -95,11 +95,12 @@ export async function POST(req: NextRequest) {
     const imageUrl = payload?.imageUrl as string | undefined;
     articleId = payload?.articleId || null;
 
-    const { data: account } = await supabase
+    const { data: accountRows } = await supabase
       .from('linkedin_accounts')
       .select('access_token, expires_at, member_urn, scopes, organization_urns')
       .eq('user_id', userId)
-      .maybeSingle();
+      .limit(1);
+    const account = accountRows?.[0];
 
     if (shareTarget === 'organization' && !organizationUrn) {
       const { data: orgSetting } = await supabase

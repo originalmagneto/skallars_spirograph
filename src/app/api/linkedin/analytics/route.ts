@@ -73,11 +73,12 @@ export async function GET(req: NextRequest) {
       }, { status: 200 });
     }
 
-    const { data: account } = await supabase
+    const { data: accountRows } = await supabase
       .from('linkedin_accounts')
       .select('access_token, scopes')
       .eq('user_id', userData.user.id)
-      .maybeSingle();
+      .limit(1);
+    const account = accountRows?.[0];
 
     if (!account?.access_token) {
       return NextResponse.json({

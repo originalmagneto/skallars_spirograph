@@ -248,12 +248,11 @@ const ClientLogosManager = () => {
 
         return (
             <div className="space-y-4 p-4 bg-muted/50 rounded-lg border">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Logo Upload */}
-                    <div className="row-span-2">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                    <div className="rounded-lg border bg-white p-4 xl:col-span-4">
                         <Label className="text-xs">Client Logo</Label>
-                        <div className="mt-1 flex flex-col items-center gap-2">
-                            <div className="w-full h-32 bg-white border border-dashed rounded flex items-center justify-center overflow-hidden p-4">
+                        <div className="mt-2 flex flex-col items-center gap-2">
+                            <div className="w-full h-36 bg-white border border-dashed rounded flex items-center justify-center overflow-hidden p-4">
                                 {values.logo_url ? (
                                     <img src={values.logo_url} alt="Preview" className="max-w-full max-h-full object-contain" />
                                 ) : (
@@ -263,9 +262,9 @@ const ClientLogosManager = () => {
                                     </div>
                                 )}
                             </div>
-                            <label className="cursor-pointer">
+                            <label className="cursor-pointer w-full">
                                 <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                                <Button type="button" variant="outline" size="sm" disabled={uploading} asChild>
+                                <Button type="button" variant="outline" size="sm" disabled={uploading} asChild className="w-full">
                                     <span>
                                         <Upload01Icon size={14} className="mr-1" />
                                         {uploading ? 'Uploading...' : 'Upload Logo'}
@@ -314,49 +313,49 @@ const ClientLogosManager = () => {
                         </div>
                     </div>
 
-                    {/* Name */}
-                    <div>
-                        <Label className="text-xs">Client Name</Label>
-                        <Input
-                            value={values.name}
-                            onChange={(e) => onChange({ ...values, name: e.target.value })}
-                            placeholder="Client Name"
-                            className="mt-1"
-                        />
-                    </div>
+                    <div className="space-y-3 rounded-lg border bg-white p-4 xl:col-span-8">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <Label className="text-xs">Client Name</Label>
+                                <Input
+                                    value={values.name}
+                                    onChange={(e) => onChange({ ...values, name: e.target.value })}
+                                    placeholder="Client Name"
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs flex items-center gap-1">
+                                    <Link01Icon size={12} />
+                                    Website URL
+                                </Label>
+                                <Input
+                                    value={values.website_url || ''}
+                                    onChange={(e) => onChange({ ...values, website_url: e.target.value })}
+                                    placeholder="https://client-website.com"
+                                    className="mt-1"
+                                />
+                            </div>
+                        </div>
 
-                    {/* Website URL */}
-                    <div>
-                        <Label className="text-xs flex items-center gap-1">
-                            <Link01Icon size={12} />
-                            Website URL
-                        </Label>
-                        <Input
-                            value={values.website_url || ''}
-                            onChange={(e) => onChange({ ...values, website_url: e.target.value })}
-                            placeholder="https://client-website.com"
-                            className="mt-1"
-                        />
-                    </div>
-
-                    {/* Display Order */}
-                    <div>
-                        <Label className="text-xs">Display Order</Label>
-                        <Input
-                            type="number"
-                            value={values.display_order}
-                            onChange={(e) => onChange({ ...values, display_order: parseInt(e.target.value) || 0 })}
-                            className="mt-1 w-20"
-                        />
-                    </div>
-
-                    {/* Active */}
-                    <div className="flex items-center gap-2 pt-5">
-                        <Switch
-                            checked={values.is_active}
-                            onCheckedChange={(v) => onChange({ ...values, is_active: v })}
-                        />
-                        <Label className="text-xs">Show on Website</Label>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div>
+                                <Label className="text-xs">Display Order</Label>
+                                <Input
+                                    type="number"
+                                    value={values.display_order}
+                                    onChange={(e) => onChange({ ...values, display_order: parseInt(e.target.value) || 0 })}
+                                    className="mt-1 w-24"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 rounded-md border bg-muted/20 px-3 py-2 sm:mt-6">
+                                <Switch
+                                    checked={values.is_active}
+                                    onCheckedChange={(v) => onChange({ ...values, is_active: v })}
+                                />
+                                <Label className="text-xs">Show on Website</Label>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

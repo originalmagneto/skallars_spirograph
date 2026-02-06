@@ -125,11 +125,12 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      const { data: account } = await supabase
+      const { data: accountRows } = await supabase
         .from('linkedin_accounts')
         .select('access_token, expires_at, member_urn, scopes')
         .eq('user_id', item.user_id)
-        .maybeSingle();
+        .limit(1);
+      const account = accountRows?.[0];
 
       if (!account?.access_token) {
         await supabase
@@ -196,12 +197,12 @@ export async function POST(req: NextRequest) {
       const shareMode = item.share_mode === 'image' ? 'image' : 'article';
       let organizationUrn = item.organization_urn;
       if (shareTarget === 'organization' && !organizationUrn) {
-        const { data: orgSetting } = await supabase
+        const { data: orgSettingRows } = await supabase
           .from('settings')
           .select('value')
           .eq('key', 'linkedin_default_org_urn')
-          .maybeSingle();
-        organizationUrn = orgSetting?.value || null;
+          .limit(1);
+        organizationUrn = orgSettingRows?.[0]?.value || null;
       }
       const author = shareTarget === 'organization' ? organizationUrn : account.member_urn;
 

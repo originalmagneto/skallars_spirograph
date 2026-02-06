@@ -24,11 +24,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { data: account } = await supabase
+    const { data: accountRows } = await supabase
       .from('linkedin_accounts')
       .select('access_token, expires_at, scopes, organization_urns')
       .eq('user_id', userData.user.id)
-      .maybeSingle();
+      .limit(1);
+    const account = accountRows?.[0];
 
     if (!account?.access_token) {
       const { data: defaultOrg } = await supabase

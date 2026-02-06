@@ -877,7 +877,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const fallbackList = Array.from(dedup.values());
 
             if (Array.isArray(data.organizations)) {
-                setLinkedinOrganizations(data.organizations);
+                const baseList = data.organizations.length > 0 ? data.organizations : fallbackList;
+                setLinkedinOrganizations(baseList);
                 if (!linkedinDefaultOrgUrn && data?.default_org_urn) {
                     setLinkedinDefaultOrgUrn(data.default_org_urn);
                 }
@@ -886,14 +887,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                         setLinkedinOrganizationUrn(data.default_org_urn);
                     } else if (linkedinDefaultOrgUrn) {
                         setLinkedinOrganizationUrn(linkedinDefaultOrgUrn);
-                    } else if (data.organizations.length === 1) {
-                        setLinkedinOrganizationUrn(data.organizations[0].urn);
+                    } else if (baseList.length === 1) {
+                        setLinkedinOrganizationUrn(baseList[0].urn);
                     } else if (linkedinStatus?.organization_urns?.length) {
                         setLinkedinOrganizationUrn(linkedinStatus.organization_urns[0]);
                     }
                 }
-                if (data?.error && data.organizations.length === 0) {
-                    toast.error(data.error);
+                if (data?.error) {
+                    if (baseList.length > 0) {
+                        toast.warning(`${data.error} Using fallback organization.`);
+                    } else {
+                        toast.error(data.error);
+                    }
                 }
             } else if (!res.ok) {
                 if (fallbackList.length > 0) {

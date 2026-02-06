@@ -36,11 +36,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (shareTarget === 'organization') {
-      const { data: account } = await supabase
+      const { data: accountRows } = await supabase
         .from('linkedin_accounts')
         .select('scopes')
         .eq('user_id', userData.user.id)
-        .maybeSingle();
+        .limit(1);
+      const account = accountRows?.[0];
       const scopes = Array.isArray(account?.scopes) ? account.scopes : [];
       const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
       if (!hasOrgScope) {
@@ -50,12 +51,12 @@ export async function POST(req: NextRequest) {
         );
       }
       if (!organizationUrn) {
-        const { data: orgSetting } = await supabase
+        const { data: orgSettingRows } = await supabase
           .from('settings')
           .select('value')
           .eq('key', 'linkedin_default_org_urn')
-          .maybeSingle();
-        organizationUrn = orgSetting?.value || null;
+          .limit(1);
+        organizationUrn = orgSettingRows?.[0]?.value || null;
       }
     }
 
