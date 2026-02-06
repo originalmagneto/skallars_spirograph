@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
 import ImageCropperModal from '@/components/admin/ImageCropperModal';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface TeamMember {
     id: string;
@@ -523,7 +524,23 @@ const TeamMembersManager = () => {
 
     return (
         <div className="space-y-6">
-            <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
+            <AdminPanelHeader
+                title="Team Members"
+                description="Edit team profiles and section-level display behavior."
+                actions={(
+                    <>
+                        <Badge variant="secondary">{members?.length || 0}</Badge>
+                        {!isAdding && (
+                            <Button size="sm" onClick={() => setIsAdding(true)}>
+                                <Add01Icon size={14} className="mr-1" />
+                                Add Member
+                            </Button>
+                        )}
+                    </>
+                )}
+            />
+
+            <AdminSectionCard className="space-y-4 bg-muted/20">
                 <div className="flex items-center gap-2">
                     <UserIcon size={18} className="text-primary" />
                     <h3 className="text-sm font-semibold">Team Section Settings</h3>
@@ -599,21 +616,14 @@ const TeamMembersManager = () => {
                     <SaveEnergy01Icon size={14} className="mr-1" />
                     {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
                 </Button>
-            </div>
+            </AdminSectionCard>
 
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <UserIcon size={20} className="text-primary" />
-                    <h2 className="text-lg font-semibold">Team Members</h2>
-                    <Badge variant="secondary">{members?.length || 0}</Badge>
-                </div>
-                {!isAdding && (
-                    <Button size="sm" onClick={() => setIsAdding(true)}>
-                        <Add01Icon size={14} className="mr-1" />
-                        Add Member
-                    </Button>
-                )}
-            </div>
+            <AdminActionBar>
+                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <UserIcon size={14} className="text-primary" />
+                    Use crop positioning to keep profile images visually consistent.
+                </span>
+            </AdminActionBar>
 
             {isAdding && (
                 <MemberForm
@@ -628,7 +638,7 @@ const TeamMembersManager = () => {
                 />
             )}
 
-            <div className="space-y-2">
+            <AdminSectionCard className="space-y-2">
                 {members?.length === 0 && !isAdding && (
                     <div className="text-center py-8 text-muted-foreground">
                         No team members found. Add one to get started.
@@ -692,7 +702,7 @@ const TeamMembersManager = () => {
                         </div>
                     )
                 )}
-            </div>
+            </AdminSectionCard>
 
             <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
                 <AlertDialogContent>

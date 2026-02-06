@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
 import ImageCropperModal from '@/components/admin/ImageCropperModal';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface Client {
     id: string;
@@ -378,7 +379,23 @@ const ClientLogosManager = () => {
 
     return (
         <div className="space-y-6">
-            <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
+            <AdminPanelHeader
+                title="Client Logos"
+                description="Manage client portfolio cards and front-page carousel behavior."
+                actions={(
+                    <>
+                        <Badge variant="secondary">{clients?.length || 0}</Badge>
+                        {!isAdding && (
+                            <Button size="sm" onClick={() => setIsAdding(true)}>
+                                <Add01Icon size={14} className="mr-1" />
+                                Add Client
+                            </Button>
+                        )}
+                    </>
+                )}
+            />
+
+            <AdminSectionCard className="space-y-4 bg-muted/20">
                 <div className="flex items-center gap-2">
                     <Image01Icon size={18} className="text-primary" />
                     <h3 className="text-sm font-semibold">Clients Section Settings</h3>
@@ -424,21 +441,14 @@ const ClientLogosManager = () => {
                     <SaveEnergy01Icon size={14} className="mr-1" />
                     {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
                 </Button>
-            </div>
+            </AdminSectionCard>
 
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Image01Icon size={20} className="text-primary" />
-                    <h2 className="text-lg font-semibold">Clients</h2>
-                    <Badge variant="secondary">{clients?.length || 0}</Badge>
-                </div>
-                {!isAdding && (
-                    <Button size="sm" onClick={() => setIsAdding(true)}>
-                        <Add01Icon size={14} className="mr-1" />
-                        Add Client
-                    </Button>
-                )}
-            </div>
+            <AdminActionBar>
+                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <Image01Icon size={14} className="text-primary" />
+                    Use media library + crop tools for consistent brand appearance.
+                </span>
+            </AdminActionBar>
 
             {isAdding && (
                 <ClientForm
@@ -453,7 +463,7 @@ const ClientLogosManager = () => {
                 />
             )}
 
-            <div className="space-y-2">
+            <AdminSectionCard className="space-y-2">
                 {clients?.length === 0 && !isAdding && (
                     <div className="text-center py-8 text-muted-foreground">
                         No clients found. Add one to genericize your portfolio.
@@ -509,7 +519,7 @@ const ClientLogosManager = () => {
                         </div>
                     )
                 )}
-            </div>
+            </AdminSectionCard>
 
             <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
                 <AlertDialogContent>

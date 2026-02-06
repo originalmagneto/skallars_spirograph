@@ -180,6 +180,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         expired?: boolean;
         scopes?: string[];
         organization_urns?: string[];
+        default_org_urn?: string | null;
     } | null>(null);
     const [linkedinLoading, setLinkedinLoading] = useState(false);
     const [linkedinMessage, setLinkedinMessage] = useState('');
@@ -213,6 +214,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         created_at: string;
     }>>([]);
     const [linkedinScheduledLoading, setLinkedinScheduledLoading] = useState(false);
+    const [linkedinUiMode, setLinkedinUiMode] = useState<'basic' | 'power'>('basic');
 
     const hasOrgScope = Boolean(
         linkedinStatus?.scopes?.includes('w_organization_social') ||
@@ -352,30 +354,6 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     }, []);
 
     useEffect(() => {
-        let active = true;
-        const loadLinkedInDefaults = async () => {
-            try {
-                const { data } = await supabase
-                    .from('settings')
-                    .select('key, value')
-                    .eq('key', 'linkedin_default_org_urn');
-                const defaultUrn = data?.[0]?.value || '';
-                if (!active) return;
-                setLinkedinDefaultOrgUrn(defaultUrn);
-                if (defaultUrn && !linkedinOrganizationUrn) {
-                    setLinkedinOrganizationUrn(defaultUrn);
-                }
-            } catch {
-                // ignore
-            }
-        };
-        loadLinkedInDefaults();
-        return () => {
-            active = false;
-        };
-    }, []);
-
-    useEffect(() => {
         if (!session?.access_token) return;
         const loadStatus = async () => {
             setLinkedinLoading(true);
@@ -386,6 +364,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 const data = await res.json();
                 if (res.ok) {
                     setLinkedinStatus(data);
+                    if (data?.default_org_urn) {
+                        setLinkedinDefaultOrgUrn(data.default_org_urn);
+                        setLinkedinOrganizationUrn((prev) => prev || data.default_org_urn);
+                    }
                 } else {
                     setLinkedinStatus({ connected: false });
                 }
@@ -880,14 +862,21 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const data = await res.json();
             if (Array.isArray(data.organizations)) {
                 setLinkedinOrganizations(data.organizations);
+                if (!linkedinDefaultOrgUrn && data?.default_org_urn) {
+                    setLinkedinDefaultOrgUrn(data.default_org_urn);
+                }
                 if (!linkedinOrganizationUrn) {
-                    if (linkedinDefaultOrgUrn) {
+                    if (data?.default_org_urn) {
+                        setLinkedinOrganizationUrn(data.default_org_urn);
+                    } else if (linkedinDefaultOrgUrn) {
                         setLinkedinOrganizationUrn(linkedinDefaultOrgUrn);
                     } else if (data.organizations.length === 1) {
                         setLinkedinOrganizationUrn(data.organizations[0].urn);
+                    } else if (linkedinStatus?.organization_urns?.length) {
+                        setLinkedinOrganizationUrn(linkedinStatus.organization_urns[0]);
                     }
                 }
-                if (!res.ok && data?.error && data.organizations.length === 0) {
+                if (data?.error && data.organizations.length === 0) {
                     toast.error(data.error);
                 }
             } else if (data?.error) {
@@ -916,14 +905,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
         const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
         if (linkedinTarget === 'organization' && !organizationUrn) {
-            toast.error('Select a LinkedIn organization.');
+            toast.error('Select a LinkedIn organization or set a default organization URN in Settings.');
             return;
         }
         if (linkedinTarget === 'organization' && !hasOrgScope) {
             toast.error('Company page sharing requires LinkedIn organization scopes.');
             return;
         }
-        if (linkedinShareMode === 'image' && !linkedinImageUrl) {
+        const effectiveShareMode = linkedinUiMode === 'basic' ? 'article' : linkedinShareMode;
+        if (effectiveShareMode === 'image' && !linkedinImageUrl) {
             toast.error('Add an image URL for LinkedIn.');
             return;
         }
@@ -944,8 +934,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     message: linkedinMessage,
                     shareTarget: linkedinTarget,
                     organizationUrn: organizationUrn || null,
-                    shareMode: linkedinShareMode,
-                    imageUrl: linkedinShareMode === 'image' ? linkedinImageUrl : null,
+                    shareMode: effectiveShareMode,
+                    imageUrl: effectiveShareMode === 'image' ? linkedinImageUrl : null,
                 }),
             });
             const data = await res.json();
@@ -974,6 +964,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error('Pick a schedule time.');
             return;
         }
+        const effectiveShareMode = linkedinUiMode === 'basic' ? 'article' : linkedinShareMode;
         const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
         if (linkedinTarget === 'organization' && !organizationUrn) {
             toast.error('Select a LinkedIn organization.');
@@ -998,8 +989,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     message: linkedinMessage,
                     shareTarget: linkedinTarget,
                     organizationUrn: organizationUrn || null,
-                    shareMode: linkedinShareMode,
-                    imageUrl: linkedinShareMode === 'image' ? linkedinImageUrl : null,
+                    shareMode: effectiveShareMode,
+                    imageUrl: effectiveShareMode === 'image' ? linkedinImageUrl : null,
                 }),
             });
             const data = await res.json();
@@ -1056,6 +1047,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
     const displayImageProvider = useGlobalImageSettings ? globalImageProvider : overrideImageProvider;
     const displayImageModel = useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel);
+    const effectiveLinkedInShareMode = linkedinUiMode === 'basic' ? 'article' : linkedinShareMode;
 
     const parseTagsInput = (value: string) => {
         return value
@@ -1605,6 +1597,35 @@ Rules:
                 )}
 
                 {linkedinStatus?.connected && (
+                    <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
+                        <div className="space-y-0.5">
+                            <div className="text-xs font-semibold text-foreground">Mode</div>
+                            <div className="text-[11px] text-muted-foreground">Basic for quick share, Power for full controls.</div>
+                        </div>
+                        <div className="inline-flex rounded-md border bg-muted/20 p-1">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={linkedinUiMode === 'basic' ? 'default' : 'ghost'}
+                                className="h-7 px-3 text-xs"
+                                onClick={() => setLinkedinUiMode('basic')}
+                            >
+                                Basic
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={linkedinUiMode === 'power' ? 'default' : 'ghost'}
+                                className="h-7 px-3 text-xs"
+                                onClick={() => setLinkedinUiMode('power')}
+                            >
+                                Power
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {linkedinStatus?.connected && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Share As</Label>
@@ -1629,28 +1650,30 @@ Rules:
                             )}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Share Type</Label>
-                            <Select
-                                value={linkedinShareMode}
-                                onValueChange={(value) => {
-                                    setLinkedinShareMode(value as 'article' | 'image');
-                                    setLinkedinShareModeTouched(true);
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select share type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="article">Link preview</SelectItem>
-                                    <SelectItem value="image">Image post</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <p className="text-[10px] text-muted-foreground">
-                                Image posts upload the image and append the article link to the text.
-                                LinkedIn may omit preview images for API link posts.
-                            </p>
-                        </div>
+                        {linkedinUiMode === 'power' && (
+                            <div className="space-y-2">
+                                <Label>Share Type</Label>
+                                <Select
+                                    value={linkedinShareMode}
+                                    onValueChange={(value) => {
+                                        setLinkedinShareMode(value as 'article' | 'image');
+                                        setLinkedinShareModeTouched(true);
+                                    }}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select share type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="article">Link preview</SelectItem>
+                                        <SelectItem value="image">Image post</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[10px] text-muted-foreground">
+                                    Image posts upload the image and append the article link to the text.
+                                    LinkedIn may omit preview images for API link posts.
+                                </p>
+                            </div>
+                        )}
 
                         {linkedinTarget === 'organization' && (
                             <div className="space-y-2">
@@ -1698,7 +1721,7 @@ Rules:
                     </div>
                 )}
 
-                {linkedinStatus?.connected && linkedinShareMode === 'image' && (
+                {linkedinStatus?.connected && linkedinUiMode === 'power' && effectiveLinkedInShareMode === 'image' && (
                     <div className="space-y-2">
                         <Label>Image URL</Label>
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -1735,9 +1758,9 @@ Rules:
                     <div className="rounded-lg border bg-white p-3 space-y-2">
                         <div className="text-xs text-muted-foreground">Preview</div>
                         <div className="flex flex-col gap-3">
-                            {(linkedinShareMode === 'image' ? linkedinImageUrl || formData.cover_image_url : formData.cover_image_url) && (
+                            {(effectiveLinkedInShareMode === 'image' ? linkedinImageUrl || formData.cover_image_url : formData.cover_image_url) && (
                                 <img
-                                    src={linkedinShareMode === 'image'
+                                    src={effectiveLinkedInShareMode === 'image'
                                         ? (linkedinImageUrl || formData.cover_image_url)
                                         : formData.cover_image_url}
                                     alt="LinkedIn preview"
@@ -1766,7 +1789,7 @@ Rules:
                             disabled={
                                 linkedinSharing ||
                                 linkedinStatus?.expired ||
-                                (linkedinShareMode === 'article' ? !getArticleUrl() : !linkedinImageUrl)
+                                (effectiveLinkedInShareMode === 'article' ? !getArticleUrl() : !linkedinImageUrl)
                             }
                         >
                             {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
@@ -1779,7 +1802,7 @@ Rules:
                     </div>
                 )}
 
-                {linkedinStatus?.connected && (
+                {linkedinStatus?.connected && linkedinUiMode === 'power' && (
                     <Accordion type="single" collapsible className="w-full rounded-lg border bg-white px-3">
                         <AccordionItem value="linkedin-advanced" className="border-b-0">
                             <AccordionTrigger className="py-3 text-xs font-semibold no-underline hover:no-underline">

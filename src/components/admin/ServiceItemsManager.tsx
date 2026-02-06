@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, ArrowUp01Icon, ArrowDown01Icon, ListViewIcon } from 'hugeicons-react';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface ServiceItem {
   id?: string;
@@ -153,22 +154,31 @@ export default function ServiceItemsManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ListViewIcon size={20} className="text-primary" />
-          <h2 className="text-lg font-semibold">Service Items</h2>
-          <Badge variant="secondary">{items?.length || 0}</Badge>
-        </div>
-        {!isAdding && (
-          <Button size="sm" onClick={() => setIsAdding(true)}>
-            <Add01Icon size={14} className="mr-1" />
-            Add Service
-          </Button>
+      <AdminPanelHeader
+        title="Service Items"
+        description="Manage multilingual service cards shown on the homepage."
+        actions={(
+          <>
+            <Badge variant="secondary">{items?.length || 0}</Badge>
+            {!isAdding && (
+              <Button size="sm" onClick={() => setIsAdding(true)}>
+                <Add01Icon size={14} className="mr-1" />
+                Add Service
+              </Button>
+            )}
+          </>
         )}
-      </div>
+      />
+
+      <AdminActionBar>
+        <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <ListViewIcon size={16} className="text-primary" />
+          Reorder with arrows and toggle visibility per service.
+        </div>
+      </AdminActionBar>
 
       {isAdding && (
-        <div className="p-4 border rounded-lg bg-muted/40 space-y-4">
+        <AdminSectionCard className="space-y-4 bg-muted/20">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-xs">Slug</Label>
@@ -235,10 +245,10 @@ export default function ServiceItemsManager() {
               Cancel
             </Button>
           </div>
-        </div>
+        </AdminSectionCard>
       )}
 
-      <div className="space-y-3">
+      <AdminSectionCard className="space-y-3">
         {(items || []).map((item, index) => (
           <div key={item.id || item.slug} className="border rounded-lg px-4 py-3 bg-white">
             <div className="flex items-center justify-between">
@@ -339,7 +349,7 @@ export default function ServiceItemsManager() {
             )}
           </div>
         ))}
-      </div>
+      </AdminSectionCard>
     </div>
   );
 }

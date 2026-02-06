@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { NewsIcon, SaveEnergy01Icon } from 'hugeicons-react';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface NewsSettingsRow {
   id?: string;
@@ -86,19 +87,19 @@ export default function NewsSettingsManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <NewsIcon size={20} className="text-primary" />
-        <h2 className="text-lg font-semibold">News Section Settings</h2>
-        <Badge variant="secondary">{form.limit_count} posts</Badge>
-      </div>
+      <AdminPanelHeader
+        title="News Section Settings"
+        description="Configure carousel behavior and limits for the public news module."
+        actions={<Badge variant="secondary">{form.limit_count} posts</Badge>}
+      />
 
       {isError && (
-        <div className="text-sm text-muted-foreground">
+        <AdminActionBar className="text-sm text-muted-foreground">
           Settings table not found. Please run the Phase 2 SQL setup.
-        </div>
+        </AdminActionBar>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <AdminSectionCard className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label className="text-xs">Posts to show</Label>
           <Input
@@ -132,9 +133,9 @@ export default function NewsSettingsManager() {
             className="mt-1"
           />
         </div>
-      </div>
+      </AdminSectionCard>
 
-      <div className="flex items-center gap-6">
+      <AdminSectionCard className="flex items-center gap-6">
         <div className="flex items-center gap-2">
           <Switch checked={form.show_view_all} onCheckedChange={(value) => setForm({ ...form, show_view_all: value })} />
           <span className="text-sm">Show “View all” button</span>
@@ -143,12 +144,18 @@ export default function NewsSettingsManager() {
           <Switch checked={form.autoplay} onCheckedChange={(value) => setForm({ ...form, autoplay: value })} />
           <span className="text-sm">Enable autoplay</span>
         </div>
-      </div>
+      </AdminSectionCard>
 
-      <Button size="sm" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
-        <SaveEnergy01Icon size={14} className="mr-1" />
-        {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
-      </Button>
+      <AdminActionBar>
+        <Button size="sm" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
+          <SaveEnergy01Icon size={14} className="mr-1" />
+          {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
+        </Button>
+        <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <NewsIcon size={14} className="text-primary" />
+          Keep defaults simple for non-technical editors.
+        </span>
+      </AdminActionBar>
     </div>
   );
 }

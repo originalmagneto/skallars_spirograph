@@ -47,15 +47,36 @@ export interface ResearchPack {
     };
 }
 
-async function getSetting(key: string): Promise<string | null> {
+const SETTINGS_CACHE_TTL_MS = 30_000;
+let settingsCache: Record<string, string> | null = null;
+let settingsCacheTs = 0;
+
+const loadSettingsMap = async () => {
+    const now = Date.now();
+    if (settingsCache && now - settingsCacheTs < SETTINGS_CACHE_TTL_MS) {
+        return settingsCache;
+    }
+
     const { data, error } = await supabase
         .from('settings')
-        .select('value')
-        .eq('key', key)
-        .limit(1);
+        .select('key, value');
 
-    if (error || !data || data.length === 0) return null;
-    return data[0]?.value ?? null;
+    if (error || !data) {
+        return settingsCache || {};
+    }
+
+    const map: Record<string, string> = {};
+    data.forEach((row: any) => {
+        if (row?.key) map[row.key] = row.value;
+    });
+    settingsCache = map;
+    settingsCacheTs = now;
+    return map;
+};
+
+async function getSetting(key: string): Promise<string | null> {
+    const map = await loadSettingsMap();
+    return map[key] ?? null;
 }
 
 const toNumber = (value?: string | null) => {

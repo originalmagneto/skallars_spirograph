@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, Link01Icon } from 'hugeicons-react';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface FooterLink {
   id?: string;
@@ -117,22 +118,31 @@ export default function FooterLinksManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Link01Icon size={18} className="text-primary" />
-          <h3 className="text-sm font-semibold">Footer Links</h3>
-          <Badge variant="secondary">{links?.length || 0}</Badge>
-        </div>
-        {!isAdding && (
-          <Button size="sm" onClick={() => setIsAdding(true)}>
-            <Add01Icon size={14} className="mr-1" />
-            Add Link
-          </Button>
+      <AdminPanelHeader
+        title="Footer Links"
+        description="Edit multilingual links for solutions and social sections."
+        actions={(
+          <>
+            <Badge variant="secondary">{links?.length || 0}</Badge>
+            {!isAdding && (
+              <Button size="sm" onClick={() => setIsAdding(true)}>
+                <Add01Icon size={14} className="mr-1" />
+                Add Link
+              </Button>
+            )}
+          </>
         )}
-      </div>
+      />
+
+      <AdminActionBar>
+        <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <Link01Icon size={14} className="text-primary" />
+          Group links by section and keep labels short for mobile.
+        </span>
+      </AdminActionBar>
 
       {isAdding && (
-        <div className="p-4 border rounded-lg bg-muted/40 space-y-4">
+        <AdminSectionCard className="space-y-4 bg-muted/20">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-xs">Section</Label>
@@ -188,10 +198,10 @@ export default function FooterLinksManager() {
               Cancel
             </Button>
           </div>
-        </div>
+        </AdminSectionCard>
       )}
 
-      <div className="space-y-3">
+      <AdminSectionCard className="space-y-3">
         {(links || []).map((link) => (
           <div key={link.id || link.url} className="border rounded-lg px-4 py-3 bg-white">
             <div className="flex items-center justify-between">
@@ -272,7 +282,7 @@ export default function FooterLinksManager() {
             )}
           </div>
         ))}
-      </div>
+      </AdminSectionCard>
     </div>
   );
 }

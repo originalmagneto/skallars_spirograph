@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Mail01Icon, SaveEnergy01Icon } from 'hugeicons-react';
 import FooterLinksManager from './FooterLinksManager';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface FooterSettingsRow {
   id?: string;
@@ -85,13 +86,13 @@ export default function FooterSettingsManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Mail01Icon size={20} className="text-primary" />
-        <h2 className="text-lg font-semibold">Footer Settings</h2>
-        <Badge variant="secondary">Sections</Badge>
-      </div>
+      <AdminPanelHeader
+        title="Footer Settings"
+        description="Control footer column visibility and global footer links."
+        actions={<Badge variant="secondary">Sections</Badge>}
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <AdminSectionCard className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex items-center gap-2">
           <Switch checked={form.show_contact} onCheckedChange={(v) => setForm({ ...form, show_contact: v })} />
           <Label className="text-sm">Show Contact Column</Label>
@@ -108,12 +109,18 @@ export default function FooterSettingsManager() {
           <Switch checked={form.show_social} onCheckedChange={(v) => setForm({ ...form, show_social: v })} />
           <Label className="text-sm">Show Social Icons</Label>
         </div>
-      </div>
+      </AdminSectionCard>
 
-      <Button size="sm" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
-        <SaveEnergy01Icon size={14} className="mr-1" />
-        {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
-      </Button>
+      <AdminActionBar>
+        <Button size="sm" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>
+          <SaveEnergy01Icon size={14} className="mr-1" />
+          {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
+        </Button>
+        <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <Mail01Icon size={14} className="text-primary" />
+          Keep only user-facing elements enabled.
+        </span>
+      </AdminActionBar>
 
       <FooterLinksManager />
     </div>

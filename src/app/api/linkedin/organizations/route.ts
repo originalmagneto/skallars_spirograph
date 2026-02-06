@@ -8,12 +8,20 @@ export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return NextResponse.json({ error: 'Missing authorization token.' }, { status: 401 });
+    if (!token) {
+      return NextResponse.json(
+        { organizations: [], error: 'Missing authorization token.' },
+        { status: 200 }
+      );
+    }
 
     const supabase = getSupabaseAdmin();
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData?.user) {
-      return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
+      return NextResponse.json(
+        { organizations: [], error: 'Invalid session.' },
+        { status: 200 }
+      );
     }
 
     const { data: account } = await supabase
@@ -33,6 +41,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           organizations: fallback,
+          default_org_urn: defaultOrgUrn || null,
           error: 'LinkedIn account not connected.',
           hint: 'Reconnect LinkedIn or set a default organization URN in Settings.',
         },
@@ -46,7 +55,11 @@ export async function GET(req: NextRequest) {
       .limit(1);
     const defaultOrgUrn = defaultOrgSetting?.[0]?.value || '';
 
-    const scopes = Array.isArray(account.scopes) ? account.scopes : [];
+    const scopes = Array.isArray(account.scopes)
+      ? account.scopes
+      : typeof account.scopes === 'string'
+      ? account.scopes.split(/[\s,]+/).filter(Boolean)
+      : [];
     const hasOrgScope =
       scopes.includes('w_organization_social') ||
       scopes.includes('r_organization_social') ||
@@ -62,6 +75,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           organizations: fallback,
+          default_org_urn: defaultOrgUrn || null,
           error: 'Organization scopes are missing for this LinkedIn account.',
           hint: 'Reconnect LinkedIn after enabling r_organization_social and w_organization_social.',
         },
@@ -102,6 +116,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json(
           {
             organizations: fallbackOrgs,
+            default_org_urn: defaultOrgUrn || null,
             error: body?.message || body?.error?.message || legacyBody?.message || legacyBody?.error?.message || 'Failed to load organizations.',
             details: { rest: body, legacy: legacyBody },
             hint: 'Ensure your LinkedIn app has Organization/Community Management access and the token includes w_organization_social.',
@@ -111,20 +126,33 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const orgs = Array.isArray(body?.elements)
+    const orgsFromApi = Array.isArray(body?.elements)
       ? body.elements.map((element: any) => ({
           urn: element.organization,
           name: element['organization~']?.localizedName || element.organization,
         }))
       : [];
+    const orgMap = new Map<string, { urn: string; name: string }>();
+    orgsFromApi.forEach((org: { urn: string; name: string }) => orgMap.set(org.urn, org));
+    if (defaultOrgUrn && !orgMap.has(defaultOrgUrn)) {
+      orgMap.set(defaultOrgUrn, { urn: defaultOrgUrn, name: 'Default Organization' });
+    }
+    const orgs = Array.from(orgMap.values());
 
     await supabase.from('linkedin_accounts').update({
       organization_urns: orgs.map((org) => org.urn),
       updated_at: new Date().toISOString(),
     }).eq('user_id', userData.user.id);
 
-    return NextResponse.json({ organizations: orgs });
+    return NextResponse.json({
+      organizations: orgs,
+      default_org_urn: defaultOrgUrn || null,
+      error: null
+    });
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to load organizations.' }, { status: 500 });
+    return NextResponse.json(
+      { organizations: [], default_org_urn: null, error: error?.message || 'Failed to load organizations.' },
+      { status: 200 }
+    );
   }
 }

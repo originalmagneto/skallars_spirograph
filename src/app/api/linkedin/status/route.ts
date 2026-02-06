@@ -22,12 +22,34 @@ export async function GET(req: NextRequest) {
       .eq('user_id', data.user.id)
       .maybeSingle();
 
+    const { data: defaultOrgSetting } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'linkedin_default_org_urn')
+      .limit(1);
+    const defaultOrgUrn = defaultOrgSetting?.[0]?.value || null;
+
     if (!account) {
-      return NextResponse.json({ connected: false });
+      return NextResponse.json({
+        connected: false,
+        default_org_urn: defaultOrgUrn,
+      });
     }
 
     const expiresAt = account.expires_at ? new Date(account.expires_at).getTime() : null;
     const expired = expiresAt ? expiresAt < Date.now() : false;
+    const rawScopes = account.scopes;
+    const scopes = Array.isArray(rawScopes)
+      ? rawScopes
+      : typeof rawScopes === 'string'
+      ? rawScopes.split(/[\s,]+/).filter(Boolean)
+      : [];
+    const mergedOrganizations = Array.from(
+      new Set([
+        ...(Array.isArray(account.organization_urns) ? account.organization_urns : []),
+        ...(defaultOrgUrn ? [defaultOrgUrn] : []),
+      ])
+    );
 
     return NextResponse.json({
       connected: true,
@@ -35,8 +57,9 @@ export async function GET(req: NextRequest) {
       member_urn: account.member_urn,
       expires_at: account.expires_at,
       expired,
-      scopes: account.scopes || [],
-      organization_urns: account.organization_urns || [],
+      scopes,
+      organization_urns: mergedOrganizations,
+      default_org_urn: defaultOrgUrn,
       updated_at: account.updated_at,
     });
   } catch (error: any) {

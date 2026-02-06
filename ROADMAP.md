@@ -6,6 +6,21 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Phase 0 complete.
 - Phase 1 (text-first editing) complete.
 - Phase 1 media tools moved to Phase 2 (you said no image fields right now).
+- Runtime stabilization pass (Feb 6, 2026) in progress: admin permission gating simplification + LinkedIn graceful fallbacks.
+
+**Status (Feb 6, 2026 - current pass)**
+- LinkedIn resilience + fallback cleanup in progress.
+- Article Editor LinkedIn UI simplification in progress (Basic vs Power).
+- Residual runtime noise cleanup in progress (`settings` fetch noise + non-blocking LinkedIn API handling).
+
+## Step 5 (Current): Reliability + UX Cleanup
+- Remove residual `settings`-fetch runtime noise by consolidating reads through tolerant map fetches and avoiding strict single-row expectations. 🔄
+- Make LinkedIn status the single source of truth for default organization URN in UI (remove duplicate client-side settings fetches). 🔄
+- Harden LinkedIn API routes to handle mixed scope formats and always return non-blocking fallback payloads for organizations/analytics. 🔄
+- Simplify Article Editor LinkedIn panel with **Basic vs Power** mode:
+  - Basic: connect, target, org, message, share.
+  - Power: share type, image post controls, scheduling, logs, diagnostics. 🔄
+- Validate full production build after cleanup and close remaining regressions before next feature work. ⏳
 
 ## Step 1 (Now): Stability Hardening (LinkedIn + Admin Access)
 - Make LinkedIn endpoints **degrade gracefully** (no hard-fail UI when org scopes/org APIs are unavailable). ✅
@@ -26,6 +41,23 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Default cover generation to **Lite mode** so first-time users are not forced into provider/model choices. ✅
 - Move LinkedIn scheduling/log diagnostics into **Advanced LinkedIn Tools** while keeping Share as the primary action. ✅
 - Reduce noisy permission flow by removing automatic admin diagnostics and preventing overlapping access checks. ✅
+
+## Step 3 (Now): Runtime Noise + Fallback Hardening
+- Remove duplicated admin role resolution logic in `admin/layout` and use `AuthContext` as source of truth. ✅
+- Make LinkedIn organizations + analytics endpoints return non-blocking fallback payloads for transient auth/session gaps. ✅
+- Reduce repeated per-key settings reads for AI services by switching to short-lived settings map cache. ✅
+- Keep company-share UX usable when org list is unavailable by preserving default org fallback paths. ✅
+
+## Step 4 (Now): Progressive Disclosure UX + Auth Noise Reduction
+- Add **Basic vs Power mode** in Article Generator so non-technical users only see core controls by default. ✅
+- Add **Basic vs Power mode** in LinkedIn Settings so diagnostics/scheduling are hidden until needed. ✅
+- Remove noisy client-side admin role fallbacks and rely on **server-first role check** + cache. ✅
+- Keep advanced controls fully available for power users without removing any capability. ✅
+
+### Step 4 Acceptance Criteria
+- In Article Studio, first-time users can generate with a minimal form and no prompt/model overload.
+- In LinkedIn Settings, primary connect/default-org flow is visible without logs/analytics clutter.
+- Repeated `Profile role check timed out` console errors are no longer emitted from client-side profile RPC/query fallback paths.
 
 ### Step 2 Acceptance Criteria
 - Average users can generate an article without opening advanced sections.

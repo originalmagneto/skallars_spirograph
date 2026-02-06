@@ -25,13 +25,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isEditor, setIsEditor] = useState(false);
     const roleRetryRef = useRef(0);
-    const roleErrorLoggedRef = useRef(false);
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
-    const ROLE_CHECK_TIMEOUT_MS = 12000;
-
-    const isTimeoutError = (error: unknown) =>
-        error instanceof Error && /timed out/i.test(error.message);
+    const ROLE_CHECK_TIMEOUT_MS = 9000;
 
     const readRoleCache = (userId: string) => {
         try {
@@ -76,7 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAdmin(role === 'admin');
             setIsEditor(role === 'editor' || role === 'admin');
             writeRoleCache(userId, role);
-            roleErrorLoggedRef.current = false;
         };
 
         if (cachedRole) {
@@ -85,82 +80,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Server-first role check avoids flaky client-side profile/RPC timeouts.
-        if (session?.access_token) {
+        if (!session?.access_token) {
+            if (!cachedRole) {
+                setIsAdmin(false);
+                setIsEditor(false);
+            }
+            return;
+        }
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
                 const res = await withTimeout(
                     fetch('/api/admin/role', {
                         headers: { Authorization: `Bearer ${session.access_token}` },
+                        cache: 'no-store',
                     }),
                     ROLE_CHECK_TIMEOUT_MS,
                     'Server role check'
                 );
+
                 if (res.ok) {
                     const data = await res.json();
                     const role = data?.role || 'user';
                     applyRole(role);
                     return;
                 }
-            } catch {
-                // If a valid cached role exists, avoid noisy fallbacks on transient failures.
-                if (cachedRole) return;
-            }
-        }
 
-        try {
-            const { data, error } = await withTimeout(
-                supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', userId)
-                    .maybeSingle(),
-                ROLE_CHECK_TIMEOUT_MS,
-                'Profile role check'
-            );
-
-            if (!error && data?.role) {
-                applyRole(data.role);
-                return;
-            }
-
-            // Fallback: role check via security-definer RPC (if available)
-            try {
-                const { data: isAdminRpc, error: adminRpcError } = await withTimeout(
-                    supabase.rpc('is_profile_admin', { _user_id: userId }),
-                    ROLE_CHECK_TIMEOUT_MS,
-                    'Admin RPC check'
-                );
-
-                if (!adminRpcError && typeof isAdminRpc === 'boolean') {
-                    const { data: isEditorRpc } = await withTimeout(
-                        supabase.rpc('is_profile_editor', { _user_id: userId }),
-                        ROLE_CHECK_TIMEOUT_MS,
-                        'Editor RPC check'
-                    );
-
-                    applyRole(isAdminRpc ? 'admin' : (isEditorRpc ? 'editor' : 'user'));
+                // Treat auth failures as unauthenticated user role.
+                if (res.status === 401) {
+                    applyRole('user');
                     return;
                 }
             } catch {
-                // Ignore RPC failures and fall through.
+                // Retry a couple of times before falling back to cache/guest role.
+                if (attempt < 2) {
+                    await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+                    continue;
+                }
             }
-
-            if (cachedRole) {
-                return;
-            }
-
-            setIsAdmin(false);
-            setIsEditor(false);
-        } catch (error) {
-            if (cachedRole) return;
-            if (isTimeoutError(error)) {
-                setIsAdmin(false);
-                setIsEditor(false);
-                return;
-            }
-            if (!roleErrorLoggedRef.current) {
-                console.error('Error fetching roles:', error);
-                roleErrorLoggedRef.current = true;
-            }
+        }
+        if (!cachedRole) {
             setIsAdmin(false);
             setIsEditor(false);
         }

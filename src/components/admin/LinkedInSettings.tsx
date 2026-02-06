@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, RefreshCw, XCircle } from "lucide-react";
-import { AdminPanelHeader, AdminSectionCard } from "@/components/admin/AdminPrimitives";
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from "@/components/admin/AdminPrimitives";
 
 type LinkedInStatus = {
     connected: boolean;
@@ -21,6 +22,7 @@ type LinkedInStatus = {
     expired?: boolean;
     scopes?: string[];
     organization_urns?: string[];
+    default_org_urn?: string | null;
     updated_at?: string | null;
 };
 
@@ -73,6 +75,7 @@ const formatDate = (value?: string | null) => {
 
 export default function LinkedInSettings() {
     const { session } = useAuth();
+    const [settingsMode, setSettingsMode] = useState<"simple" | "power">("simple");
     const [status, setStatus] = useState<LinkedInStatus | null>(null);
     const [statusLoading, setStatusLoading] = useState(false);
     const [defaultOrgUrn, setDefaultOrgUrn] = useState("");
@@ -88,6 +91,7 @@ export default function LinkedInSettings() {
     const [analyticsNote, setAnalyticsNote] = useState<string | null>(null);
     const [analyticsOrgUrn, setAnalyticsOrgUrn] = useState<string | null>(null);
     const [memberAnalyticsEnabled, setMemberAnalyticsEnabled] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState<string[]>([]);
 
     const organizationOptions = useMemo(() => {
         const map = new Map<string, LinkedInOrg>();
@@ -105,19 +109,6 @@ export default function LinkedInSettings() {
         });
         return map;
     }, [analytics]);
-
-    useEffect(() => {
-        const loadDefaults = async () => {
-            const { data, error } = await supabase
-                .from("settings")
-                .select("key, value")
-                .eq("key", "linkedin_default_org_urn");
-            if (error) return;
-            const value = data?.[0]?.value || "";
-            setDefaultOrgUrn(value);
-        };
-        loadDefaults();
-    }, []);
 
     useEffect(() => {
         if (!session?.access_token) return;
@@ -149,6 +140,9 @@ export default function LinkedInSettings() {
             const data = await res.json();
             if (res.ok) {
                 setStatus(data);
+                if (!defaultOrgUrn && data?.default_org_urn) {
+                    setDefaultOrgUrn(data.default_org_urn);
+                }
                 return;
             } else {
                 setStatus({ connected: false });
@@ -175,11 +169,16 @@ export default function LinkedInSettings() {
             const data = await res.json();
             if (Array.isArray(data.organizations)) {
                 setOrganizations(data.organizations);
+                if (!defaultOrgUrn && data?.default_org_urn) {
+                    setDefaultOrgUrn(data.default_org_urn);
+                }
                 if (!defaultOrgUrn && data.organizations.length === 1) {
                     setDefaultOrgUrn(data.organizations[0].urn);
+                } else if (!defaultOrgUrn && Array.isArray(status?.organization_urns) && status.organization_urns.length > 0) {
+                    setDefaultOrgUrn(status.organization_urns[0]);
                 }
             }
-            if (!res.ok && data?.error && (!Array.isArray(data.organizations) || data.organizations.length === 0)) {
+            if (data?.error && (!Array.isArray(data.organizations) || data.organizations.length === 0)) {
                 toast.error(data.error);
             }
         } catch {
@@ -239,8 +238,8 @@ export default function LinkedInSettings() {
                 setAnalyticsNote(data.note || null);
                 setAnalyticsOrgUrn(data.org_urn || null);
                 setMemberAnalyticsEnabled(Boolean(data.memberAnalyticsEnabled));
-            } else if (data?.error) {
-                setAnalyticsNote(data.error);
+            } else if (data?.note) {
+                setAnalyticsNote(data.note);
             }
         } catch {
             setAnalyticsNote("Failed to load LinkedIn analytics.");
@@ -314,9 +313,40 @@ export default function LinkedInSettings() {
         <div className="space-y-4">
             <AdminPanelHeader
                 title="LinkedIn Settings"
-                description="Manage account connection, company defaults, share history, and basic post analytics."
+                description="Connect account and set default organization. Advanced logs and metrics are optional."
             />
             <AdminSectionCard className="space-y-8">
+                <div className="rounded-lg border border-primary/10 bg-muted/20 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <div className="text-sm font-semibold">Control Mode</div>
+                            <p className="text-xs text-muted-foreground">
+                                Basic mode keeps setup compact. Power mode reveals diagnostics and queue details.
+                            </p>
+                        </div>
+                        <div className="inline-flex rounded-md border bg-white p-1">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={settingsMode === "simple" ? "default" : "ghost"}
+                                className="h-7 px-3 text-xs"
+                                onClick={() => setSettingsMode("simple")}
+                            >
+                                Basic
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={settingsMode === "power" ? "default" : "ghost"}
+                                className="h-7 px-3 text-xs"
+                                onClick={() => setSettingsMode("power")}
+                            >
+                                Power
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="rounded-lg border bg-muted/10 p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
@@ -364,6 +394,11 @@ export default function LinkedInSettings() {
                         </div>
                     )}
                 </div>
+                <AdminActionBar>
+                    <span className="text-sm text-muted-foreground">
+                        Primary flow: connect LinkedIn, load organizations, save default URN.
+                    </span>
+                </AdminActionBar>
 
                 <div className="rounded-lg border bg-white p-4 space-y-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -419,148 +454,160 @@ export default function LinkedInSettings() {
                     </div>
                 </div>
 
-                <div className="rounded-lg border bg-white p-4 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <div className="text-sm font-semibold">Recent Shares</div>
-                            <p className="text-xs text-muted-foreground">
-                                Latest LinkedIn posts and status.
-                            </p>
-                            {analyticsNote && (
-                                <p className="text-[11px] text-muted-foreground mt-1">
-                                    {analyticsNote}
-                                </p>
-                            )}
-                            {!analyticsOrgUrn && (
-                                <p className="text-[11px] text-muted-foreground mt-1">
-                                    Set a default organization URN to pull company analytics.
-                                </p>
-                            )}
-                            {analyticsOrgUrn && !memberAnalyticsEnabled && (
-                                <p className="text-[11px] text-muted-foreground mt-1">
-                                    Member post analytics require the LinkedIn scope r_member_postAnalytics.
-                                </p>
-                            )}
+                <div className="rounded-lg border bg-white p-2">
+                    {settingsMode === "simple" ? (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                            Switch to <strong>Power</strong> mode for share logs, analytics sync, and scheduled queue details.
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={loadLogs} disabled={!connected || logsLoading}>
-                                {logsLoading ? "Refreshing…" : "Refresh log"}
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={loadAnalytics}
-                                disabled={!connected || analyticsLoading}
-                            >
-                                {analyticsLoading ? "Syncing…" : "Sync metrics"}
-                            </Button>
-                        </div>
-                    </div>
+                    ) : (
+                    <Accordion type="multiple" value={advancedOpen} onValueChange={setAdvancedOpen}>
+                        <AccordionItem value="analytics">
+                            <AccordionTrigger className="px-3 py-2 text-sm font-semibold">
+                                Advanced: Share Logs & Analytics
+                            </AccordionTrigger>
+                            <AccordionContent className="space-y-4 px-3 pb-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Latest LinkedIn shares with synced metrics.
+                                        </p>
+                                        {analyticsNote && (
+                                            <p className="text-[11px] text-muted-foreground mt-1">{analyticsNote}</p>
+                                        )}
+                                        {!analyticsOrgUrn && (
+                                            <p className="text-[11px] text-muted-foreground mt-1">
+                                                Set a default organization URN to pull company analytics.
+                                            </p>
+                                        )}
+                                        {analyticsOrgUrn && !memberAnalyticsEnabled && (
+                                            <p className="text-[11px] text-muted-foreground mt-1">
+                                                Member post analytics require `r_member_postAnalytics`.
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button type="button" variant="outline" size="sm" onClick={loadLogs} disabled={!connected || logsLoading}>
+                                            {logsLoading ? "Refreshing…" : "Refresh log"}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={loadAnalytics}
+                                            disabled={!connected || analyticsLoading}
+                                        >
+                                            {analyticsLoading ? "Syncing…" : "Sync metrics"}
+                                        </Button>
+                                    </div>
+                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Target</TableHead>
+                                            <TableHead>Created</TableHead>
+                                            <TableHead>Impr.</TableHead>
+                                            <TableHead>Reactions</TableHead>
+                                            <TableHead>Comments</TableHead>
+                                            <TableHead>Shares</TableHead>
+                                            <TableHead>Clicks</TableHead>
+                                            <TableHead>Post</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {logs.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={9} className="text-muted-foreground">
+                                                    No LinkedIn shares yet.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                        {logs.map((log) => {
+                                            const entry = analyticsByLogId.get(log.id);
+                                            const metrics = entry?.metrics || null;
+                                            return (
+                                                <TableRow key={log.id}>
+                                                    <TableCell>
+                                                        <Badge variant={log.status === "success" ? "secondary" : "destructive"}>
+                                                            {log.status}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>{log.share_target || "member"}</TableCell>
+                                                    <TableCell>{formatDate(log.created_at)}</TableCell>
+                                                    <TableCell>{metrics?.impressionCount ?? "—"}</TableCell>
+                                                    <TableCell>{metrics?.likeCount ?? "—"}</TableCell>
+                                                    <TableCell>{metrics?.commentCount ?? "—"}</TableCell>
+                                                    <TableCell>{metrics?.shareCount ?? "—"}</TableCell>
+                                                    <TableCell>{metrics?.clickCount ?? "—"}</TableCell>
+                                                    <TableCell>
+                                                        {log.share_url ? (
+                                                            <a
+                                                                href={log.share_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                            >
+                                                                View
+                                                                <ExternalLink className="h-3 w-3" />
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-muted-foreground">—</span>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </AccordionContent>
+                        </AccordionItem>
 
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Target</TableHead>
-                                <TableHead>Created</TableHead>
-                                <TableHead>Impr.</TableHead>
-                                <TableHead>Reactions</TableHead>
-                                <TableHead>Comments</TableHead>
-                                <TableHead>Shares</TableHead>
-                                <TableHead>Clicks</TableHead>
-                                <TableHead>Post</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {logs.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={9} className="text-muted-foreground">
-                                        No LinkedIn shares yet.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                            {logs.map((log) => {
-                                const entry = analyticsByLogId.get(log.id);
-                                const metrics = entry?.metrics || null;
-                                return (
-                                    <TableRow key={log.id}>
-                                        <TableCell>
-                                            <Badge variant={log.status === "success" ? "secondary" : "destructive"}>
-                                                {log.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>{log.share_target || "member"}</TableCell>
-                                        <TableCell>{formatDate(log.created_at)}</TableCell>
-                                        <TableCell>{metrics?.impressionCount ?? "—"}</TableCell>
-                                        <TableCell>{metrics?.likeCount ?? "—"}</TableCell>
-                                        <TableCell>{metrics?.commentCount ?? "—"}</TableCell>
-                                        <TableCell>{metrics?.shareCount ?? "—"}</TableCell>
-                                        <TableCell>{metrics?.clickCount ?? "—"}</TableCell>
-                                        <TableCell>
-                                            {log.share_url ? (
-                                                <a
-                                                    href={log.share_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                                                >
-                                                    View
-                                                    <ExternalLink className="h-3 w-3" />
-                                                </a>
-                                            ) : (
-                                                <span className="text-muted-foreground">—</span>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
-                </div>
-
-                <div className="rounded-lg border bg-white p-4 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <div className="text-sm font-semibold">Scheduled Shares</div>
-                            <p className="text-xs text-muted-foreground">
-                                Upcoming LinkedIn posts queued by your team.
-                            </p>
-                        </div>
-                        <Button type="button" variant="outline" size="sm" onClick={loadScheduled} disabled={!connected || scheduledLoading}>
-                            {scheduledLoading ? "Refreshing…" : "Refresh schedule"}
-                        </Button>
-                    </div>
-
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Target</TableHead>
-                                <TableHead>Scheduled</TableHead>
-                                <TableHead>Visibility</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {scheduled.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-muted-foreground">
-                                        No scheduled LinkedIn shares.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                            {scheduled.map((item) => (
-                                <TableRow key={item.id}>
-                                    <TableCell>
-                                        <Badge variant="outline">{item.status}</Badge>
-                                    </TableCell>
-                                    <TableCell>{item.share_target || "member"}</TableCell>
-                                    <TableCell>{formatDate(item.scheduled_at)}</TableCell>
-                                    <TableCell>{item.visibility || "PUBLIC"}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                        <AccordionItem value="schedule">
+                            <AccordionTrigger className="px-3 py-2 text-sm font-semibold">
+                                Advanced: Scheduled Shares Queue
+                            </AccordionTrigger>
+                            <AccordionContent className="space-y-4 px-3 pb-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <p className="text-xs text-muted-foreground">
+                                        Upcoming LinkedIn posts queued by your team.
+                                    </p>
+                                    <Button type="button" variant="outline" size="sm" onClick={loadScheduled} disabled={!connected || scheduledLoading}>
+                                        {scheduledLoading ? "Refreshing…" : "Refresh schedule"}
+                                    </Button>
+                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Target</TableHead>
+                                            <TableHead>Scheduled</TableHead>
+                                            <TableHead>Visibility</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {scheduled.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-muted-foreground">
+                                                    No scheduled LinkedIn shares.
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                        {scheduled.map((item) => (
+                                            <TableRow key={item.id}>
+                                                <TableCell>
+                                                    <Badge variant="outline">{item.status}</Badge>
+                                                </TableCell>
+                                                <TableCell>{item.share_target || "member"}</TableCell>
+                                                <TableCell>{formatDate(item.scheduled_at)}</TableCell>
+                                                <TableCell>{item.visibility || "PUBLIC"}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
+                    )}
                 </div>
             </AdminSectionCard>
         </div>

@@ -118,7 +118,11 @@ export async function POST(req: NextRequest) {
     if (!account?.access_token) {
       return NextResponse.json({ error: 'LinkedIn account not connected.' }, { status: 400 });
     }
-    const scopes = Array.isArray(account.scopes) ? account.scopes : [];
+    const scopes = Array.isArray(account.scopes)
+      ? account.scopes
+      : typeof account.scopes === 'string'
+      ? account.scopes.split(/[\s,]+/).filter(Boolean)
+      : [];
     const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
     if (shareTarget === 'organization' && !hasOrgScope) {
       return NextResponse.json(

@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, ArrowUp01Icon, ArrowDown01Icon, Drag01Icon } from 'hugeicons-react';
+import { AdminActionBar, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface PageBlockItem {
   id?: string;
@@ -208,30 +209,34 @@ export default function PageBlockItemsManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold">{blockType === 'faq' ? 'FAQ Items' : 'Testimonials'}</div>
-        {!isAdding && (
-          <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
-            <Add01Icon size={14} className="mr-1" />
-            Add Item
-          </Button>
-        )}
-      </div>
+      <AdminActionBar>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div className="text-sm font-semibold">{blockType === 'faq' ? 'FAQ Items' : 'Testimonials'}</div>
+          {!isAdding && (
+            <Button size="sm" variant="outline" onClick={() => setIsAdding(true)}>
+              <Add01Icon size={14} className="mr-1" />
+              Add Item
+            </Button>
+          )}
+        </div>
+      </AdminActionBar>
 
       {isAdding && (
-        <ItemForm
-          values={newItem}
-          onChange={setNewItem}
-          onSave={handleAdd}
-          onCancel={() => setIsAdding(false)}
-          titleLabel={titleLabel}
-          subtitleLabel={subtitleLabel}
-          bodyLabel={bodyLabel}
-          isNew
-        />
+        <AdminSectionCard className="bg-muted/20">
+          <ItemForm
+            values={newItem}
+            onChange={setNewItem}
+            onSave={handleAdd}
+            onCancel={() => setIsAdding(false)}
+            titleLabel={titleLabel}
+            subtitleLabel={subtitleLabel}
+            bodyLabel={bodyLabel}
+            isNew
+          />
+        </AdminSectionCard>
       )}
 
-      <div className="space-y-2">
+      <AdminSectionCard className="space-y-2">
         {(items || []).map((item, index) => (
           <div
             key={item.id}
@@ -289,7 +294,7 @@ export default function PageBlockItemsManager({
             )}
           </div>
         ))}
-      </div>
+      </AdminSectionCard>
     </div>
   );
 }

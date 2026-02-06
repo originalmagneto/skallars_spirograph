@@ -53,12 +53,24 @@ export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return NextResponse.json({ error: 'Missing authorization token.' }, { status: 401 });
+    if (!token) {
+      return NextResponse.json({
+        analytics: [],
+        org_urn: null,
+        memberAnalyticsEnabled: false,
+        note: 'Missing authorization token.',
+      }, { status: 200 });
+    }
 
     const supabase = getSupabaseAdmin();
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData?.user) {
-      return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
+      return NextResponse.json({
+        analytics: [],
+        org_urn: null,
+        memberAnalyticsEnabled: false,
+        note: 'Invalid session.',
+      }, { status: 200 });
     }
 
     const { data: account } = await supabase
@@ -148,7 +160,11 @@ export async function GET(req: NextRequest) {
       analytics.push({ log_id: log.id, urn, metrics, source });
     });
 
-    const scopes = Array.isArray(account?.scopes) ? account.scopes : [];
+    const scopes = Array.isArray(account?.scopes)
+      ? account.scopes
+      : typeof account?.scopes === 'string'
+      ? account.scopes.split(/[\s,]+/).filter(Boolean)
+      : [];
     const hasMemberAnalytics = scopes.includes('r_member_postAnalytics');
 
     return NextResponse.json({
@@ -162,6 +178,11 @@ export async function GET(req: NextRequest) {
         : null,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to load LinkedIn analytics.' }, { status: 500 });
+    return NextResponse.json({
+      analytics: [],
+      org_urn: null,
+      memberAnalyticsEnabled: false,
+      note: error?.message || 'Failed to load LinkedIn analytics.',
+    }, { status: 200 });
   }
 }

@@ -51,10 +51,12 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [links, setLinks] = useState<string[]>(['']);
     const [articleType, setArticleType] = useState('Deep Dive');
     const [articleLength, setArticleLength] = useState('Medium');
+    const [uiMode, setUiMode] = useState<'simple' | 'power'>('simple');
     const [researchDepth, setResearchDepth] = useState<'Quick' | 'Deep'>('Quick');
     const [targetWordCount, setTargetWordCount] = useState(800);
     const [customPrompt, setCustomPrompt] = useState('');
     const [showPromptEditor, setShowPromptEditor] = useState(false);
+    const [showPowerControls, setShowPowerControls] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<GeneratedArticle | null>(null);
     const [useOutlineWorkflow, setUseOutlineWorkflow] = useState(false);
@@ -174,6 +176,16 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         const next = lengthDefaults[articleLength] || 800;
         setTargetWordCount(next);
     }, [articleLength]);
+
+    useEffect(() => {
+        if (uiMode !== 'simple') return;
+        // Keep basic mode opinionated for faster onboarding.
+        setArticleLength('Medium');
+        setTargetLanguages((prev) => {
+            if (prev.length === 2 && prev.includes('sk') && prev.includes('en')) return prev;
+            return ['sk', 'en'];
+        });
+    }, [uiMode]);
 
     useEffect(() => {
         if (!toneCustom) {
@@ -745,7 +757,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         <div className="space-y-6">
             <AdminPanelHeader
                 title="AI Article Generator"
-                description="Create structured, multilingual articles with optional deep research and saved draft handoff."
+                description="Set topic and research inputs, generate draft, then hand off to editor."
             />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Input Pane */}
@@ -760,6 +772,36 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <div className="rounded-lg border border-primary/10 bg-muted/20 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <div className="text-sm font-medium">Control Mode</div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Basic mode shows only core controls. Power mode unlocks full tuning.
+                                    </p>
+                                </div>
+                                <div className="inline-flex rounded-md border bg-white p-1">
+                                    <Button
+                                        size="sm"
+                                        variant={uiMode === 'simple' ? 'default' : 'ghost'}
+                                        className="h-7 px-3 text-xs"
+                                        onClick={() => setUiMode('simple')}
+                                    >
+                                        Basic
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant={uiMode === 'power' ? 'default' : 'ghost'}
+                                        className="h-7 px-3 text-xs"
+                                        onClick={() => setUiMode('power')}
+                                    >
+                                        Power
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {uiMode === 'power' && (
                         <div className="space-y-2">
                             <Label>Target Languages</Label>
                             <div className="flex flex-wrap gap-2">
@@ -785,8 +827,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                 ))}
                             </div>
                         </div>
+                        )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`grid grid-cols-1 ${uiMode === 'power' ? 'md:grid-cols-2' : ''} gap-4`}>
                             <div className="space-y-2">
                                 <Label>Article Type</Label>
                                 <Select value={articleType} onValueChange={setArticleType}>
@@ -804,6 +847,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            {uiMode === 'power' && (
                             <div className="space-y-2">
                                 <Label>Length</Label>
                                 <Select value={articleLength} onValueChange={(value) => setArticleLength(value)}>
@@ -819,6 +863,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            )}
                         </div>
 
                         <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-primary/10">
@@ -842,78 +887,111 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             </p>
                         </div>
 
+                        {uiMode === 'power' ? (
                         <Accordion type="single" collapsible className="w-full rounded-lg border border-primary/10 px-3 bg-muted/20">
                             <AccordionItem value="advanced" className="border-b-0">
                                 <AccordionTrigger className="py-3 text-sm font-medium no-underline hover:no-underline">
                                     Advanced Controls (Model, Tone, Outline, Prompt)
                                 </AccordionTrigger>
                                 <AccordionContent className="space-y-4 pb-3">
-                                    <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-primary/10">
-                                        <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                        <div className="space-y-0.5">
                                             <Label className="text-sm font-medium flex items-center gap-2">
                                                 <AiMagicIcon size={16} className="text-primary" />
-                                                Article Model & Thinking Budget
+                                                Power Controls
                                             </Label>
-                                            {articleSettingsDirty && (
-                                                <Badge variant="outline">Unsaved</Badge>
-                                            )}
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Article Model</Label>
-                                                {modelOptions.length > 0 ? (
-                                                    <Select value={currentModel} onValueChange={setCurrentModel}>
-                                                        <SelectTrigger>
-                                                            <SelectValue placeholder="Select model" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {modelOptions.map((model) => (
-                                                                <SelectItem key={model.name} value={model.name}>
-                                                                    {model.displayName || model.name}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : (
-                                                    <Input
-                                                        value={currentModel}
-                                                        onChange={(e) => setCurrentModel(e.target.value)}
-                                                        placeholder="gemini-2.5-pro"
-                                                    />
-                                                )}
-                                                <p className="text-[10px] text-muted-foreground">
-                                                    These settings only affect the Article Generator. Main AI Settings are used elsewhere.
-                                                </p>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-xs text-muted-foreground">Thinking Budget</Label>
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    max={4096}
-                                                    value={thinkingBudget}
-                                                    onChange={(e) => setThinkingBudget(Math.max(0, parseInt(e.target.value) || 0))}
-                                                />
-                                                <p className="text-[10px] text-muted-foreground">
-                                                    Set 0 to disable. Only supported on thinking-capable models.
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[10px] text-muted-foreground">
-                                                Model list {modelLoading ? 'loading…' : 'ready'}.
+                                            <p className="text-xs text-muted-foreground">
+                                                Enable model override, thinking budget, custom prompt, and connection testing.
                                             </p>
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => saveArticleSettings()}
-                                                disabled={articleSettingsSaving}
-                                            >
-                                                {articleSettingsSaving ? 'Saving…' : 'Save Article Settings'}
-                                            </Button>
                                         </div>
+                                        <Switch
+                                            checked={showPowerControls}
+                                            onCheckedChange={(value) => {
+                                                setShowPowerControls(value);
+                                                if (!value) setShowPromptEditor(false);
+                                            }}
+                                        />
                                     </div>
+
+                                    {showPowerControls && (
+                                        <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <Label className="text-sm font-medium flex items-center gap-2">
+                                                    <AiMagicIcon size={16} className="text-primary" />
+                                                    Article Model & Thinking Budget
+                                                </Label>
+                                                {articleSettingsDirty && (
+                                                    <Badge variant="outline">Unsaved</Badge>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-muted-foreground">Article Model</Label>
+                                                    {modelOptions.length > 0 ? (
+                                                        <Select value={currentModel} onValueChange={setCurrentModel}>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select model" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {modelOptions.map((model) => (
+                                                                    <SelectItem key={model.name} value={model.name}>
+                                                                        {model.displayName || model.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    ) : (
+                                                        <Input
+                                                            value={currentModel}
+                                                            onChange={(e) => setCurrentModel(e.target.value)}
+                                                            placeholder="gemini-2.5-pro"
+                                                        />
+                                                    )}
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        Article-only override. Main AI settings remain global.
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-muted-foreground">Thinking Budget</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        max={4096}
+                                                        value={thinkingBudget}
+                                                        onChange={(e) => setThinkingBudget(Math.max(0, parseInt(e.target.value) || 0))}
+                                                    />
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        Set `0` to disable.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Model list {modelLoading ? 'loading…' : 'ready'}.
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 px-3 text-xs"
+                                                        onClick={handleTestConnection}
+                                                        disabled={testRunning || generating}
+                                                    >
+                                                        {testRunning ? 'Testing…' : 'Test Connection'}
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => saveArticleSettings()}
+                                                        disabled={articleSettingsSaving}
+                                                    >
+                                                        {articleSettingsSaving ? 'Saving…' : 'Save Article Settings'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="space-y-2">
                                         <div className="flex items-center justify-between">
@@ -1084,48 +1162,57 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                         </div>
                                     )}
 
-                                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-sm font-medium flex items-center gap-2">
-                                                <PlusSignIcon size={16} className="text-primary" rotate={showPromptEditor ? 45 : 0} />
-                                                Customize System Prompt
-                                            </Label>
-                                            <p className="text-xs text-muted-foreground">
-                                                View and edit the exact instructions sent to AI.
-                                            </p>
-                                        </div>
-                                        <Switch
-                                            checked={showPromptEditor}
-                                            onCheckedChange={(val) => {
-                                                if (val && !customPrompt) handlePreparePrompt();
-                                                setShowPromptEditor(val);
-                                            }}
-                                        />
-                                    </div>
-
-                                    {showPromptEditor && (
-                                        <div className="space-y-2 pt-2">
-                                            <div className="flex items-center justify-between">
-                                                <Label className="text-xs uppercase text-muted-foreground">System Prompt Editor</Label>
-                                                <Button variant="ghost" size="sm" onClick={handleResetPrompt} className="text-xs h-7">
-                                                    Reset to Default
-                                                </Button>
+                                    {showPowerControls && (
+                                        <>
+                                            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                                <div className="space-y-0.5">
+                                                    <Label className="text-sm font-medium flex items-center gap-2">
+                                                        <PlusSignIcon size={16} className="text-primary" rotate={showPromptEditor ? 45 : 0} />
+                                                        Customize System Prompt
+                                                    </Label>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Edit the exact instructions sent to AI.
+                                                    </p>
+                                                </div>
+                                                <Switch
+                                                    checked={showPromptEditor}
+                                                    onCheckedChange={(val) => {
+                                                        if (val && !customPrompt) handlePreparePrompt();
+                                                        setShowPromptEditor(val);
+                                                    }}
+                                                />
                                             </div>
-                                            <Textarea
-                                                value={customPrompt}
-                                                onChange={(e) => setCustomPrompt(e.target.value)}
-                                                rows={10}
-                                                className="font-mono text-xs bg-muted/50"
-                                                placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings…"
-                                            />
-                                            <p className="text-[10px] text-orange-500 font-medium">
-                                                Caution: manually changing JSON instructions may break generation.
-                                            </p>
-                                        </div>
+
+                                            {showPromptEditor && (
+                                                <div className="space-y-2 pt-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-xs uppercase text-muted-foreground">System Prompt Editor</Label>
+                                                        <Button variant="ghost" size="sm" onClick={handleResetPrompt} className="text-xs h-7">
+                                                            Reset to Default
+                                                        </Button>
+                                                    </div>
+                                                    <Textarea
+                                                        value={customPrompt}
+                                                        onChange={(e) => setCustomPrompt(e.target.value)}
+                                                        rows={10}
+                                                        className="font-mono text-xs bg-muted/50"
+                                                        placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings…"
+                                                    />
+                                                    <p className="text-[10px] text-orange-500 font-medium">
+                                                        Caution: manual JSON changes can break generation.
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>
+                        ) : (
+                            <div className="rounded-lg border border-dashed border-primary/20 bg-muted/10 p-3 text-xs text-muted-foreground">
+                                Need model/tone/prompt control, outline workflow, or custom thinking budget? Switch to <strong>Power</strong> mode.
+                            </div>
+                        )}
 
                         {!showPromptEditor && (
                             <div className="space-y-2">
@@ -1214,15 +1301,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     <span className="text-[10px]">Request ID: {lastRequestId}</span>
                                 )}
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs"
-                                onClick={handleTestConnection}
-                                disabled={testRunning || generating}
-                            >
-                                {testRunning ? 'Testing...' : 'Test Connection'}
-                            </Button>
+                            {showPowerControls ? (
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Power mode enabled</span>
+                            ) : (
+                                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Essentials mode</span>
+                            )}
                         </div>
                     </CardFooter>
                 </Card>

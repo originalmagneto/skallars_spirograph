@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Add01Icon, Delete01Icon, PencilEdit01Icon, Cancel01Icon, Tick01Icon, FileBlockIcon, ArrowUp01Icon, ArrowDown01Icon } from 'hugeicons-react';
 import PageBlockItemsManager from './PageBlockItemsManager';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface PageBlock {
   id?: string;
@@ -252,31 +253,42 @@ export default function PageBlocksManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FileBlockIcon size={18} className="text-primary" />
-          <h3 className="text-sm font-semibold">Homepage Blocks</h3>
-          <Badge variant="secondary">{blocks?.length || 0}</Badge>
-        </div>
-        {!isAdding && (
-          <Button size="sm" onClick={() => setIsAdding(true)}>
-            <Add01Icon size={14} className="mr-1" />
-            Add Block
-          </Button>
+      <AdminPanelHeader
+        title="Homepage Blocks"
+        description="Manage callout, testimonials, and FAQ blocks with ordering controls."
+        actions={(
+          <>
+            <Badge variant="secondary">{blocks?.length || 0}</Badge>
+            {!isAdding && (
+              <Button size="sm" onClick={() => setIsAdding(true)}>
+                <Add01Icon size={14} className="mr-1" />
+                Add Block
+              </Button>
+            )}
+          </>
         )}
-      </div>
+      />
+
+      <AdminActionBar>
+        <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+          <FileBlockIcon size={14} className="text-primary" />
+          Move blocks with arrows and keep only required sections enabled.
+        </span>
+      </AdminActionBar>
 
       {isAdding && (
-        <BlockForm
-          values={newBlock}
-          onChange={setNewBlock}
-          onSave={handleAdd}
-          onCancel={() => setIsAdding(false)}
-          isNew
-        />
+        <AdminSectionCard className="bg-muted/20">
+          <BlockForm
+            values={newBlock}
+            onChange={setNewBlock}
+            onSave={handleAdd}
+            onCancel={() => setIsAdding(false)}
+            isNew
+          />
+        </AdminSectionCard>
       )}
 
-      <div className="space-y-3">
+      <AdminSectionCard className="space-y-3">
         {blocksSorted.map((block, index) => (
           <div key={block.id} className="border rounded-lg px-4 py-3 bg-white">
             <div className="flex items-center justify-between">
@@ -319,7 +331,7 @@ export default function PageBlocksManager() {
             )}
           </div>
         ))}
-      </div>
+      </AdminSectionCard>
     </div>
   );
 }
