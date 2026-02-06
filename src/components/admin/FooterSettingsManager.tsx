@@ -92,24 +92,39 @@ export default function FooterSettingsManager() {
         actions={<Badge variant="secondary">Sections</Badge>}
       />
 
-      <AdminSectionCard className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex items-center gap-2">
-          <Switch checked={form.show_contact} onCheckedChange={(v) => setForm({ ...form, show_contact: v })} />
-          <Label className="text-sm">Show Contact Column</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={form.show_solutions} onCheckedChange={(v) => setForm({ ...form, show_solutions: v })} />
-          <Label className="text-sm">Show Solutions Column</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={form.show_newsletter} onCheckedChange={(v) => setForm({ ...form, show_newsletter: v })} />
-          <Label className="text-sm">Show Newsletter Column</Label>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={form.show_social} onCheckedChange={(v) => setForm({ ...form, show_social: v })} />
-          <Label className="text-sm">Show Social Icons</Label>
-        </div>
-      </AdminSectionCard>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <AdminSectionCard className="space-y-3 xl:col-span-8">
+          <div className="text-sm font-semibold">Visibility</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+              <Switch checked={form.show_contact} onCheckedChange={(v) => setForm({ ...form, show_contact: v })} />
+              <Label className="text-sm">Show Contact Column</Label>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+              <Switch checked={form.show_solutions} onCheckedChange={(v) => setForm({ ...form, show_solutions: v })} />
+              <Label className="text-sm">Show Solutions Column</Label>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+              <Switch checked={form.show_newsletter} onCheckedChange={(v) => setForm({ ...form, show_newsletter: v })} />
+              <Label className="text-sm">Show Newsletter Column</Label>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+              <Switch checked={form.show_social} onCheckedChange={(v) => setForm({ ...form, show_social: v })} />
+              <Label className="text-sm">Show Social Icons</Label>
+            </div>
+          </div>
+        </AdminSectionCard>
+
+        <AdminSectionCard className="space-y-3 xl:col-span-4">
+          <div className="text-sm font-semibold">Snapshot</div>
+          <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+            <div className="rounded-md border bg-muted/30 p-2">Contact: {form.show_contact ? 'On' : 'Off'}</div>
+            <div className="rounded-md border bg-muted/30 p-2">Solutions: {form.show_solutions ? 'On' : 'Off'}</div>
+            <div className="rounded-md border bg-muted/30 p-2">Newsletter: {form.show_newsletter ? 'On' : 'Off'}</div>
+            <div className="rounded-md border bg-muted/30 p-2">Social: {form.show_social ? 'On' : 'Off'}</div>
+          </div>
+        </AdminSectionCard>
+      </div>
 
       <AdminActionBar>
         <Button size="sm" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>

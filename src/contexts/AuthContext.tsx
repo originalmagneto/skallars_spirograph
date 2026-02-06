@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const roleRetryRef = useRef(0);
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
-    const ROLE_CHECK_TIMEOUT_MS = 9000;
+    const ROLE_CHECK_TIMEOUT_MS = 15000;
 
     const readRoleCache = (userId: string) => {
         try {
@@ -138,11 +138,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }, 3000);
 
         // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
-                fetchRoles(session.user.id);
+                await fetchRoles(session.user.id);
             }
             clearTimeout(timeoutId);
             setLoading(false);

@@ -13,14 +13,20 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Article Editor LinkedIn UI simplification in progress (Basic vs Power).
 - Residual runtime noise cleanup in progress (`settings` fetch noise + non-blocking LinkedIn API handling).
 
+**Status (Feb 6, 2026 - step update)**
+- Step 2 hardening pass applied:
+  - LinkedIn Settings/Article Editor now tolerate non-JSON and non-200 org/analytics responses with fallback behavior.
+  - Initial role resolution now blocks auth loading completion to reduce transient "Permission Required" states.
+  - Role check timeout window increased for cold starts and slower API responses.
+
 ## Step 5 (Current): Reliability + UX Cleanup
 - Remove residual `settings`-fetch runtime noise by consolidating reads through tolerant map fetches and avoiding strict single-row expectations. 🔄
-- Make LinkedIn status the single source of truth for default organization URN in UI (remove duplicate client-side settings fetches). 🔄
+- Make LinkedIn status the single source of truth for default organization URN in UI (remove duplicate client-side settings fetches). ✅
 - Harden LinkedIn API routes to handle mixed scope formats and always return non-blocking fallback payloads for organizations/analytics. 🔄
 - Simplify Article Editor LinkedIn panel with **Basic vs Power** mode:
   - Basic: connect, target, org, message, share.
-  - Power: share type, image post controls, scheduling, logs, diagnostics. 🔄
-- Validate full production build after cleanup and close remaining regressions before next feature work. ⏳
+  - Power: share type, image post controls, scheduling, logs, diagnostics. ✅
+- Validate full production build after cleanup and close remaining regressions before next feature work. ✅
 
 ## Step 1 (Now): Stability Hardening (LinkedIn + Admin Access)
 - Make LinkedIn endpoints **degrade gracefully** (no hard-fail UI when org scopes/org APIs are unavailable). ✅
@@ -161,7 +167,10 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Route legacy `/admin/*` pages to canonical query-based shell to prevent parallel UI systems. ✅
 - Standardize internal manager component headers/actions to shared primitives (`AdminPanelHeader`, `AdminSectionCard`) for core modules (`ArticleStudio`, `AILab`, `ArticleEditor`, `LinkedInSettings`, `ContentManager`, `PageLayoutManager`, `MediaLibraryManager`, `UserManagement`). ✅
 - Next: apply shared primitives to remaining secondary managers (Blocks, Team, Clients, Footer, Services, News) for full design parity. ⏳
-- Next: compact visual noise in advanced controls across AI + LinkedIn panels without losing power-user depth. ⏳
+- Compact visual noise in advanced controls across AI + LinkedIn panels without losing power-user depth. ✅
+- Settings workspace bento layout pass (AI left column, LinkedIn + SEO right column; compact cards). ✅
+- Apply the same bento density pattern to secondary settings managers (News, Footer, Team, Clients) for consistency. ✅
+- Next: normalize form-card density in member/client create-edit forms (reduce horizontal sprawl while preserving fields). ⏳
 
 ## Phase 8: Social Distribution (LinkedIn) (In Progress)
 - Define **LinkedIn app setup** steps + required permissions (Organization + Member posting). ✅

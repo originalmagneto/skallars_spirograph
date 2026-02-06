@@ -540,83 +540,95 @@ const TeamMembersManager = () => {
                 )}
             />
 
-            <AdminSectionCard className="space-y-4 bg-muted/20">
-                <div className="flex items-center gap-2">
-                    <UserIcon size={18} className="text-primary" />
-                    <h3 className="text-sm font-semibold">Team Section Settings</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <Label className="text-xs">Desktop Columns</Label>
-                        <Input
-                            type="number"
-                            min={2}
-                            max={4}
-                            value={settingsForm.columns_desktop}
-                            onChange={(e) => setSettingsForm({
-                                ...settingsForm,
-                                columns_desktop: Math.max(2, Math.min(4, parseInt(e.target.value) || 4))
-                            })}
-                            className="mt-1"
-                        />
-                    </div>
-                    <div>
-                        <Label className="text-xs">Tablet Columns</Label>
-                        <Input
-                            type="number"
-                            min={1}
-                            max={3}
-                            value={settingsForm.columns_tablet}
-                            onChange={(e) => setSettingsForm({
-                                ...settingsForm,
-                                columns_tablet: Math.max(1, Math.min(3, parseInt(e.target.value) || 2))
-                            })}
-                            className="mt-1"
-                        />
-                    </div>
-                    <div>
-                        <Label className="text-xs">Mobile Columns</Label>
-                        <Input
-                            type="number"
-                            min={1}
-                            max={2}
-                            value={settingsForm.columns_mobile}
-                            onChange={(e) => setSettingsForm({
-                                ...settingsForm,
-                                columns_mobile: Math.max(1, Math.min(2, parseInt(e.target.value) || 1))
-                            })}
-                            className="mt-1"
-                        />
-                    </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-6">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                <AdminSectionCard className="space-y-4 bg-muted/20 xl:col-span-8">
                     <div className="flex items-center gap-2">
-                        <Switch
-                            checked={settingsForm.show_icon}
-                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_icon: v })}
-                        />
-                        <Label className="text-xs">Show Icons</Label>
+                        <UserIcon size={18} className="text-primary" />
+                        <h3 className="text-sm font-semibold">Team Section Settings</h3>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Switch
-                            checked={settingsForm.show_bio}
-                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_bio: v })}
-                        />
-                        <Label className="text-xs">Show Bio</Label>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-md border bg-white p-3">
+                            <Label className="text-xs">Desktop Columns</Label>
+                            <Input
+                                type="number"
+                                min={2}
+                                max={4}
+                                value={settingsForm.columns_desktop}
+                                onChange={(e) => setSettingsForm({
+                                    ...settingsForm,
+                                    columns_desktop: Math.max(2, Math.min(4, parseInt(e.target.value) || 4))
+                                })}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                            <Label className="text-xs">Tablet Columns</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={3}
+                                value={settingsForm.columns_tablet}
+                                onChange={(e) => setSettingsForm({
+                                    ...settingsForm,
+                                    columns_tablet: Math.max(1, Math.min(3, parseInt(e.target.value) || 2))
+                                })}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                            <Label className="text-xs">Mobile Columns</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={2}
+                                value={settingsForm.columns_mobile}
+                                onChange={(e) => setSettingsForm({
+                                    ...settingsForm,
+                                    columns_mobile: Math.max(1, Math.min(2, parseInt(e.target.value) || 1))
+                                })}
+                                className="mt-1"
+                            />
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Switch
-                            checked={settingsForm.show_linkedin}
-                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_linkedin: v })}
-                        />
-                        <Label className="text-xs">Show LinkedIn</Label>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+                            <Switch
+                                checked={settingsForm.show_icon}
+                                onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_icon: v })}
+                            />
+                            <Label className="text-xs">Show Icons</Label>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+                            <Switch
+                                checked={settingsForm.show_bio}
+                                onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_bio: v })}
+                            />
+                            <Label className="text-xs">Show Bio</Label>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+                            <Switch
+                                checked={settingsForm.show_linkedin}
+                                onCheckedChange={(v) => setSettingsForm({ ...settingsForm, show_linkedin: v })}
+                            />
+                            <Label className="text-xs">Show LinkedIn</Label>
+                        </div>
                     </div>
-                </div>
-                <Button size="sm" onClick={() => saveSettingsMutation.mutate(settingsForm)} disabled={saveSettingsMutation.isPending}>
-                    <SaveEnergy01Icon size={14} className="mr-1" />
-                    {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
-                </Button>
-            </AdminSectionCard>
+                </AdminSectionCard>
+
+                <AdminSectionCard className="space-y-3 xl:col-span-4">
+                    <div className="text-sm font-semibold">Snapshot</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <div className="rounded-md border bg-muted/30 p-2">Desktop: {settingsForm.columns_desktop}</div>
+                        <div className="rounded-md border bg-muted/30 p-2">Tablet: {settingsForm.columns_tablet}</div>
+                        <div className="rounded-md border bg-muted/30 p-2">Mobile: {settingsForm.columns_mobile}</div>
+                        <div className="rounded-md border bg-muted/30 p-2">LinkedIn: {settingsForm.show_linkedin ? 'On' : 'Off'}</div>
+                    </div>
+                    <Button size="sm" onClick={() => saveSettingsMutation.mutate(settingsForm)} disabled={saveSettingsMutation.isPending}>
+                        <SaveEnergy01Icon size={14} className="mr-1" />
+                        {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
+                    </Button>
+                </AdminSectionCard>
+            </div>
 
             <AdminActionBar>
                 <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">

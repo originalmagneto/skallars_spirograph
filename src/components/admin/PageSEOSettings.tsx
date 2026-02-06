@@ -66,57 +66,59 @@ export default function PageSEOSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-4">
-          <div className="text-sm font-semibold">Home Page</div>
-          <div className="space-y-2">
-            <Label>Title</Label>
-            <Input
-              value={form.seo_home_title}
-              onChange={(e) => setForm((prev) => ({ ...prev, seo_home_title: e.target.value }))}
-            />
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <div className="space-y-4 rounded-xl border bg-muted/10 p-4">
+            <div className="text-sm font-semibold">Home Page</div>
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                value={form.seo_home_title}
+                onChange={(e) => setForm((prev) => ({ ...prev, seo_home_title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                rows={3}
+                value={form.seo_home_description}
+                onChange={(e) => setForm((prev) => ({ ...prev, seo_home_description: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>OpenGraph Image URL</Label>
+              <Input
+                value={form.seo_home_og_image}
+                onChange={(e) => setForm((prev) => ({ ...prev, seo_home_og_image: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea
-              rows={3}
-              value={form.seo_home_description}
-              onChange={(e) => setForm((prev) => ({ ...prev, seo_home_description: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>OpenGraph Image URL</Label>
-            <Input
-              value={form.seo_home_og_image}
-              onChange={(e) => setForm((prev) => ({ ...prev, seo_home_og_image: e.target.value }))}
-              placeholder="https://..."
-            />
-          </div>
-        </div>
 
-        <div className="space-y-4">
-          <div className="text-sm font-semibold">Blog Index</div>
-          <div className="space-y-2">
-            <Label>Title</Label>
-            <Input
-              value={form.seo_blog_title}
-              onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_title: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea
-              rows={3}
-              value={form.seo_blog_description}
-              onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_description: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>OpenGraph Image URL</Label>
-            <Input
-              value={form.seo_blog_og_image}
-              onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_og_image: e.target.value }))}
-              placeholder="https://..."
-            />
+          <div className="space-y-4 rounded-xl border bg-muted/10 p-4">
+            <div className="text-sm font-semibold">Blog Index</div>
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                value={form.seo_blog_title}
+                onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                rows={3}
+                value={form.seo_blog_description}
+                onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_description: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>OpenGraph Image URL</Label>
+              <Input
+                value={form.seo_blog_og_image}
+                onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_og_image: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
           </div>
         </div>
 

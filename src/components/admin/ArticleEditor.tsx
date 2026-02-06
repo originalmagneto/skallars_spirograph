@@ -237,6 +237,14 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         organizationOptions[0]?.urn ||
         '';
 
+    const parseJsonSafe = async (res: Response) => {
+        try {
+            return await res.json();
+        } catch {
+            return {};
+        }
+    };
+
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
         queryKey: ['article-edit', articleId],
@@ -361,7 +369,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 const res = await fetch('/api/linkedin/status', {
                     headers: { Authorization: `Bearer ${session.access_token}` },
                 });
-                const data = await res.json();
+                const data = await parseJsonSafe(res);
                 if (res.ok) {
                     setLinkedinStatus(data);
                     if (data?.default_org_urn) {
@@ -534,7 +542,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const res = await fetch(`/api/linkedin/logs?articleId=${articleId}`, {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
             if (res.ok && Array.isArray(data.logs)) {
                 setLinkedinLogs(data.logs);
             }
@@ -556,7 +564,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const res = await fetch(`/api/linkedin/scheduled?articleId=${articleId}`, {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
             if (res.ok && Array.isArray(data.scheduled)) {
                 setLinkedinScheduled(data.scheduled);
             }
@@ -859,7 +867,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const res = await fetch('/api/linkedin/organizations', {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
+            const fallbackOrgs = [
+                ...(linkedinDefaultOrgUrn ? [{ urn: linkedinDefaultOrgUrn, name: 'Default Organization' }] : []),
+                ...((linkedinStatus?.organization_urns || []).map((urn) => ({ urn, name: urn }))),
+            ];
+            const dedup = new Map<string, { urn: string; name: string }>();
+            fallbackOrgs.forEach((org) => dedup.set(org.urn, org));
+            const fallbackList = Array.from(dedup.values());
+
             if (Array.isArray(data.organizations)) {
                 setLinkedinOrganizations(data.organizations);
                 if (!linkedinDefaultOrgUrn && data?.default_org_urn) {
@@ -879,6 +895,20 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 if (data?.error && data.organizations.length === 0) {
                     toast.error(data.error);
                 }
+            } else if (!res.ok) {
+                if (fallbackList.length > 0) {
+                    setLinkedinOrganizations(fallbackList);
+                    if (!linkedinOrganizationUrn) {
+                        setLinkedinOrganizationUrn(fallbackList[0].urn);
+                    }
+                    if (data?.error) {
+                        toast.warning(`${data.error} Using fallback organization.`);
+                    } else {
+                        toast.warning('LinkedIn org API is unavailable. Using fallback organization.');
+                    }
+                    return;
+                }
+                toast.error(data?.error || 'Failed to load LinkedIn organizations.');
             } else if (data?.error) {
                 toast.error(data.error);
             } else {

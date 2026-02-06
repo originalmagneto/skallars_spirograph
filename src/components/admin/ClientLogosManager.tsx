@@ -395,53 +395,64 @@ const ClientLogosManager = () => {
                 )}
             />
 
-            <AdminSectionCard className="space-y-4 bg-muted/20">
-                <div className="flex items-center gap-2">
-                    <Image01Icon size={18} className="text-primary" />
-                    <h3 className="text-sm font-semibold">Clients Section Settings</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <Label className="text-xs">Visible Logos</Label>
-                        <Input
-                            type="number"
-                            min={1}
-                            max={6}
-                            value={settingsForm.visible_count}
-                            onChange={(e) => setSettingsForm({
-                                ...settingsForm,
-                                visible_count: Math.max(1, Math.min(6, parseInt(e.target.value) || 1))
-                            })}
-                            className="mt-1"
-                        />
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                <AdminSectionCard className="space-y-4 bg-muted/20 xl:col-span-8">
+                    <div className="flex items-center gap-2">
+                        <Image01Icon size={18} className="text-primary" />
+                        <h3 className="text-sm font-semibold">Clients Section Settings</h3>
                     </div>
-                    <div>
-                        <Label className="text-xs">Autoplay Interval (ms)</Label>
-                        <Input
-                            type="number"
-                            min={500}
-                            max={10000}
-                            value={settingsForm.autoplay_interval_ms}
-                            onChange={(e) => setSettingsForm({
-                                ...settingsForm,
-                                autoplay_interval_ms: Math.max(500, parseInt(e.target.value) || 3000)
-                            })}
-                            className="mt-1"
-                        />
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-md border bg-white p-3">
+                            <Label className="text-xs">Visible Logos</Label>
+                            <Input
+                                type="number"
+                                min={1}
+                                max={6}
+                                value={settingsForm.visible_count}
+                                onChange={(e) => setSettingsForm({
+                                    ...settingsForm,
+                                    visible_count: Math.max(1, Math.min(6, parseInt(e.target.value) || 1))
+                                })}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div className="rounded-md border bg-white p-3">
+                            <Label className="text-xs">Autoplay Interval (ms)</Label>
+                            <Input
+                                type="number"
+                                min={500}
+                                max={10000}
+                                value={settingsForm.autoplay_interval_ms}
+                                onChange={(e) => setSettingsForm({
+                                    ...settingsForm,
+                                    autoplay_interval_ms: Math.max(500, parseInt(e.target.value) || 3000)
+                                })}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+                            <Switch
+                                checked={settingsForm.autoplay}
+                                onCheckedChange={(v) => setSettingsForm({ ...settingsForm, autoplay: v })}
+                            />
+                            <Label className="text-xs">Autoplay</Label>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 pt-6">
-                        <Switch
-                            checked={settingsForm.autoplay}
-                            onCheckedChange={(v) => setSettingsForm({ ...settingsForm, autoplay: v })}
-                        />
-                        <Label className="text-xs">Autoplay</Label>
+                </AdminSectionCard>
+
+                <AdminSectionCard className="space-y-3 xl:col-span-4">
+                    <div className="text-sm font-semibold">Snapshot</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <div className="rounded-md border bg-muted/30 p-2">Visible: {settingsForm.visible_count}</div>
+                        <div className="rounded-md border bg-muted/30 p-2">Autoplay: {settingsForm.autoplay ? 'On' : 'Off'}</div>
+                        <div className="col-span-2 rounded-md border bg-muted/30 p-2">Interval: {settingsForm.autoplay_interval_ms} ms</div>
                     </div>
-                </div>
-                <Button size="sm" onClick={() => saveSettingsMutation.mutate(settingsForm)} disabled={saveSettingsMutation.isPending}>
-                    <SaveEnergy01Icon size={14} className="mr-1" />
-                    {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
-                </Button>
-            </AdminSectionCard>
+                    <Button size="sm" onClick={() => saveSettingsMutation.mutate(settingsForm)} disabled={saveSettingsMutation.isPending}>
+                        <SaveEnergy01Icon size={14} className="mr-1" />
+                        {saveSettingsMutation.isPending ? 'Saving...' : 'Save Settings'}
+                    </Button>
+                </AdminSectionCard>
+            </div>
 
             <AdminActionBar>
                 <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">

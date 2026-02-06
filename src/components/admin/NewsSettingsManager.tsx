@@ -99,52 +99,60 @@ export default function NewsSettingsManager() {
         </AdminActionBar>
       )}
 
-      <AdminSectionCard className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label className="text-xs">Posts to show</Label>
-          <Input
-            type="number"
-            min={1}
-            max={20}
-            value={form.limit_count}
-            onChange={(e) => setForm({ ...form, limit_count: parseInt(e.target.value) || 1 })}
-            className="mt-1"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Autoplay Interval (ms)</Label>
-          <Input
-            type="number"
-            min={10}
-            max={500}
-            value={form.autoplay_interval_ms}
-            onChange={(e) => setForm({ ...form, autoplay_interval_ms: parseInt(e.target.value) || 50 })}
-            className="mt-1"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Scroll Step (px per tick)</Label>
-          <Input
-            type="number"
-            min={1}
-            max={10}
-            value={form.scroll_step}
-            onChange={(e) => setForm({ ...form, scroll_step: parseInt(e.target.value) || 1 })}
-            className="mt-1"
-          />
-        </div>
-      </AdminSectionCard>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <AdminSectionCard className="space-y-4 bg-muted/10 xl:col-span-7">
+          <div className="text-sm font-semibold">Feed Limits</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-md border bg-white p-3">
+              <Label className="text-xs">Posts to show</Label>
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={form.limit_count}
+                onChange={(e) => setForm({ ...form, limit_count: parseInt(e.target.value) || 1 })}
+                className="mt-1"
+              />
+            </div>
+            <div className="rounded-md border bg-white p-3">
+              <Label className="text-xs">Scroll Step (px per tick)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={form.scroll_step}
+                onChange={(e) => setForm({ ...form, scroll_step: parseInt(e.target.value) || 1 })}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        </AdminSectionCard>
 
-      <AdminSectionCard className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <Switch checked={form.show_view_all} onCheckedChange={(value) => setForm({ ...form, show_view_all: value })} />
-          <span className="text-sm">Show “View all” button</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={form.autoplay} onCheckedChange={(value) => setForm({ ...form, autoplay: value })} />
-          <span className="text-sm">Enable autoplay</span>
-        </div>
-      </AdminSectionCard>
+        <AdminSectionCard className="space-y-4 bg-muted/10 xl:col-span-5">
+          <div className="text-sm font-semibold">Playback</div>
+          <div className="rounded-md border bg-white p-3">
+            <Label className="text-xs">Autoplay Interval (ms)</Label>
+            <Input
+              type="number"
+              min={10}
+              max={500}
+              value={form.autoplay_interval_ms}
+              onChange={(e) => setForm({ ...form, autoplay_interval_ms: parseInt(e.target.value) || 50 })}
+              className="mt-1"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+              <Switch checked={form.show_view_all} onCheckedChange={(value) => setForm({ ...form, show_view_all: value })} />
+              <span className="text-sm">Show “View all”</span>
+            </div>
+            <div className="flex items-center gap-2 rounded-md border bg-white p-3">
+              <Switch checked={form.autoplay} onCheckedChange={(value) => setForm({ ...form, autoplay: value })} />
+              <span className="text-sm">Enable autoplay</span>
+            </div>
+          </div>
+        </AdminSectionCard>
+      </div>
 
       <AdminActionBar>
         <Button size="sm" onClick={() => saveMutation.mutate(form)} disabled={saveMutation.isPending}>

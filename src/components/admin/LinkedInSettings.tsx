@@ -110,6 +110,14 @@ export default function LinkedInSettings() {
         return map;
     }, [analytics]);
 
+    const parseJsonSafe = async (res: Response) => {
+        try {
+            return await res.json();
+        } catch {
+            return {};
+        }
+    };
+
     useEffect(() => {
         if (!session?.access_token) return;
         loadStatus();
@@ -137,7 +145,7 @@ export default function LinkedInSettings() {
             const res = await fetch("/api/linkedin/status", {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
             if (res.ok) {
                 setStatus(data);
                 if (!defaultOrgUrn && data?.default_org_urn) {
@@ -166,7 +174,15 @@ export default function LinkedInSettings() {
             const res = await fetch("/api/linkedin/organizations", {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
+            const fallbackOrgs = [
+                ...(defaultOrgUrn ? [{ urn: defaultOrgUrn, name: "Default Organization" }] : []),
+                ...((status?.organization_urns || []).map((urn) => ({ urn, name: urn }))),
+            ];
+            const dedup = new Map<string, LinkedInOrg>();
+            fallbackOrgs.forEach((org) => dedup.set(org.urn, org));
+            const fallbackList = Array.from(dedup.values());
+
             if (Array.isArray(data.organizations)) {
                 setOrganizations(data.organizations);
                 if (!defaultOrgUrn && data?.default_org_urn) {
@@ -178,10 +194,34 @@ export default function LinkedInSettings() {
                     setDefaultOrgUrn(status.organization_urns[0]);
                 }
             }
+            if (!res.ok) {
+                if (fallbackList.length > 0) {
+                    setOrganizations(fallbackList);
+                }
+                if (data?.error) {
+                    toast.warning(data.error);
+                } else {
+                    toast.warning("LinkedIn org API is temporarily unavailable. Using fallback organizations.");
+                }
+                return;
+            }
+
             if (data?.error && (!Array.isArray(data.organizations) || data.organizations.length === 0)) {
                 toast.error(data.error);
             }
         } catch {
+            const fallback = [
+                ...(defaultOrgUrn ? [{ urn: defaultOrgUrn, name: "Default Organization" }] : []),
+                ...((status?.organization_urns || []).map((urn) => ({ urn, name: urn }))),
+            ];
+            const dedup = new Map<string, LinkedInOrg>();
+            fallback.forEach((org) => dedup.set(org.urn, org));
+            const fallbackList = Array.from(dedup.values());
+            if (fallbackList.length > 0) {
+                setOrganizations(fallbackList);
+                toast.warning("LinkedIn org API failed. Fallback organizations loaded.");
+                return;
+            }
             toast.error("Failed to load LinkedIn organizations.");
         } finally {
             setOrgsLoading(false);
@@ -195,7 +235,7 @@ export default function LinkedInSettings() {
             const res = await fetch("/api/linkedin/logs", {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
             if (res.ok && Array.isArray(data.logs)) {
                 setLogs(data.logs);
             }
@@ -213,7 +253,7 @@ export default function LinkedInSettings() {
             const res = await fetch("/api/linkedin/scheduled", {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
             if (res.ok && Array.isArray(data.scheduled)) {
                 setScheduled(data.scheduled);
             }
@@ -232,7 +272,7 @@ export default function LinkedInSettings() {
             const res = await fetch("/api/linkedin/analytics", {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
-            const data = await res.json();
+            const data = await parseJsonSafe(res);
             if (res.ok && Array.isArray(data.analytics)) {
                 setAnalytics(data.analytics);
                 setAnalyticsNote(data.note || null);
@@ -240,6 +280,9 @@ export default function LinkedInSettings() {
                 setMemberAnalyticsEnabled(Boolean(data.memberAnalyticsEnabled));
             } else if (data?.note) {
                 setAnalyticsNote(data.note);
+            } else if (!res.ok) {
+                setAnalytics([]);
+                setAnalyticsNote("LinkedIn analytics is temporarily unavailable.");
             }
         } catch {
             setAnalyticsNote("Failed to load LinkedIn analytics.");
@@ -347,112 +390,114 @@ export default function LinkedInSettings() {
                     </div>
                 </div>
 
-                <div className="rounded-lg border bg-muted/10 p-4 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="space-y-1">
-                            <div className="text-sm font-semibold">Connection</div>
-                            {statusLoading ? (
-                                <p className="text-xs text-muted-foreground">Checking LinkedIn status…</p>
-                            ) : connected ? (
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                    Connected as {status?.member_name || "LinkedIn Member"}
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <XCircle className="h-4 w-4 text-red-500" />
-                                    Not connected
-                                </div>
-                            )}
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/10 p-4 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="space-y-1">
+                                <div className="text-sm font-semibold">Connection</div>
+                                {statusLoading ? (
+                                    <p className="text-xs text-muted-foreground">Checking LinkedIn status…</p>
+                                ) : connected ? (
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                        Connected as {status?.member_name || "LinkedIn Member"}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <XCircle className="h-4 w-4 text-red-500" />
+                                        Not connected
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Button type="button" variant="outline" size="sm" onClick={loadStatus}>
+                                    Refresh
+                                </Button>
+                                {connected ? (
+                                    <Button type="button" variant="destructive" size="sm" onClick={handleDisconnect}>
+                                        Disconnect
+                                    </Button>
+                                ) : (
+                                    <Button type="button" size="sm" onClick={handleConnect}>
+                                        Connect LinkedIn
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={loadStatus}>
-                                Refresh
+
+                        {connected && (
+                            <div className="flex flex-wrap gap-2">
+                                {scopeBadges.length === 0 && (
+                                    <Badge variant="outline">No scopes detected</Badge>
+                                )}
+                                {scopeBadges.map((scope) => (
+                                    <Badge key={scope} variant="secondary">
+                                        {scope}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="rounded-lg border bg-white p-4 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <div className="text-sm font-semibold">Default Organization</div>
+                                <p className="text-xs text-muted-foreground">
+                                    Used for company shares when no organization is selected in Article Studio.
+                                </p>
+                            </div>
+                            <Button type="button" variant="outline" size="sm" onClick={loadOrganizations} disabled={!connected || orgsLoading}>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                {orgsLoading ? "Refreshing…" : "Load organizations"}
                             </Button>
-                            {connected ? (
-                                <Button type="button" variant="destructive" size="sm" onClick={handleDisconnect}>
-                                    Disconnect
-                                </Button>
-                            ) : (
-                                <Button type="button" size="sm" onClick={handleConnect}>
-                                    Connect LinkedIn
-                                </Button>
+                        </div>
+
+                        {organizationOptions.length > 0 && (
+                            <div className="space-y-2">
+                                <Label>Organization list</Label>
+                                <Select value={defaultOrgUrn || undefined} onValueChange={setDefaultOrgUrn}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select organization" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {organizationOptions.map((org) => (
+                                            <SelectItem key={org.urn} value={org.urn}>
+                                                {org.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <Label>Organization URN</Label>
+                            <Input
+                                value={defaultOrgUrn}
+                                onChange={(e) => setDefaultOrgUrn(e.target.value)}
+                                placeholder="urn:li:organization:123456"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Paste the URN if the list is empty or you need a specific organization.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Button type="button" size="sm" onClick={handleSaveDefaults} disabled={savingDefaults}>
+                                {savingDefaults ? "Saving…" : "Save defaults"}
+                            </Button>
+                            {defaultOrgUrn && (
+                                <Badge variant="outline">Default saved</Badge>
                             )}
                         </div>
                     </div>
-
-                    {connected && (
-                        <div className="flex flex-wrap gap-2">
-                            {scopeBadges.length === 0 && (
-                                <Badge variant="outline">No scopes detected</Badge>
-                            )}
-                            {scopeBadges.map((scope) => (
-                                <Badge key={scope} variant="secondary">
-                                    {scope}
-                                </Badge>
-                            ))}
-                        </div>
-                    )}
                 </div>
                 <AdminActionBar>
                     <span className="text-sm text-muted-foreground">
                         Primary flow: connect LinkedIn, load organizations, save default URN.
                     </span>
                 </AdminActionBar>
-
-                <div className="rounded-lg border bg-white p-4 space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <div className="text-sm font-semibold">Default Organization</div>
-                            <p className="text-xs text-muted-foreground">
-                                Used for company shares when no organization is selected in Article Studio.
-                            </p>
-                        </div>
-                        <Button type="button" variant="outline" size="sm" onClick={loadOrganizations} disabled={!connected || orgsLoading}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            {orgsLoading ? "Refreshing…" : "Load organizations"}
-                        </Button>
-                    </div>
-
-                    {organizationOptions.length > 0 && (
-                        <div className="space-y-2">
-                            <Label>Organization list</Label>
-                            <Select value={defaultOrgUrn || undefined} onValueChange={setDefaultOrgUrn}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select organization" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {organizationOptions.map((org) => (
-                                        <SelectItem key={org.urn} value={org.urn}>
-                                            {org.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-
-                    <div className="space-y-2">
-                        <Label>Organization URN</Label>
-                        <Input
-                            value={defaultOrgUrn}
-                            onChange={(e) => setDefaultOrgUrn(e.target.value)}
-                            placeholder="urn:li:organization:123456"
-                        />
-                        <p className="text-[10px] text-muted-foreground">
-                            Paste the URN if the list is empty or you need a specific organization.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <Button type="button" size="sm" onClick={handleSaveDefaults} disabled={savingDefaults}>
-                            {savingDefaults ? "Saving…" : "Save defaults"}
-                        </Button>
-                        {defaultOrgUrn && (
-                            <Badge variant="outline">Default saved</Badge>
-                        )}
-                    </div>
-                </div>
 
                 <div className="rounded-lg border bg-white p-2">
                     {settingsMode === "simple" ? (

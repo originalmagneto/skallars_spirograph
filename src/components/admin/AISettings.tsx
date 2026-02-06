@@ -247,7 +247,7 @@ const AISettings = () => {
     const priceOutput = settings.find(s => s.key === 'gemini_price_output_per_million')?.value || '';
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {/* 1. Usage Statistics */}
             <AIUsageStats />
 
@@ -264,10 +264,10 @@ const AISettings = () => {
             />
 
             {/* 3. Main Setting Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
 
                 {/* A. Core API Config */}
-                <Card className="lg:col-span-2 shadow-sm border-border/60">
+                <Card className="xl:col-span-4 shadow-sm border-border/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                             <Key01Icon size={18} className="text-primary" /> Core Credentials
@@ -325,7 +325,7 @@ const AISettings = () => {
                 </Card>
 
                 {/* B. Cost & Pricing */}
-                <Card className="lg:col-span-1 shadow-sm border-border/60">
+                <Card className="xl:col-span-2 shadow-sm border-border/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                             <Coins01Icon size={18} className="text-primary" /> Cost Settings
@@ -360,17 +360,17 @@ const AISettings = () => {
                 </Card>
 
                 {/* C. Image Generation Settings */}
-                <Card className="lg:col-span-3 shadow-sm border-border/60">
+                <Card className="xl:col-span-6 shadow-sm border-border/60">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-base">
                             <Image01Icon size={18} className="text-primary" /> Image Studio Config
                         </CardTitle>
                         <CardDescription>Configure models and preferences for article cover generation.</CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <CardContent className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
                         {/* Mode Selection */}
-                        <div className="space-y-4">
+                        <div className="space-y-4 xl:col-span-7">
                             <Label className="text-sm font-semibold flex items-center gap-2">
                                 <MagicWand01Icon size={14} /> Default Quality Mode
                             </Label>
@@ -414,7 +414,7 @@ const AISettings = () => {
                         </div>
 
                         {/* Advanced Image Keys & Model Override */}
-                        <div className="space-y-4 md:border-l md:pl-8">
+                        <div className="space-y-4 xl:col-span-5 xl:border-l xl:pl-6">
                             <div className="space-y-3">
                                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Advanced Configuration</Label>
 
