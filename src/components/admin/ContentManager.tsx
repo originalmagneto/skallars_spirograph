@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -21,10 +20,9 @@ import {
     Menu01Icon
 } from 'hugeicons-react';
 import { generateContentTranslation } from '@/lib/aiService';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
 import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
 import { cn } from '@/lib/utils';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 // -- Interfaces --
 
@@ -450,107 +448,94 @@ const ContentManager = () => {
     }, {} as Record<string, number>);
 
     return (
-        <div className="flex flex-col h-[calc(100vh-100px)] -mx-6 -my-6 bg-slate-50 font-sans">
-            {/* Horizontal Header & Nav - V4 Responsive Sidebar Mimic */}
-            <div className="bg-slate-50 flex-none z-20 mb-6">
-                <div className="px-6 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 bg-white">
-                    <div>
-                        <h2 className="text-[#210059] font-bold text-lg tracking-tight">Site Editor</h2>
-                        <p className="text-xs text-slate-500">Manage global content</p>
-                    </div>
-
-                    <div className="relative w-full md:w-64">
+        <div className="space-y-5">
+            <AdminPanelHeader
+                title="Site Editor"
+                description="Manage global website content and translations."
+                actions={
+                    <div className="relative w-full md:w-72">
                         <Search01Icon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
+                        <Input
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search content..."
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#210059] placeholder:text-slate-400 transition-all"
+                            className="pl-9"
                         />
                     </div>
+                }
+            />
+
+            <AdminActionBar className="overflow-x-auto">
+                <div className="inline-flex items-center gap-1 p-1 rounded-lg border bg-white min-w-full md:min-w-0">
+                    {Object.entries(SECTION_CONFIG).map(([key, config]) => {
+                        const isActive = activeSection === key && !searchQuery;
+                        const count = sectionCounts[key] || 0;
+                        const Icon = config.icon || ArrowRight01Icon;
+
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => { setActiveSection(key); setSearchQuery(''); }}
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-2 text-sm font-medium whitespace-nowrap rounded-md transition-colors min-w-fit",
+                                    isActive
+                                        ? "bg-slate-100 text-[#210059]"
+                                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                )}
+                            >
+                                <Icon size={16} className={cn(isActive ? "text-[#210059]" : "text-slate-400")} />
+                                <span>{config.en}</span>
+                                {count > 0 && (
+                                    <span className={cn(
+                                        "text-[10px] px-1.5 py-0.5 rounded ml-1 transition-colors",
+                                        isActive ? "bg-white text-[#210059]" : "bg-slate-100 text-slate-500"
+                                    )}>
+                                        {count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
+            </AdminActionBar>
 
-                {/* Horizontal Scrolling Tabs (Sidebar Style) */}
-                <div className="px-6 pt-4 pb-2 overflow-x-auto no-scrollbar">
-                    <div className="inline-flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-xl min-w-full md:min-w-0">
-                        {Object.entries(SECTION_CONFIG).map(([key, config]) => {
-                            const isActive = activeSection === key && !searchQuery;
-                            const count = sectionCounts[key] || 0;
-                            const Icon = config.icon || ArrowRight01Icon;
-
-                            return (
-                                <button
-                                    key={key}
-                                    onClick={() => { setActiveSection(key); setSearchQuery(''); }}
-                                    className={cn(
-                                        "flex items-center gap-2 px-3 py-2 text-sm font-medium whitespace-nowrap rounded-lg transition-colors min-w-fit",
-                                        isActive
-                                            ? "bg-slate-100 text-[#210059]"
-                                            : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                                    )}
-                                >
-                                    <Icon size={16} className={cn(isActive ? "text-[#210059]" : "text-slate-400")} />
-                                    <span>{config.en}</span>
-                                    {count > 0 && (
-                                        <span className={cn(
-                                            "text-[10px] px-1.5 py-0.5 rounded ml-1 transition-colors",
-                                            isActive ? "bg-white text-[#210059]" : "bg-slate-100 text-slate-500"
-                                        )}>
-                                            {count}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
+            <AdminSectionCard className="p-0 overflow-hidden">
+                <div className="px-6 py-4 border-b bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-[#210059]">
+                            {searchQuery ? 'Search Results' : SECTION_CONFIG[activeSection]?.en}
+                        </h3>
+                        <span className="text-sm text-slate-500">{filteredItems.length} items</span>
                     </div>
-                </div>
-            </div>
-
-            {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto">
-                <div className="max-w-5xl mx-auto px-6 md:px-10 pb-10">
-                    <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-baseline gap-3">
-                            <h1 className="text-2xl font-bold text-[#210059]">
-                                {searchQuery ? 'Search Results' : SECTION_CONFIG[activeSection]?.en}
-                            </h1>
-                            <span className="text-sm text-slate-400 font-medium">
-                                {filteredItems.length} items
-                            </span>
+                    <div className="flex gap-3 text-xs text-slate-500">
+                        <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-orange-100 ring-1 ring-orange-200" /> Draft
                         </div>
-                        <div className="flex gap-2 text-xs text-slate-500">
-                            <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-orange-100 ring-1 ring-orange-200" /> Draft
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-white ring-1 ring-slate-200" /> Published
-                            </div>
+                        <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-white ring-1 ring-slate-200" /> Published
                         </div>
                     </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
-                        {filteredItems.length > 0 ? (
-                            <motion.div layout className="divide-y divide-slate-100">
-                                {filteredItems.map(item => (
-                                    <ContentRow
-                                        key={item.key}
-                                        item={item}
-                                        isSelected={selectedKey === item.key}
-                                        onSelect={(i) => setSelectedKey(i ? i.key : null)}
-                                        onSave={handleSave}
-                                        onPublish={handlePublish}
-                                    />
-                                ))}
-                            </motion.div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center p-20 text-slate-400">
-                                <Search01Icon size={48} className="text-slate-200 mb-4" />
-                                <p>No content found in this section.</p>
-                            </div>
-                        )}
-                    </div>
                 </div>
-            </div>
+                {filteredItems.length > 0 ? (
+                    <motion.div layout className="divide-y divide-slate-100 min-h-[420px]">
+                        {filteredItems.map(item => (
+                            <ContentRow
+                                key={item.key}
+                                item={item}
+                                isSelected={selectedKey === item.key}
+                                onSelect={(i) => setSelectedKey(i ? i.key : null)}
+                                onSave={handleSave}
+                                onPublish={handlePublish}
+                            />
+                        ))}
+                    </motion.div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center p-20 text-slate-400 min-h-[420px]">
+                        <Search01Icon size={48} className="text-slate-200 mb-4" />
+                        <p>No content found in this section.</p>
+                    </div>
+                )}
+            </AdminSectionCard>
         </div>
     );
 };

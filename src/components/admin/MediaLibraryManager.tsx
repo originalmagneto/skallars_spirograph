@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Delete01Icon, Copy01Icon, Upload01Icon, Image01Icon } from "hugeicons-react";
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from "@/components/admin/AdminPrimitives";
 
 type MediaItem = {
   id: string;
@@ -118,10 +119,15 @@ export default function MediaLibraryManager() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border bg-white p-4 space-y-4">
+      <AdminPanelHeader
+        title="Media Library"
+        description="Upload and manage reusable images for content and articles."
+      />
+
+      <AdminSectionCard className="space-y-4">
         <div className="text-sm font-semibold flex items-center gap-2">
           <Image01Icon size={16} />
-          Media Library
+          Upload Image
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="space-y-2">
@@ -144,18 +150,20 @@ export default function MediaLibraryManager() {
           </Button>
           <span className="text-xs text-muted-foreground">Uploads go to the `images` bucket.</span>
         </div>
-      </div>
+      </AdminSectionCard>
 
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-semibold">Library Items</div>
-        <div className="w-full max-w-xs">
-          <Input
-            placeholder="Search by title or tag"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <AdminActionBar className="bg-white">
+        <div className="flex w-full items-center justify-between gap-4">
+          <div className="text-sm font-semibold">Library Items</div>
+          <div className="w-full max-w-xs">
+            <Input
+              placeholder="Search by title or tag"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
-      </div>
+      </AdminActionBar>
 
       {isLoading ? (
         <div className="text-xs text-muted-foreground">Loading media...</div>

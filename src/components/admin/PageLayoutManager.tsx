@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { LayoutGridIcon, ArrowUp01Icon, ArrowDown01Icon, FilterResetIcon, SaveEnergy01Icon } from 'hugeicons-react';
+import { ArrowUp01Icon, ArrowDown01Icon, FilterResetIcon, SaveEnergy01Icon } from 'hugeicons-react';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface PageSectionRow {
   id?: string;
@@ -115,31 +116,31 @@ export default function PageLayoutManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <LayoutGridIcon size={20} className="text-primary" />
-          <h2 className="text-lg font-semibold">Homepage Layout</h2>
-          <Badge variant="secondary">{layoutItems.length}</Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={resetToDefault}>
-            <FilterResetIcon size={14} className="mr-1" />
-            Reset Default
-          </Button>
-          <Button size="sm" onClick={saveLayout} disabled={!dirty || saveMutation.isPending}>
-            <SaveEnergy01Icon size={14} className="mr-1" />
-            {saveMutation.isPending ? 'Saving...' : 'Save Layout'}
-          </Button>
-        </div>
-      </div>
+      <AdminPanelHeader
+        title="Homepage Layout"
+        description="Order sections and control visibility on the public home page."
+        actions={
+          <>
+            <Badge variant="secondary">{layoutItems.length}</Badge>
+            <Button size="sm" variant="outline" onClick={resetToDefault}>
+              <FilterResetIcon size={14} className="mr-1" />
+              Reset Default
+            </Button>
+            <Button size="sm" onClick={saveLayout} disabled={!dirty || saveMutation.isPending}>
+              <SaveEnergy01Icon size={14} className="mr-1" />
+              {saveMutation.isPending ? 'Saving...' : 'Save Layout'}
+            </Button>
+          </>
+        }
+      />
 
       {!hasData && isError && (
-        <div className="text-sm text-muted-foreground">
+        <AdminActionBar className="text-sm text-muted-foreground">
           Layout table not found. Please run the Phase 2 SQL setup.
-        </div>
+        </AdminActionBar>
       )}
 
-      <div className="space-y-2">
+      <AdminSectionCard className="space-y-2">
         {layoutItems.map((item, index) => (
           <div key={item.section_key} className="flex items-center justify-between border rounded-lg px-4 py-3 bg-white">
             <div className="flex items-center gap-4">
@@ -162,7 +163,7 @@ export default function PageLayoutManager() {
             </div>
           </div>
         ))}
-      </div>
+      </AdminSectionCard>
     </div>
   );
 }

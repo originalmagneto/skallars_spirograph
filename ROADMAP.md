@@ -127,7 +127,8 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Enforce one canonical admin shell and remove mixed legacy page layouts. ✅
 - Normalize navigation patterns (workspace switch + section nav + consistent panel header). ✅
 - Route legacy `/admin/*` pages to canonical query-based shell to prevent parallel UI systems. ✅
-- Next: standardize internal manager component headers/actions to shared primitives (`AdminPanelHeader`, `AdminSectionCard`). ⏳
+- Standardize internal manager component headers/actions to shared primitives (`AdminPanelHeader`, `AdminSectionCard`) for core modules (`ArticleStudio`, `AILab`, `ArticleEditor`, `LinkedInSettings`, `ContentManager`, `PageLayoutManager`, `MediaLibraryManager`, `UserManagement`). ✅
+- Next: apply shared primitives to remaining secondary managers (Blocks, Team, Clients, Footer, Services, News) for full design parity. ⏳
 - Next: compact visual noise in advanced controls across AI + LinkedIn panels without losing power-user depth. ⏳
 
 ## Phase 8: Social Distribution (LinkedIn) (In Progress)

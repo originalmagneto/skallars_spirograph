@@ -11,13 +11,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
-    Delete01Icon,
     UserIcon,
     Shield01Icon,
     PencilEdit01Icon,
     Cancel01Icon
 } from 'hugeicons-react';
 import { toast } from 'sonner';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 
 interface UserProfile {
     id: string;
@@ -87,21 +87,24 @@ const UserManagement = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">User Management</h2>
-                <Button variant="outline" asChild>
-                    <a
-                        href="https://supabase.com/dashboard/project/_/auth/users"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        Manage Auth Users (Supabase)
-                    </a>
-                </Button>
-            </div>
+            <AdminPanelHeader
+                title="User Management"
+                description="Manage roles and profile metadata for admin users."
+                actions={
+                    <Button variant="outline" asChild>
+                        <a
+                            href="https://supabase.com/dashboard/project/_/auth/users"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Manage Auth Users (Supabase)
+                        </a>
+                    </Button>
+                }
+            />
 
             {users && users.length > 0 ? (
-                <div className="space-y-2">
+                <AdminSectionCard className="space-y-2">
                     {users.map((user) => (
                         <div
                             key={user.id}
@@ -160,12 +163,12 @@ const UserManagement = () => {
                             </div>
                         </div>
                     ))}
-                </div>
+                </AdminSectionCard>
             ) : (
-                <div className="text-center py-12 border-2 border-dashed border-border rounded-lg">
+                <AdminActionBar className="text-center py-12 border-2 border-dashed border-border rounded-lg">
                     <UserIcon size={48} className="mx-auto text-muted-foreground mb-4" />
                     <p className="text-muted-foreground mb-4">No users found.</p>
-                </div>
+                </AdminActionBar>
             )}
 
             {/* Edit User Dialog */}
