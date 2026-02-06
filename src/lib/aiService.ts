@@ -104,7 +104,7 @@ const estimateMaxOutputTokens = (targetWordCount?: number, languageCount?: numbe
 
 const buildThinkingConfig = (model: string, thinkingBudget?: number | null) => {
     if (!thinkingBudget || thinkingBudget <= 0) return null;
-    if (!/gemini-2\\.5/i.test(model)) return null;
+    if (!/gemini-2\.5/i.test(model)) return null;
     return {
         thinkingConfig: { thinkingBudget },
         thinking_config: { thinkingBudget }
@@ -763,7 +763,7 @@ export async function generateAIArticle(
         cn: 'Chinese (CN)',
     };
 
-    const requestModelOutput = async (promptText: string) => {
+    const requestModelOutput = async (promptText: string, groundingEnabled = useGrounding) => {
         const body: any = {
             contents: [{ parts: [{ text: promptText }] }],
             generationConfig: {
@@ -772,11 +772,11 @@ export async function generateAIArticle(
                 response_mime_type: "application/json",
                 maxOutputTokens,
                 ...(thinkingConfig || {}),
-                ...(useGrounding ? {} : { responseSchema: getArticleResponseSchema(targetLanguages), response_schema: getArticleResponseSchema(targetLanguages) })
+                ...(groundingEnabled ? {} : { responseSchema: getArticleResponseSchema(targetLanguages), response_schema: getArticleResponseSchema(targetLanguages) })
             }
         };
 
-        if (useGrounding) {
+        if (groundingEnabled) {
             body.tools = [{ googleSearch: {} }];
         }
 
@@ -818,6 +818,27 @@ Your previous output was incomplete. You must return full HTML article bodies fo
 - Do not return title-only or excerpt-only output.
 - Return valid raw JSON only.`;
             output = await requestModelOutput(retryPrompt);
+            parsedContent = tryParseJson(output.content) || await repairJsonWithGemini(output.content, selectedModel, apiKey, signal);
+        }
+
+        // If grounding flow still produced partial JSON, fall back to a schema-constrained pass
+        // while preserving discovered source context from the grounded response.
+        if (!hasCompleteMultilingualContent(parsedContent, targetLanguages) && useGrounding) {
+            const groundedSources = (output.groundingMetadata?.groundingChunks || [])
+                .map((chunk: any) => chunk?.web?.uri)
+                .filter(Boolean)
+                .slice(0, 12) as string[];
+            const fallbackPrompt = `${finalPrompt}
+
+### FALLBACK MODE
+Grounded generation returned incomplete content. Regenerate with strict JSON completeness.
+- Return complete HTML article fields for all requested languages.
+- Keep source-backed claims where relevant.
+- Output raw JSON only.
+
+### Grounded URLs (for context)
+${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs returned.'}`;
+            output = await requestModelOutput(fallbackPrompt, false);
             parsedContent = tryParseJson(output.content) || await repairJsonWithGemini(output.content, selectedModel, apiKey, signal);
         }
 

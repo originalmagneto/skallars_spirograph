@@ -48,6 +48,8 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Default cover generation to **Lite mode** so first-time users are not forced into provider/model choices. ✅
 - Move LinkedIn scheduling/log diagnostics into **Advanced LinkedIn Tools** while keeping Share as the primary action. ✅
 - Reduce noisy permission flow by removing automatic admin diagnostics and preventing overlapping access checks. ✅
+- Fix Gemini 2.5 thinking-budget detection so Article Studio budget overrides are actually applied on 2.5 models. ✅
+- Add grounded-generation fallback to schema-constrained JSON pass when Deep mode returns incomplete multi-language content. ✅
 
 ## Step 3 (Now): Runtime Noise + Fallback Hardening
 - Remove duplicated admin role resolution logic in `admin/layout` and use `AuthContext` as source of truth. ✅
