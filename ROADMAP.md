@@ -123,6 +123,13 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Unify AI settings into **one source of truth** with clear override UX. ✅
 - Widen admin layout + reduce cramped workspace controls. ✅
 
+## Phase 7.1: Admin Design System Unification (In Progress)
+- Enforce one canonical admin shell and remove mixed legacy page layouts. ✅
+- Normalize navigation patterns (workspace switch + section nav + consistent panel header). ✅
+- Route legacy `/admin/*` pages to canonical query-based shell to prevent parallel UI systems. ✅
+- Next: standardize internal manager component headers/actions to shared primitives (`AdminPanelHeader`, `AdminSectionCard`). ⏳
+- Next: compact visual noise in advanced controls across AI + LinkedIn panels without losing power-user depth. ⏳
+
 ## Phase 8: Social Distribution (LinkedIn) (In Progress)
 - Define **LinkedIn app setup** steps + required permissions (Organization + Member posting). ✅
 - Add **LinkedIn OAuth** per user with secure token storage + refresh.
