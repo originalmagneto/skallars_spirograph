@@ -90,9 +90,18 @@ export default function LinkedInSettings() {
     const [analytics, setAnalytics] = useState<LinkedInAnalyticsEntry[]>([]);
     const [analyticsLoading, setAnalyticsLoading] = useState(false);
     const [analyticsNote, setAnalyticsNote] = useState<string | null>(null);
+    const [statusNotice, setStatusNotice] = useState<string | null>(null);
     const [analyticsOrgUrn, setAnalyticsOrgUrn] = useState<string | null>(null);
     const [memberAnalyticsEnabled, setMemberAnalyticsEnabled] = useState(false);
     const [advancedOpen, setAdvancedOpen] = useState<string[]>([]);
+    const [orgAutoLoadAttempted, setOrgAutoLoadAttempted] = useState(false);
+    const connected = Boolean(status?.connected);
+    const scopeBadges = status?.scopes || [];
+    const hasOrgScope = scopeBadges.some((scope) =>
+        ['w_organization_social', 'r_organization_social', 'r_organization_admin', 'rw_organization_admin'].includes(scope)
+    );
+    const hasDefaultOrganization = Boolean(defaultOrgUrn.trim());
+    const companyShareReady = connected && hasOrgScope && hasDefaultOrganization;
 
     const organizationOptions = useMemo(() => {
         const map = new Map<string, LinkedInOrg>();
@@ -132,6 +141,7 @@ export default function LinkedInSettings() {
             setAnalytics([]);
             setAnalyticsOrgUrn(null);
             setAnalyticsNote("Connect LinkedIn to load analytics.");
+            setOrgAutoLoadAttempted(false);
             return;
         }
         loadLogs();
@@ -145,6 +155,16 @@ export default function LinkedInSettings() {
         loadAnalytics();
     }, [session?.access_token, status?.connected, settingsMode]);
 
+    useEffect(() => {
+        if (!session?.access_token) return;
+        if (!connected) return;
+        if (!hasOrgScope) return;
+        if (orgAutoLoadAttempted) return;
+        if (organizations.length > 0 || orgsLoading) return;
+        setOrgAutoLoadAttempted(true);
+        loadOrganizations();
+    }, [session?.access_token, connected, hasOrgScope, organizations.length, orgsLoading, orgAutoLoadAttempted]);
+
     const loadStatus = async () => {
         if (!session?.access_token) return;
         setStatusLoading(true);
@@ -155,8 +175,13 @@ export default function LinkedInSettings() {
             const data = await parseJsonSafe(res);
             if (res.ok) {
                 setStatus(data);
-                if (!defaultOrgUrn && data?.default_org_urn) {
-                    setDefaultOrgUrn(data.default_org_urn);
+                setStatusNotice(data?.error || null);
+                if (!defaultOrgUrn) {
+                    if (data?.default_org_urn) {
+                        setDefaultOrgUrn(data.default_org_urn);
+                    } else if (Array.isArray(data?.organization_urns) && data.organization_urns.length > 0) {
+                        setDefaultOrgUrn(data.organization_urns[0]);
+                    }
                 }
                 return;
             } else {
@@ -216,10 +241,11 @@ export default function LinkedInSettings() {
             }
 
             if (data?.error) {
+                const hintSuffix = data?.hint ? ` ${data.hint}` : "";
                 if (Array.isArray(data.organizations) || fallbackList.length > 0) {
-                    setOrgsNotice(`${data.error} Using fallback organization list.`);
+                    setOrgsNotice(`${data.error}${hintSuffix} Using fallback organization list.`);
                 } else {
-                    setOrgsNotice(data.error);
+                    setOrgsNotice(`${data.error}${hintSuffix}`);
                 }
             }
         } catch {
@@ -279,7 +305,21 @@ export default function LinkedInSettings() {
 
     const loadAnalytics = async () => {
         if (!session?.access_token) return;
-        if (!status?.connected) return;
+        if (!connected) return;
+        if (!hasOrgScope) {
+            setAnalytics([]);
+            setAnalyticsOrgUrn(null);
+            setMemberAnalyticsEnabled(false);
+            setAnalyticsNote("Organization analytics are unavailable because org scopes are missing.");
+            return;
+        }
+        if (!hasDefaultOrganization) {
+            setAnalytics([]);
+            setAnalyticsOrgUrn(null);
+            setMemberAnalyticsEnabled(false);
+            setAnalyticsNote("Set a default organization URN to enable company analytics.");
+            return;
+        }
         setAnalyticsLoading(true);
         try {
             const res = await fetch("/api/linkedin/analytics", {
@@ -288,11 +328,12 @@ export default function LinkedInSettings() {
             const data = await parseJsonSafe(res);
             if (res.ok && Array.isArray(data.analytics)) {
                 setAnalytics(data.analytics);
-                setAnalyticsNote(data.note || null);
+                setAnalyticsNote(data.note || data.error || null);
                 setAnalyticsOrgUrn(data.org_urn || null);
                 setMemberAnalyticsEnabled(Boolean(data.memberAnalyticsEnabled));
-            } else if (data?.note) {
-                setAnalyticsNote(data.note);
+            } else if (data?.note || data?.error) {
+                setAnalytics([]);
+                setAnalyticsNote(data.note || data.error);
             } else if (!res.ok) {
                 setAnalytics([]);
                 setAnalyticsNote("LinkedIn analytics is temporarily unavailable.");
@@ -361,9 +402,6 @@ export default function LinkedInSettings() {
             setSavingDefaults(false);
         }
     };
-
-    const connected = status?.connected;
-    const scopeBadges = status?.scopes || [];
 
     return (
         <div className="space-y-4">
@@ -450,6 +488,23 @@ export default function LinkedInSettings() {
                                 ))}
                             </div>
                         )}
+                        {statusNotice && (
+                            <p className="text-xs text-amber-700">{statusNotice}</p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                            <Badge variant={connected ? "secondary" : "outline"}>
+                                {connected ? "Connected" : "Disconnected"}
+                            </Badge>
+                            <Badge variant={hasOrgScope ? "secondary" : "outline"}>
+                                {hasOrgScope ? "Org scopes ready" : "Org scopes missing"}
+                            </Badge>
+                            <Badge variant={hasDefaultOrganization ? "secondary" : "outline"}>
+                                {hasDefaultOrganization ? "Default org set" : "Default org missing"}
+                            </Badge>
+                            <Badge variant={companyShareReady ? "secondary" : "outline"}>
+                                {companyShareReady ? "Company sharing ready" : "Company sharing incomplete"}
+                            </Badge>
+                        </div>
                     </div>
 
                     <div className="rounded-lg border bg-white p-4 space-y-4">
@@ -555,7 +610,7 @@ export default function LinkedInSettings() {
                                             variant="outline"
                                             size="sm"
                                             onClick={loadAnalytics}
-                                            disabled={!connected || analyticsLoading}
+                                            disabled={!connected || analyticsLoading || !hasOrgScope || !hasDefaultOrganization}
                                         >
                                             {analyticsLoading ? "Syncing…" : "Sync metrics"}
                                         </Button>

@@ -244,12 +244,12 @@ export default function AdminPage() {
                 return <AILab />;
             case "settings":
                 return (
-                    <div className="mx-auto w-full max-w-[1700px]">
+                    <div className="mx-auto w-full max-w-[1480px]">
                         <div className="grid grid-cols-1 gap-6 2xl:grid-cols-12 items-start">
                             <div className="space-y-6 2xl:col-span-7">
                                 <AISettings />
                             </div>
-                            <div className="space-y-6 2xl:col-span-5">
+                            <div className="space-y-6 2xl:col-span-5 2xl:max-w-[520px]">
                                 <LinkedInSettings />
                                 <PageSEOSettings />
                             </div>

@@ -60,6 +60,8 @@ Progress notes (current pass):
 - Auth startup timeout increased and role-fetch deduplicated in `AuthContext` to reduce false permission screens.
 - LinkedIn organization fallback errors are now shown inline (non-blocking) instead of repeated destructive toasts.
 - Admin shell now shows a lightweight warning banner only when role verification degrades, with retry and dismiss actions.
+- Removed aggressive background role recheck loop and increased server role timeout window to reduce transient timeout churn.
+- Added role-check throttle (2-minute minimum recheck window, force-refresh still available) to reduce timeout noise during token refresh churn.
 - Production build passes locally after this pass.
 
 Exit criteria:
@@ -146,6 +148,10 @@ Progress notes (current pass):
   - `Image Studio Mode`
   - `Image Advanced Configuration`
 - Short controls now sit in smaller cards instead of one full-width stretched panel.
+- Settings workspace max width tightened to reduce stretched controls on ultra-wide screens.
+- `CountriesSettingsPanel` refactored to compact bento cards with clear visibility and default-focus groups.
+- `SectionTemplatesPanel` migrated from long single-column selects to compact two-column card controls.
+- `PageSEOSettings` action and field group density aligned with the same bento/action-bar pattern.
 
 ---
 
@@ -170,9 +176,21 @@ Exit criteria:
 
 Progress notes (current pass):
 - Article Editor no longer hard-blocks company shares when org picker is empty; API fallback can resolve saved default org URN.
-- LinkedIn basic mode now auto-resolves share type (image+link when cover image exists, otherwise link).
+- LinkedIn basic mode now defaults to link-share only; image-share stays in `Power` mode.
 - LinkedIn Settings now loads analytics only in `Power` mode to reduce unnecessary API noise in normal operation.
 - Article list now shows explicit LinkedIn state (`Not shared`, `Scheduled`, `Shared`) with target context.
+- LinkedIn org discovery now falls back to: saved default URN, cached account URNs, and recent successful org share logs.
+- Share and schedule flows now enforce explicit org selection with a clear UX message before dispatching API calls.
+- LinkedIn org discovery now uses `roleAssignee=<member_urn>` for `organizationAcls` queries, which improves company-page detection reliability.
+- Link-share payloads now rely on URL unfurl metadata (`originalUrl` only) for richer preview card rendering.
+- Article Editor `Basic` mode now always uses link-share behavior; image-share is explicitly kept in `Power` mode.
+- LinkedIn Settings now exposes explicit readiness states (`Connected`, `Org scopes`, `Default org`, `Company sharing ready`).
+- LinkedIn Settings now auto-loads organization options after connect when org scopes are available.
+- LinkedIn Settings now auto-attempts org discovery once per connected session to prevent repeated fallback request loops.
+- Article Editor now provides explicit company-org guidance and one-click “Use saved default URN” fallback.
+- Article Editor share/schedule now attempts org discovery on-demand before failing, reducing manual URN friction.
+- LinkedIn schedule API now mirrors share API fallback order (`settings default -> env default -> cached org URNs -> recent successful org share`).
+- LinkedIn Settings now hydrates default org from cached connected account URNs when explicit default is not set.
 
 ---
 
@@ -183,7 +201,7 @@ Deliverables:
 - [x] add per-request budget guardrails in Article Studio
 - [x] add daily/monthly quota policy settings (admin-level)
 - [x] add rate-limit UX messaging (friendly, precise, no stack traces)
-- usage dashboard rollup by user/model/action
+- [x] usage dashboard rollup by user/model/action
 
 Progress notes (current pass):
 - Added `gemini_request_budget_usd` support directly in Article Studio power controls.
@@ -193,6 +211,7 @@ Progress notes (current pass):
 - Added global quota controls in AI Settings: daily/monthly token quotas, daily/monthly USD quotas, and request cooldown.
 - Added pre-dispatch quota checks in Article Studio with explicit, user-readable limit messages (daily/monthly token and USD projections).
 - Added client-side request cooldown enforcement with clear remaining-wait feedback.
+- Expanded AI Usage dashboard with explicit rollups by model and by action, plus quota overview cards (today/month tokens and USD vs configured caps).
 
 Exit criteria:
 - budget overruns are prevented before request dispatch
@@ -239,7 +258,7 @@ Exit criteria:
 
 ## 7) Immediate Next Step
 
-Start Phase 1 with a focused bug/noise sweep:
-- role-check timeout handling
-- tolerant settings/org fetch cleanup
-- non-blocking fallback message normalization
+Continue Phase 5 reliability pass:
+- verify company-page org auto-selection for users with org scopes
+- reduce remaining role-timeout noise in auth/admin shell
+- tighten LinkedIn analytics UI states (connected/no-scope/no-default-org)

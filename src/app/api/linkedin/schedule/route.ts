@@ -4,6 +4,12 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const toOrgUrn = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.startsWith('urn:li:organization:') ? trimmed : null;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
@@ -38,11 +44,15 @@ export async function POST(req: NextRequest) {
     if (shareTarget === 'organization') {
       const { data: accountRows } = await supabase
         .from('linkedin_accounts')
-        .select('scopes')
+        .select('scopes, organization_urns')
         .eq('user_id', userData.user.id)
         .limit(1);
       const account = accountRows?.[0];
-      const scopes = Array.isArray(account?.scopes) ? account.scopes : [];
+      const scopes = Array.isArray(account?.scopes)
+        ? account.scopes
+        : typeof account?.scopes === 'string'
+        ? account.scopes.split(/[\s,]+/).filter(Boolean)
+        : [];
       const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
       if (!hasOrgScope) {
         return NextResponse.json(
@@ -56,7 +66,32 @@ export async function POST(req: NextRequest) {
           .select('value')
           .eq('key', 'linkedin_default_org_urn')
           .limit(1);
-        organizationUrn = orgSettingRows?.[0]?.value || null;
+        organizationUrn =
+          toOrgUrn(orgSettingRows?.[0]?.value) ||
+          toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null) ||
+          null;
+      }
+      if (!organizationUrn && Array.isArray(account?.organization_urns)) {
+        organizationUrn = account.organization_urns
+          .map((urn) => toOrgUrn(urn))
+          .find(Boolean) || null;
+      }
+      if (!organizationUrn) {
+        const { data: recentOrgLog } = await supabase
+          .from('linkedin_share_logs')
+          .select('provider_response')
+          .eq('user_id', userData.user.id)
+          .eq('status', 'success')
+          .eq('share_target', 'organization')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        organizationUrn = toOrgUrn(recentOrgLog?.[0]?.provider_response?.author || null) || null;
+      }
+      if (!organizationUrn) {
+        return NextResponse.json(
+          { error: 'Select a LinkedIn organization or set a default organization URN in LinkedIn Settings.' },
+          { status: 400 }
+        );
       }
     }
 

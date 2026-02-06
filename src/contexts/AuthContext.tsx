@@ -27,13 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isEditor, setIsEditor] = useState(false);
     const [healthWarning, setHealthWarning] = useState<string | null>(null);
-    const roleRetryRef = useRef(0);
     const initialSessionResolvedRef = useRef(false);
     const roleFetchInFlightRef = useRef<Promise<void> | null>(null);
     const roleFetchUserRef = useRef<string | null>(null);
+    const lastRoleCheckRef = useRef<Record<string, number>>({});
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
-    const ROLE_CHECK_TIMEOUT_MS = 15000;
+    const ROLE_RECHECK_MIN_INTERVAL_MS = 1000 * 60 * 2; // 2 minutes
+    const ROLE_CHECK_TIMEOUT_MS = 22000;
+    const ROLE_CHECK_RETRIES = 3;
     const INITIAL_AUTH_TIMEOUT_MS = 12000;
 
     const readRoleCache = (userId: string) => {
@@ -73,7 +75,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
     };
 
-    const fetchRoles = useCallback(async (userId: string) => {
+    const fetchRoles = useCallback(async (userId: string, options?: { force?: boolean }) => {
+        const force = Boolean(options?.force);
         if (roleFetchInFlightRef.current && roleFetchUserRef.current === userId) {
             await roleFetchInFlightRef.current;
             return;
@@ -81,10 +84,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const run = async () => {
         const cachedRole = typeof window !== 'undefined' ? readRoleCache(userId) : null;
+        const lastCheckedAt = lastRoleCheckRef.current[userId] || 0;
+        const recentlyChecked = Date.now() - lastCheckedAt < ROLE_RECHECK_MIN_INTERVAL_MS;
+        if (!force && cachedRole && recentlyChecked) {
+            setIsAdmin(cachedRole === 'admin');
+            setIsEditor(cachedRole === 'editor' || cachedRole === 'admin');
+            setHealthWarning(null);
+            return;
+        }
+
         const applyRole = (role: string) => {
             setIsAdmin(role === 'admin');
             setIsEditor(role === 'editor' || role === 'admin');
             writeRoleCache(userId, role);
+            lastRoleCheckRef.current[userId] = Date.now();
         };
 
         if (cachedRole) {
@@ -101,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        for (let attempt = 0; attempt < 3; attempt += 1) {
+        for (let attempt = 0; attempt < ROLE_CHECK_RETRIES; attempt += 1) {
             try {
                 const res = await withTimeout(
                     fetch('/api/admin/role', {
@@ -116,7 +129,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const data = await res.json();
                     const role = data?.role || 'user';
                     applyRole(role);
-                    setHealthWarning(null);
+                    if (!data?.degraded) {
+                        setHealthWarning(null);
+                    } else if (!cachedRole) {
+                        setHealthWarning('Role verification is degraded. Using fallback role until profile check recovers.');
+                    }
                     return;
                 }
 
@@ -128,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch {
                 // Retry a couple of times before falling back to cache/guest role.
-                if (attempt < 2) {
+                if (attempt < ROLE_CHECK_RETRIES - 1) {
                     await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
                     continue;
                 }
@@ -137,8 +154,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cachedRole) {
             setIsAdmin(false);
             setIsEditor(false);
+            setHealthWarning('Role verification is currently slow or unavailable. Access checks may be temporarily delayed.');
+            return;
         }
-        setHealthWarning('Role verification is currently slow or unavailable. Access checks may be temporarily delayed.');
+        setHealthWarning(null);
         };
 
         let promise: Promise<void> | null = null;
@@ -155,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const refreshRoles = useCallback(async () => {
         if (user?.id) {
-            await fetchRoles(user.id);
+            await fetchRoles(user.id, { force: true });
         }
     }, [user?.id, fetchRoles]);
 
@@ -200,19 +219,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         return () => subscription.unsubscribe();
     }, [fetchRoles]);
-
-    useEffect(() => {
-        if (!user?.id) return;
-        if (isAdmin || isEditor) return;
-        if (roleRetryRef.current >= 3) return;
-
-        const timeout = setTimeout(() => {
-            roleRetryRef.current += 1;
-            fetchRoles(user.id);
-        }, 1200);
-
-        return () => clearTimeout(timeout);
-    }, [user?.id, isAdmin, isEditor, fetchRoles]);
 
     const signIn = async (email: string, password: string) => {
         try {

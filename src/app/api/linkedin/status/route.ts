@@ -4,16 +4,34 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const toOrgUrn = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.startsWith('urn:li:organization:') ? trimmed : null;
+};
+
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return NextResponse.json({ error: 'Missing authorization token.' }, { status: 401 });
+    if (!token) {
+      return NextResponse.json({
+        connected: false,
+        default_org_urn: toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null),
+        error: 'Missing authorization token.',
+        recoverable: true,
+      }, { status: 200 });
+    }
 
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data?.user) {
-      return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
+      return NextResponse.json({
+        connected: false,
+        default_org_urn: toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null),
+        error: 'Invalid session.',
+        recoverable: true,
+      }, { status: 200 });
     }
 
     const { data: accountRows } = await supabase
@@ -28,7 +46,9 @@ export async function GET(req: NextRequest) {
       .select('value')
       .eq('key', 'linkedin_default_org_urn')
       .limit(1);
-    const defaultOrgUrn = defaultOrgSetting?.[0]?.value || null;
+    const defaultOrgUrn =
+      toOrgUrn(defaultOrgSetting?.[0]?.value) ||
+      toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null);
 
     if (!account) {
       return NextResponse.json({
@@ -62,8 +82,15 @@ export async function GET(req: NextRequest) {
       organization_urns: mergedOrganizations,
       default_org_urn: defaultOrgUrn,
       updated_at: account.updated_at,
+      recoverable: false,
+      error: null,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Failed to load LinkedIn status.' }, { status: 500 });
+    return NextResponse.json({
+      connected: false,
+      default_org_urn: toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null),
+      error: error?.message || 'Failed to load LinkedIn status.',
+      recoverable: true,
+    }, { status: 200 });
   }
 }

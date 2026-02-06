@@ -4,6 +4,12 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const toOrgUrn = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.startsWith('urn:li:organization:') ? trimmed : null;
+};
+
 type ShareStats = {
   impressionCount?: number;
   likeCount?: number;
@@ -59,6 +65,8 @@ export async function GET(req: NextRequest) {
         org_urn: null,
         memberAnalyticsEnabled: false,
         note: 'Missing authorization token.',
+        error: 'Missing authorization token.',
+        recoverable: true,
       }, { status: 200 });
     }
 
@@ -70,12 +78,14 @@ export async function GET(req: NextRequest) {
         org_urn: null,
         memberAnalyticsEnabled: false,
         note: 'Invalid session.',
+        error: 'Invalid session.',
+        recoverable: true,
       }, { status: 200 });
     }
 
     const { data: accountRows } = await supabase
       .from('linkedin_accounts')
-      .select('access_token, scopes')
+      .select('access_token, scopes, organization_urns')
       .eq('user_id', userData.user.id)
       .limit(1);
     const account = accountRows?.[0];
@@ -86,6 +96,8 @@ export async function GET(req: NextRequest) {
         org_urn: null,
         memberAnalyticsEnabled: false,
         note: 'LinkedIn account not connected.',
+        error: 'LinkedIn account not connected.',
+        recoverable: true,
       }, { status: 200 });
     }
 
@@ -94,7 +106,11 @@ export async function GET(req: NextRequest) {
       .select('value')
       .eq('key', 'linkedin_default_org_urn')
       .limit(1);
-    const defaultOrgUrn = defaultOrgSetting?.[0]?.value || '';
+    const defaultOrgUrn =
+      toOrgUrn(defaultOrgSetting?.[0]?.value) ||
+      toOrgUrn(account?.organization_urns?.[0] || null) ||
+      toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null) ||
+      '';
 
     const { data: logs } = await supabase
       .from('linkedin_share_logs')
@@ -172,6 +188,8 @@ export async function GET(req: NextRequest) {
       analytics,
       org_urn: defaultOrgUrn || null,
       memberAnalyticsEnabled: hasMemberAnalytics,
+      error: null,
+      recoverable: false,
       note: !defaultOrgUrn
         ? 'Set a default organization URN to enable company analytics.'
         : !hasMemberAnalytics
@@ -184,6 +202,8 @@ export async function GET(req: NextRequest) {
       org_urn: null,
       memberAnalyticsEnabled: false,
       note: error?.message || 'Failed to load LinkedIn analytics.',
+      error: error?.message || 'Failed to load LinkedIn analytics.',
+      recoverable: true,
     }, { status: 200 });
   }
 }

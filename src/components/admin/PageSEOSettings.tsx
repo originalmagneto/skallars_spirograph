@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { AdminActionBar } from '@/components/admin/AdminPrimitives';
 
 const DEFAULTS = {
   seo_home_title: 'SKALLARS | Modern Legal Solutions',
@@ -69,64 +70,71 @@ export default function PageSEOSettings() {
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <div className="space-y-4 rounded-xl border bg-muted/10 p-4">
             <div className="text-sm font-semibold">Home Page</div>
-            <div className="space-y-2">
-              <Label>Title</Label>
-              <Input
-                value={form.seo_home_title}
-                onChange={(e) => setForm((prev) => ({ ...prev, seo_home_title: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                rows={3}
-                value={form.seo_home_description}
-                onChange={(e) => setForm((prev) => ({ ...prev, seo_home_description: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>OpenGraph Image URL</Label>
-              <Input
-                value={form.seo_home_og_image}
-                onChange={(e) => setForm((prev) => ({ ...prev, seo_home_og_image: e.target.value }))}
-                placeholder="https://..."
-              />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Title</Label>
+                <Input
+                  value={form.seo_home_title}
+                  onChange={(e) => setForm((prev) => ({ ...prev, seo_home_title: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Description</Label>
+                <Textarea
+                  rows={3}
+                  value={form.seo_home_description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, seo_home_description: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>OpenGraph Image URL</Label>
+                <Input
+                  value={form.seo_home_og_image}
+                  onChange={(e) => setForm((prev) => ({ ...prev, seo_home_og_image: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
           </div>
 
           <div className="space-y-4 rounded-xl border bg-muted/10 p-4">
             <div className="text-sm font-semibold">Blog Index</div>
-            <div className="space-y-2">
-              <Label>Title</Label>
-              <Input
-                value={form.seo_blog_title}
-                onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_title: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                rows={3}
-                value={form.seo_blog_description}
-                onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_description: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>OpenGraph Image URL</Label>
-              <Input
-                value={form.seo_blog_og_image}
-                onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_og_image: e.target.value }))}
-                placeholder="https://..."
-              />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Title</Label>
+                <Input
+                  value={form.seo_blog_title}
+                  onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_title: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Description</Label>
+                <Textarea
+                  rows={3}
+                  value={form.seo_blog_description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_description: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>OpenGraph Image URL</Label>
+                <Input
+                  value={form.seo_blog_og_image}
+                  onChange={(e) => setForm((prev) => ({ ...prev, seo_blog_og_image: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <AdminActionBar>
           <Button onClick={saveSettings} disabled={saving}>
             {saving ? 'Saving...' : 'Save SEO Settings'}
           </Button>
-        </div>
+          <span className="text-sm text-muted-foreground">
+            Keep SEO defaults concise. Per-article SEO overrides should stay in the article editor flow.
+          </span>
+        </AdminActionBar>
       </CardContent>
     </Card>
   );

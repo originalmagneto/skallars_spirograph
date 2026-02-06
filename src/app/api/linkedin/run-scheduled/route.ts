@@ -258,6 +258,7 @@ export async function POST(req: NextRequest) {
           },
         };
       } else {
+        // Let LinkedIn fetch OpenGraph metadata directly for link previews.
         shareBody = {
           author,
           lifecycleState: 'PUBLISHED',
@@ -269,8 +270,6 @@ export async function POST(req: NextRequest) {
                 {
                   status: 'READY',
                   originalUrl: linkUrl,
-                  title: title ? { text: title } : undefined,
-                  description: excerpt ? { text: excerpt } : undefined,
                 },
               ],
             },

@@ -4,6 +4,12 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const toOrgUrn = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.startsWith('urn:li:organization:') ? trimmed : null;
+};
+
 const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || '';
 
 const registerLinkedInImage = async (
@@ -89,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     const payload = await req.json();
     const shareTarget = payload?.shareTarget === 'organization' ? 'organization' : 'member';
-    let organizationUrn = payload?.organizationUrn as string | undefined;
+    let organizationUrn = toOrgUrn(payload?.organizationUrn) || undefined;
     const visibility = payload?.visibility || 'PUBLIC';
     const shareMode = payload?.shareMode === 'image' ? 'image' : 'article';
     const imageUrl = payload?.imageUrl as string | undefined;
@@ -108,12 +114,28 @@ export async function POST(req: NextRequest) {
         .select('value')
         .eq('key', 'linkedin_default_org_urn')
         .limit(1);
-      if (orgSetting?.[0]?.value) {
-        organizationUrn = orgSetting[0].value;
-      }
+      organizationUrn =
+        toOrgUrn(orgSetting?.[0]?.value) ||
+        toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null) ||
+        organizationUrn;
     }
     if (shareTarget === 'organization' && !organizationUrn && Array.isArray(account?.organization_urns)) {
-      organizationUrn = account.organization_urns[0] || organizationUrn;
+      const fromAccount = account.organization_urns
+        .map((urn) => toOrgUrn(urn))
+        .find(Boolean);
+      organizationUrn = (fromAccount as string | undefined) || organizationUrn;
+    }
+    if (shareTarget === 'organization' && !organizationUrn) {
+      const { data: recentOrgLog } = await supabase
+        .from('linkedin_share_logs')
+        .select('provider_response')
+        .eq('user_id', userId)
+        .eq('status', 'success')
+        .eq('share_target', 'organization')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      const fromLog = toOrgUrn(recentOrgLog?.[0]?.provider_response?.author || null);
+      if (fromLog) organizationUrn = fromLog;
     }
 
     if (!account?.access_token) {
@@ -129,6 +151,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Organization sharing is not enabled for this LinkedIn account.' },
         { status: 403 }
+      );
+    }
+    if (shareTarget === 'organization' && !organizationUrn) {
+      return NextResponse.json(
+        { error: 'Select a LinkedIn organization. Set a default organization URN in LinkedIn Settings if discovery fails.' },
+        { status: 400 }
       );
     }
 
@@ -214,6 +242,7 @@ export async function POST(req: NextRequest) {
       if (!linkUrl) {
         return NextResponse.json({ error: 'Missing article link URL.' }, { status: 400 });
       }
+      // Let LinkedIn unfurl OG metadata from the URL for richer previews (image/title/description).
       shareBody = {
         author,
         lifecycleState: 'PUBLISHED',
@@ -225,8 +254,6 @@ export async function POST(req: NextRequest) {
               {
                 status: 'READY',
                 originalUrl: linkUrl,
-                title: title ? { text: title } : undefined,
-                description: excerpt ? { text: excerpt } : undefined,
               },
             ],
           },

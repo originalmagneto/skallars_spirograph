@@ -238,9 +238,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         organizationOptions[0]?.urn ||
         '';
     const resolveEffectiveLinkedInShareMode = (): 'article' | 'image' => {
-        if (linkedinUiMode === 'power') return linkedinShareMode;
-        const candidateImageUrl = (linkedinImageUrl || formData.cover_image_url || '').trim();
-        return candidateImageUrl ? 'image' : 'article';
+        // Keep basic mode simple and predictable: always share as a link card.
+        if (linkedinUiMode !== 'power') return 'article';
+        return linkedinShareMode;
     };
     const resolveEffectiveLinkedInImageUrl = () =>
         (linkedinImageUrl || formData.cover_image_url || '').trim();
@@ -380,6 +380,9 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 const data = await parseJsonSafe(res);
                 if (res.ok) {
                     setLinkedinStatus(data);
+                    if (data?.error) {
+                        setLinkedinOrgNotice(data.error);
+                    }
                     if (data?.default_org_urn) {
                         setLinkedinDefaultOrgUrn(data.default_org_urn);
                         setLinkedinOrganizationUrn((prev) => prev || data.default_org_urn);
@@ -520,10 +523,11 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     }, [formData.cover_image_url]);
 
     useEffect(() => {
+        if (linkedinUiMode !== 'power') return;
         if (linkedinShareModeTouched) return;
         if (!formData.cover_image_url) return;
         setLinkedinShareMode('image');
-    }, [formData.cover_image_url, linkedinShareModeTouched]);
+    }, [formData.cover_image_url, linkedinShareModeTouched, linkedinUiMode]);
 
     useEffect(() => {
         if (linkedinTarget !== 'organization') return;
@@ -869,8 +873,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
     };
 
-    const loadLinkedInOrganizations = async () => {
-        if (!session?.access_token) return;
+    const loadLinkedInOrganizations = async (): Promise<{ selectedOrgUrn: string; defaultOrgUrn: string; error?: string }> => {
+        if (!session?.access_token) {
+            return { selectedOrgUrn: '', defaultOrgUrn: '' };
+        }
         setLinkedinOrgNotice('');
         try {
             const res = await fetch('/api/linkedin/organizations', {
@@ -884,52 +890,104 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             const dedup = new Map<string, { urn: string; name: string }>();
             fallbackOrgs.forEach((org) => dedup.set(org.urn, org));
             const fallbackList = Array.from(dedup.values());
+            let resolvedDefaultOrgUrn = '';
+            let resolvedSelectedOrgUrn = '';
+            let resolvedError = '';
 
             if (Array.isArray(data.organizations)) {
                 const baseList = data.organizations.length > 0 ? data.organizations : fallbackList;
                 setLinkedinOrganizations(baseList);
                 if (!linkedinDefaultOrgUrn && data?.default_org_urn) {
                     setLinkedinDefaultOrgUrn(data.default_org_urn);
+                    resolvedDefaultOrgUrn = data.default_org_urn;
+                } else if (linkedinDefaultOrgUrn) {
+                    resolvedDefaultOrgUrn = linkedinDefaultOrgUrn;
                 }
                 if (!linkedinOrganizationUrn) {
                     if (data?.default_org_urn) {
                         setLinkedinOrganizationUrn(data.default_org_urn);
+                        resolvedSelectedOrgUrn = data.default_org_urn;
                     } else if (linkedinDefaultOrgUrn) {
                         setLinkedinOrganizationUrn(linkedinDefaultOrgUrn);
+                        resolvedSelectedOrgUrn = linkedinDefaultOrgUrn;
                     } else if (baseList.length === 1) {
                         setLinkedinOrganizationUrn(baseList[0].urn);
+                        resolvedSelectedOrgUrn = baseList[0].urn;
                     } else if (linkedinStatus?.organization_urns?.length) {
                         setLinkedinOrganizationUrn(linkedinStatus.organization_urns[0]);
+                        resolvedSelectedOrgUrn = linkedinStatus.organization_urns[0];
                     }
+                } else {
+                    resolvedSelectedOrgUrn = linkedinOrganizationUrn;
                 }
                 if (data?.error) {
+                    const hintSuffix = data?.hint ? ` ${data.hint}` : '';
                     if (baseList.length > 0) {
-                        setLinkedinOrgNotice(`${data.error} Using fallback organization list.`);
+                        setLinkedinOrgNotice(`${data.error}${hintSuffix} Using fallback organization list.`);
+                        resolvedError = data.error;
                     } else {
-                        setLinkedinOrgNotice(data.error);
+                        setLinkedinOrgNotice(`${data.error}${hintSuffix}`);
+                        resolvedError = data.error;
                     }
                 }
+                if (!resolvedSelectedOrgUrn && baseList.length > 0) {
+                    resolvedSelectedOrgUrn = baseList[0].urn;
+                }
+                return {
+                    selectedOrgUrn: resolvedSelectedOrgUrn,
+                    defaultOrgUrn: resolvedDefaultOrgUrn,
+                    ...(resolvedError ? { error: resolvedError } : {}),
+                };
             } else if (!res.ok) {
                 if (fallbackList.length > 0) {
                     setLinkedinOrganizations(fallbackList);
                     if (!linkedinOrganizationUrn) {
                         setLinkedinOrganizationUrn(fallbackList[0].urn);
+                        resolvedSelectedOrgUrn = fallbackList[0].urn;
+                    } else {
+                        resolvedSelectedOrgUrn = linkedinOrganizationUrn;
                     }
                     if (data?.error) {
                         setLinkedinOrgNotice(`${data.error} Using fallback organization list.`);
+                        resolvedError = data.error;
                     } else {
                         setLinkedinOrgNotice('LinkedIn org API is temporarily unavailable. Using fallback organization list.');
+                        resolvedError = 'LinkedIn org API is temporarily unavailable.';
                     }
-                    return;
+                    return {
+                        selectedOrgUrn: resolvedSelectedOrgUrn,
+                        defaultOrgUrn: linkedinDefaultOrgUrn || '',
+                        ...(resolvedError ? { error: resolvedError } : {}),
+                    };
                 }
                 setLinkedinOrgNotice(data?.error || 'Failed to load LinkedIn organizations.');
+                return {
+                    selectedOrgUrn: '',
+                    defaultOrgUrn: linkedinDefaultOrgUrn || '',
+                    error: data?.error || 'Failed to load LinkedIn organizations.',
+                };
             } else if (data?.error) {
                 setLinkedinOrgNotice(data.error);
+                return {
+                    selectedOrgUrn: linkedinOrganizationUrn || '',
+                    defaultOrgUrn: linkedinDefaultOrgUrn || '',
+                    error: data.error,
+                };
             } else {
                 setLinkedinOrgNotice('Failed to load LinkedIn organizations.');
+                return {
+                    selectedOrgUrn: linkedinOrganizationUrn || '',
+                    defaultOrgUrn: linkedinDefaultOrgUrn || '',
+                    error: 'Failed to load LinkedIn organizations.',
+                };
             }
         } catch {
             setLinkedinOrgNotice('Failed to load LinkedIn organizations.');
+            return {
+                selectedOrgUrn: linkedinOrganizationUrn || '',
+                defaultOrgUrn: linkedinDefaultOrgUrn || '',
+                error: 'Failed to load LinkedIn organizations.',
+            };
         }
     };
 
@@ -947,10 +1005,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.error('Article slug missing. Please save a slug first.');
             return;
         }
-        const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
+        let organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
         if (linkedinTarget === 'organization' && !hasOrgScope) {
             toast.error('Company page sharing requires LinkedIn organization scopes.');
             return;
+        }
+        if (linkedinTarget === 'organization' && !organizationUrn) {
+            const discovery = await loadLinkedInOrganizations();
+            organizationUrn = discovery.selectedOrgUrn || discovery.defaultOrgUrn || '';
+            if (!organizationUrn) {
+                toast.error(discovery.error || 'Select a LinkedIn organization, or set a default organization URN in LinkedIn Settings.');
+                return;
+            }
         }
         const effectiveShareMode = resolveEffectiveLinkedInShareMode();
         const effectiveImageUrl = resolveEffectiveLinkedInImageUrl();
@@ -1007,10 +1073,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         }
         const effectiveShareMode = resolveEffectiveLinkedInShareMode();
         const effectiveImageUrl = resolveEffectiveLinkedInImageUrl();
-        const organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
+        let organizationUrn = linkedinTarget === 'organization' ? resolveLinkedInOrgUrn() : '';
         if (linkedinTarget === 'organization' && !hasOrgScope) {
             toast.error('Company page sharing requires LinkedIn organization scopes.');
             return;
+        }
+        if (linkedinTarget === 'organization' && !organizationUrn) {
+            const discovery = await loadLinkedInOrganizations();
+            organizationUrn = discovery.selectedOrgUrn || discovery.defaultOrgUrn || '';
+            if (!organizationUrn) {
+                toast.error(discovery.error || 'Select a LinkedIn organization, or set a default organization URN in LinkedIn Settings.');
+                return;
+            }
         }
         if (effectiveShareMode === 'image' && !effectiveImageUrl) {
             toast.error('Add an image URL for LinkedIn.');
@@ -1091,6 +1165,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const displayImageModel = useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel);
     const effectiveLinkedInShareMode = resolveEffectiveLinkedInShareMode();
     const effectiveLinkedInImageUrl = resolveEffectiveLinkedInImageUrl();
+    const effectiveLinkedInOrganizationUrn = resolveLinkedInOrgUrn();
 
     const parseTagsInput = (value: string) => {
         return value
@@ -1759,6 +1834,21 @@ Rules:
                                         </p>
                                     </div>
                                 )}
+                                {!linkedinOrganizationUrn && linkedinDefaultOrgUrn && (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setLinkedinOrganizationUrn(linkedinDefaultOrgUrn)}
+                                    >
+                                        Use saved default URN
+                                    </Button>
+                                )}
+                                {!effectiveLinkedInOrganizationUrn && (
+                                    <p className="text-[10px] text-amber-700">
+                                        No organization is selected. Set a default organization URN in LinkedIn Settings or choose one here.
+                                    </p>
+                                )}
                                 {linkedinOrgNotice && (
                                     <p className="text-[10px] text-amber-700">{linkedinOrgNotice}</p>
                                 )}
@@ -1835,6 +1925,7 @@ Rules:
                             disabled={
                                 linkedinSharing ||
                                 linkedinStatus?.expired ||
+                                (linkedinTarget === 'organization' && !effectiveLinkedInOrganizationUrn) ||
                                 (effectiveLinkedInShareMode === 'article' ? !getArticleUrl() : !effectiveLinkedInImageUrl)
                             }
                         >

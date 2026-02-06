@@ -4,13 +4,29 @@ import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const toOrgUrn = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed.startsWith('urn:li:organization:') ? trimmed : null;
+};
+
+const getOrgUrnsFromProviderResponse = (providerResponse: any): string[] => {
+  const urns: string[] = [];
+  if (!providerResponse || typeof providerResponse !== 'object') return urns;
+  const direct = toOrgUrn(providerResponse.author);
+  if (direct) urns.push(direct);
+  const nested = toOrgUrn(providerResponse?.specificContent?.author);
+  if (nested) urns.push(nested);
+  return urns;
+};
+
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
     if (!token) {
       return NextResponse.json(
-        { organizations: [], error: 'Missing authorization token.' },
+        { organizations: [], default_org_urn: null, error: 'Missing authorization token.', recoverable: true },
         { status: 200 }
       );
     }
@@ -19,14 +35,14 @@ export async function GET(req: NextRequest) {
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData?.user) {
       return NextResponse.json(
-        { organizations: [], error: 'Invalid session.' },
+        { organizations: [], default_org_urn: null, error: 'Invalid session.', recoverable: true },
         { status: 200 }
       );
     }
 
     const { data: accountRows } = await supabase
       .from('linkedin_accounts')
-      .select('access_token, expires_at, scopes, organization_urns')
+      .select('access_token, expires_at, scopes, organization_urns, member_urn')
       .eq('user_id', userData.user.id)
       .limit(1);
     const account = accountRows?.[0];
@@ -45,6 +61,7 @@ export async function GET(req: NextRequest) {
           default_org_urn: defaultOrgUrn || null,
           error: 'LinkedIn account not connected.',
           hint: 'Reconnect LinkedIn or set a default organization URN in Settings.',
+          recoverable: true,
         },
         { status: 200 }
       );
@@ -54,7 +71,32 @@ export async function GET(req: NextRequest) {
       .select('value')
       .eq('key', 'linkedin_default_org_urn')
       .limit(1);
-    const defaultOrgUrn = defaultOrgSetting?.[0]?.value || '';
+    const defaultOrgUrn =
+      toOrgUrn(defaultOrgSetting?.[0]?.value) ||
+      toOrgUrn(process.env.LINKEDIN_DEFAULT_ORG_URN || null) ||
+      '';
+
+    const fallbackUrnSet = new Set<string>();
+    if (defaultOrgUrn) fallbackUrnSet.add(defaultOrgUrn);
+    if (Array.isArray(account.organization_urns)) {
+      account.organization_urns
+        .map((urn) => toOrgUrn(urn))
+        .filter(Boolean)
+        .forEach((urn) => fallbackUrnSet.add(urn as string));
+    }
+
+    const { data: recentShareLogs } = await supabase
+      .from('linkedin_share_logs')
+      .select('provider_response')
+      .eq('user_id', userData.user.id)
+      .eq('status', 'success')
+      .eq('share_target', 'organization')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    (recentShareLogs || []).forEach((log: any) => {
+      getOrgUrnsFromProviderResponse(log?.provider_response).forEach((urn) => fallbackUrnSet.add(urn));
+    });
+    const fallbackOrgsFromCache = Array.from(fallbackUrnSet).map((urn) => ({ urn, name: urn }));
 
     const scopes = Array.isArray(account.scopes)
       ? account.scopes
@@ -67,18 +109,27 @@ export async function GET(req: NextRequest) {
       scopes.includes('r_organization_admin') ||
       scopes.includes('rw_organization_admin');
     if (!hasOrgScope) {
-      const fallback = [
-        ...(defaultOrgUrn ? [{ urn: defaultOrgUrn, name: 'Default Organization' }] : []),
-        ...(Array.isArray(account.organization_urns)
-          ? account.organization_urns.map((urn) => ({ urn, name: urn }))
-          : []),
-      ];
+      const fallback = fallbackOrgsFromCache;
       return NextResponse.json(
         {
           organizations: fallback,
           default_org_urn: defaultOrgUrn || null,
           error: 'Organization scopes are missing for this LinkedIn account.',
           hint: 'Reconnect LinkedIn after enabling r_organization_social and w_organization_social.',
+          recoverable: true,
+        },
+        { status: 200 }
+      );
+    }
+    if (!account.member_urn) {
+      const fallback = fallbackOrgsFromCache;
+      return NextResponse.json(
+        {
+          organizations: fallback,
+          default_org_urn: defaultOrgUrn || null,
+          error: 'LinkedIn member identifier is missing for this token.',
+          hint: 'Reconnect LinkedIn so the account stores member_urn and org discovery can run.',
+          recoverable: true,
         },
         { status: 200 }
       );
@@ -92,10 +143,11 @@ export async function GET(req: NextRequest) {
       'Content-Type': 'application/json',
     };
 
+    const roleAssignee = encodeURIComponent(account.member_urn);
     const restEndpoint =
-      'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))';
+      `https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&roleAssignee=${roleAssignee}&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))`;
     const legacyEndpoint =
-      'https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))';
+      `https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&roleAssignee=${roleAssignee}&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization,organization~(localizedName)))`;
 
     let response = await fetch(restEndpoint, { headers });
     let body = await response.json().catch(() => ({}));
@@ -108,12 +160,7 @@ export async function GET(req: NextRequest) {
         response = legacyResponse;
         body = legacyBody;
       } else {
-        const fallbackOrgs = [
-          ...(defaultOrgUrn ? [{ urn: defaultOrgUrn, name: 'Default Organization' }] : []),
-          ...(Array.isArray(account.organization_urns)
-            ? account.organization_urns.map((urn) => ({ urn, name: urn }))
-            : []),
-        ];
+        const fallbackOrgs = fallbackOrgsFromCache;
         return NextResponse.json(
           {
             organizations: fallbackOrgs,
@@ -121,6 +168,7 @@ export async function GET(req: NextRequest) {
             error: body?.message || body?.error?.message || legacyBody?.message || legacyBody?.error?.message || 'Failed to load organizations.',
             details: { rest: body, legacy: legacyBody },
             hint: 'Ensure your LinkedIn app has Organization/Community Management access and the token includes w_organization_social.',
+            recoverable: true,
           },
           { status: 200 }
         );
@@ -148,11 +196,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       organizations: orgs,
       default_org_urn: defaultOrgUrn || null,
-      error: null
+      error: null,
+      recoverable: false,
     });
   } catch (error: any) {
     return NextResponse.json(
-      { organizations: [], default_org_urn: null, error: error?.message || 'Failed to load organizations.' },
+      {
+        organizations: [],
+        default_org_urn: null,
+        error: error?.message || 'Failed to load organizations.',
+        recoverable: true,
+      },
       { status: 200 }
     );
   }

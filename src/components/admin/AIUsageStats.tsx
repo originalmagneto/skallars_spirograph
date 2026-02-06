@@ -52,13 +52,60 @@ interface MonthlyStat {
     totalCost: number;
 }
 
+interface ModelStat {
+    model: string;
+    totalRequests: number;
+    totalTokens: number;
+    totalCost: number;
+}
+
+interface ActionStat {
+    action: string;
+    totalRequests: number;
+    totalTokens: number;
+    totalCost: number;
+}
+
+interface UsageTotals {
+    cost: number;
+    tokens: number;
+    requests: number;
+    todayTokens: number;
+    todayCost: number;
+    monthTokens: number;
+    monthCost: number;
+}
+
+interface QuotaSettings {
+    dailyTokens: number;
+    monthlyTokens: number;
+    dailyUsd: number;
+    monthlyUsd: number;
+}
+
 const AIUsageStats = () => {
     const [logs, setLogs] = useState<UsageLog[]>([]);
     const [userStats, setUserStats] = useState<UserStat[]>([]);
     const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
+    const [modelStats, setModelStats] = useState<ModelStat[]>([]);
+    const [actionStats, setActionStats] = useState<ActionStat[]>([]);
     const [loading, setLoading] = useState(true);
     const [prices, setPrices] = useState({ input: 0, output: 0 });
-    const [totals, setTotals] = useState({ cost: 0, tokens: 0, requests: 0 });
+    const [quotas, setQuotas] = useState<QuotaSettings>({
+        dailyTokens: 0,
+        monthlyTokens: 0,
+        dailyUsd: 0,
+        monthlyUsd: 0
+    });
+    const [totals, setTotals] = useState<UsageTotals>({
+        cost: 0,
+        tokens: 0,
+        requests: 0,
+        todayTokens: 0,
+        todayCost: 0,
+        monthTokens: 0,
+        monthCost: 0
+    });
 
     useEffect(() => {
         const init = async () => {
@@ -68,6 +115,12 @@ const AIUsageStats = () => {
                 const priceInput = Number(settings.priceInputPerM) || 0;
                 const priceOutput = Number(settings.priceOutputPerM) || 0;
                 setPrices({ input: priceInput, output: priceOutput });
+                setQuotas({
+                    dailyTokens: Number(settings.geminiQuotaDailyTokens) || 0,
+                    monthlyTokens: Number(settings.geminiQuotaMonthlyTokens) || 0,
+                    dailyUsd: Number(settings.geminiQuotaDailyUsd) || 0,
+                    monthlyUsd: Number(settings.geminiQuotaMonthlyUsd) || 0,
+                });
 
                 // Fetch Logs with Profiles server-side
                 const { data: logsData, error } = await supabase
@@ -94,15 +147,33 @@ const AIUsageStats = () => {
     const processStats = (data: UsageLog[], priceIn: number, priceOut: number) => {
         const userMap = new Map<string, UserStat>();
         const monthMap = new Map<string, MonthlyStat>();
+        const modelMap = new Map<string, ModelStat>();
+        const actionMap = new Map<string, ActionStat>();
         let grandTotalCost = 0;
         let grandTotalTokens = 0;
+        const now = new Date();
+        const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        let todayTokens = 0;
+        let todayCost = 0;
+        let monthTokens = 0;
+        let monthCost = 0;
 
         data.forEach(log => {
             const cost = ((log.input_tokens / 1_000_000) * priceIn) +
                 ((log.output_tokens / 1_000_000) * priceOut);
+            const createdAtMs = new Date(log.created_at).getTime();
 
             grandTotalCost += cost;
             grandTotalTokens += log.total_tokens;
+            if (createdAtMs >= monthStart) {
+                monthTokens += log.total_tokens;
+                monthCost += cost;
+            }
+            if (createdAtMs >= dayStart) {
+                todayTokens += log.total_tokens;
+                todayCost += cost;
+            }
 
             // User Stats
             const userId = log.user_id || 'unknown';
@@ -118,25 +189,63 @@ const AIUsageStats = () => {
             uStat.totalCost += cost;
             userMap.set(userId, uStat);
 
+            // Model stats
+            const model = log.model || 'unknown';
+            const mStat = modelMap.get(model) || {
+                model,
+                totalRequests: 0,
+                totalTokens: 0,
+                totalCost: 0
+            };
+            mStat.totalRequests++;
+            mStat.totalTokens += log.total_tokens;
+            mStat.totalCost += cost;
+            modelMap.set(model, mStat);
+
+            // Action stats
+            const action = log.action || 'unknown';
+            const aStat = actionMap.get(action) || {
+                action,
+                totalRequests: 0,
+                totalTokens: 0,
+                totalCost: 0
+            };
+            aStat.totalRequests++;
+            aStat.totalTokens += log.total_tokens;
+            aStat.totalCost += cost;
+            actionMap.set(action, aStat);
+
             // Monthly Stats
             const date = new Date(log.created_at);
             const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             const monthName = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
 
-            const mStat = monthMap.get(monthKey) || { month: monthKey, displayMonth: monthName, totalRequests: 0, totalTokens: 0, totalCost: 0 };
-            mStat.totalRequests++;
-            mStat.totalTokens += log.total_tokens;
-            mStat.totalCost += cost;
-            monthMap.set(monthKey, mStat);
+            const monthStat = monthMap.get(monthKey) || { month: monthKey, displayMonth: monthName, totalRequests: 0, totalTokens: 0, totalCost: 0 };
+            monthStat.totalRequests++;
+            monthStat.totalTokens += log.total_tokens;
+            monthStat.totalCost += cost;
+            monthMap.set(monthKey, monthStat);
         });
 
         setTotals({
             cost: grandTotalCost,
             tokens: grandTotalTokens,
-            requests: data.length
+            requests: data.length,
+            todayTokens,
+            todayCost,
+            monthTokens,
+            monthCost,
         });
         setUserStats(Array.from(userMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
         setMonthlyStats(Array.from(monthMap.values()).sort((a, b) => b.month.localeCompare(a.month)));
+        setModelStats(Array.from(modelMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
+        setActionStats(Array.from(actionMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
+    };
+
+    const formatActionLabel = (value: string) => {
+        if (!value) return 'Unknown';
+        if (value.startsWith('Article: ')) return 'Article Generation';
+        return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     };
 
     if (loading) return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading analytics...</div>;
@@ -337,9 +446,98 @@ const AIUsageStats = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Rollups + Quotas */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="shadow-sm border-border/60">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                            <CpuIcon size={14} /> By Model
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-3">
+                        {modelStats.slice(0, 6).map((model) => (
+                            <div key={model.model} className="flex items-center justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-medium truncate" title={model.model}>{model.model}</p>
+                                    <p className="text-[10px] text-muted-foreground">{model.totalRequests} requests</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-mono">{(model.totalTokens / 1000).toFixed(1)}k</p>
+                                    <p className="text-[10px] text-muted-foreground">${model.totalCost.toFixed(3)}</p>
+                                </div>
+                            </div>
+                        ))}
+                        {modelStats.length === 0 && <p className="text-xs text-muted-foreground">No model usage yet.</p>}
+                    </CardContent>
+                </Card>
+
+                <Card className="shadow-sm border-border/60">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                            <BubbleChatIcon size={14} /> By Action
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-3">
+                        {actionStats.slice(0, 6).map((action) => (
+                            <div key={action.action} className="flex items-center justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-medium truncate" title={action.action}>{formatActionLabel(action.action)}</p>
+                                    <p className="text-[10px] text-muted-foreground">{action.totalRequests} requests</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs font-mono">{(action.totalTokens / 1000).toFixed(1)}k</p>
+                                    <p className="text-[10px] text-muted-foreground">${action.totalCost.toFixed(3)}</p>
+                                </div>
+                            </div>
+                        ))}
+                        {actionStats.length === 0 && <p className="text-xs text-muted-foreground">No action usage yet.</p>}
+                    </CardContent>
+                </Card>
+
+                <Card className="shadow-sm border-border/60">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                            <FlashIcon size={14} /> Quota Overview
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                            Current usage vs configured limits.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-4">
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                                <span>Today Tokens</span>
+                                <span className="font-mono">
+                                    {totals.todayTokens.toLocaleString()} / {quotas.dailyTokens > 0 ? quotas.dailyTokens.toLocaleString() : 'off'}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                                <span>Month Tokens</span>
+                                <span className="font-mono">
+                                    {totals.monthTokens.toLocaleString()} / {quotas.monthlyTokens > 0 ? quotas.monthlyTokens.toLocaleString() : 'off'}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                                <span>Today USD</span>
+                                <span className="font-mono">
+                                    ${totals.todayCost.toFixed(4)} / {quotas.dailyUsd > 0 ? `$${quotas.dailyUsd.toFixed(2)}` : 'off'}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                                <span>Month USD</span>
+                                <span className="font-mono">
+                                    ${totals.monthCost.toFixed(4)} / {quotas.monthlyUsd > 0 ? `$${quotas.monthlyUsd.toFixed(2)}` : 'off'}
+                                </span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 };
 
 export default AIUsageStats;
-

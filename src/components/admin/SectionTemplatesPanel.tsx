@@ -5,7 +5,9 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { AdminActionBar } from '@/components/admin/AdminPrimitives';
 
 const DEFAULTS = {
   template_hero: 'classic',
@@ -86,28 +88,34 @@ export default function SectionTemplatesPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {Object.entries(OPTIONS).map(([key, options]) => (
-          <div key={key} className="space-y-1">
-            <Label className="text-xs uppercase text-muted-foreground">{key.replace('template_', '')}</Label>
-            <select
-              value={(form as any)[key]}
-              onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))}
-              className="w-full rounded-md border px-3 py-2 text-sm bg-white"
-            >
-              {options.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {Object.entries(OPTIONS).map(([key, options]) => (
+            <div key={key} className="space-y-2 rounded-lg border bg-muted/10 p-3">
+              <Label className="text-xs uppercase text-muted-foreground">{key.replace('template_', '')}</Label>
+              <Select
+                value={(form as any)[key]}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, [key]: value }))}
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue placeholder="Select template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ))}
+        </div>
 
-        <div className="flex justify-end pt-2">
+        <AdminActionBar className="justify-end">
           <Button onClick={save} disabled={saving}>
             {saving ? 'Saving...' : 'Save Templates'}
           </Button>
-        </div>
+        </AdminActionBar>
       </CardContent>
     </Card>
   );
