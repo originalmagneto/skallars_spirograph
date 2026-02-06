@@ -20,6 +20,19 @@ This roadmap is based on the current codebase, the UI vs functionality audit, an
 - Admin access checks no longer depend primarily on slow client-side profile queries.
 - Repeated `Profile role check timed out` errors are significantly reduced in normal usage.
 
+## Step 2 (Now): UX Simplification Pass (Article + Publishing)
+- Move non-essential AI controls behind a single **Advanced Controls** panel in Article Studio. ✅
+- Keep default article flow focused on 5 actions: topic, links, type, depth, generate. ✅
+- Default cover generation to **Lite mode** so first-time users are not forced into provider/model choices. ✅
+- Move LinkedIn scheduling/log diagnostics into **Advanced LinkedIn Tools** while keeping Share as the primary action. ✅
+- Reduce noisy permission flow by removing automatic admin diagnostics and preventing overlapping access checks. ✅
+
+### Step 2 Acceptance Criteria
+- Average users can generate an article without opening advanced sections.
+- Power users can still access model/thinking/tone/prompt controls in one place.
+- LinkedIn section presents share-first flow; scheduling and logs remain available but secondary.
+- Admin page no longer auto-runs diagnostics during normal access checks.
+
 ## Phase 0: Fix UI vs Functionality Mismatches (Immediate)
 - Wire **admin content edits to the actual frontend** (replace or augment `translations.ts` with Supabase content for public pages). ✅
 - Fix **Article Editor copy** (“Markdown” vs HTML) or implement a true rich editor that matches output. ✅

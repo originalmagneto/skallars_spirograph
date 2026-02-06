@@ -31,6 +31,7 @@ import {
     SelectValue
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { generateAIArticle, generateAIOutline, generateAIResearchPack, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
 import { fetchAISettings, fetchGeminiModels, filterTextModels, GeminiModel } from '@/lib/aiSettings';
 import { supabase } from '@/lib/supabase';
@@ -836,281 +837,290 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             </p>
                         </div>
 
-                        <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-primary/10">
-                            <div className="flex items-center justify-between gap-2">
-                                <Label className="text-sm font-medium flex items-center gap-2">
-                                    <AiMagicIcon size={16} className="text-primary" />
-                                    Article Model & Thinking Budget
-                                </Label>
-                                {articleSettingsDirty && (
-                                    <Badge variant="outline">Unsaved</Badge>
-                                )}
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label className="text-xs text-muted-foreground">Article Model</Label>
-                                    {modelOptions.length > 0 ? (
-                                        <Select value={currentModel} onValueChange={setCurrentModel}>
+                        <Accordion type="single" collapsible className="w-full rounded-lg border border-primary/10 px-3 bg-muted/20">
+                            <AccordionItem value="advanced" className="border-b-0">
+                                <AccordionTrigger className="py-3 text-sm font-medium no-underline hover:no-underline">
+                                    Advanced Controls (Model, Tone, Outline, Prompt)
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-4 pb-3">
+                                    <div className="space-y-3 p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <Label className="text-sm font-medium flex items-center gap-2">
+                                                <AiMagicIcon size={16} className="text-primary" />
+                                                Article Model & Thinking Budget
+                                            </Label>
+                                            {articleSettingsDirty && (
+                                                <Badge variant="outline">Unsaved</Badge>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Article Model</Label>
+                                                {modelOptions.length > 0 ? (
+                                                    <Select value={currentModel} onValueChange={setCurrentModel}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select model" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {modelOptions.map((model) => (
+                                                                <SelectItem key={model.name} value={model.name}>
+                                                                    {model.displayName || model.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <Input
+                                                        value={currentModel}
+                                                        onChange={(e) => setCurrentModel(e.target.value)}
+                                                        placeholder="gemini-2.5-pro"
+                                                    />
+                                                )}
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    These settings only affect the Article Generator. Main AI Settings are used elsewhere.
+                                                </p>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs text-muted-foreground">Thinking Budget</Label>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={4096}
+                                                    value={thinkingBudget}
+                                                    onChange={(e) => setThinkingBudget(Math.max(0, parseInt(e.target.value) || 0))}
+                                                />
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Set 0 to disable. Only supported on thinking-capable models.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Model list {modelLoading ? 'loading…' : 'ready'}.
+                                            </p>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => saveArticleSettings()}
+                                                disabled={articleSettingsSaving}
+                                            >
+                                                {articleSettingsSaving ? 'Saving…' : 'Save Article Settings'}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label htmlFor="targetWordCount">Target Word Count</Label>
+                                            <Input
+                                                id="targetWordCount"
+                                                type="number"
+                                                min={300}
+                                                max={3000}
+                                                name="targetWordCount"
+                                                autoComplete="off"
+                                                value={targetWordCount}
+                                                onChange={(e) => setTargetWordCount(Math.max(300, Math.min(3000, parseInt(e.target.value) || 0)))}
+                                                className="w-28"
+                                            />
+                                        </div>
+                                        <Slider
+                                            min={300}
+                                            max={3000}
+                                            step={50}
+                                            value={[targetWordCount]}
+                                            onValueChange={(value) => setTargetWordCount(value[0] ?? 800)}
+                                        />
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Word count target is enforced in the prompt (+/-10%).
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Tone / Voice</Label>
+                                        <Select value={toneStyle} onValueChange={(value) => { setToneStyle(value); setToneCustom(false); }}>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select model" />
+                                                <SelectValue placeholder="Select tone" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {modelOptions.map((model) => (
-                                                    <SelectItem key={model.name} value={model.name}>
-                                                        {model.displayName || model.name}
-                                                    </SelectItem>
-                                                ))}
+                                                <SelectItem value="Client-Friendly">Client-Friendly</SelectItem>
+                                                <SelectItem value="Legal Memo">Legal Memo</SelectItem>
+                                                <SelectItem value="News Brief">News Brief</SelectItem>
+                                                <SelectItem value="Executive">Executive</SelectItem>
+                                                <SelectItem value="Neutral">Neutral</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                    ) : (
-                                        <Input
-                                            value={currentModel}
-                                            onChange={(e) => setCurrentModel(e.target.value)}
-                                            placeholder="gemini-2.5-pro"
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <Label htmlFor="toneInstructions" className="text-xs text-muted-foreground">Tone Instructions (customizable)</Label>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => {
+                                                        setToneInstructions(toneDefaults[toneStyle] || '');
+                                                        setToneCustom(false);
+                                                    }}
+                                                >
+                                                    Reset to Default
+                                                </Button>
+                                            </div>
+                                            <Textarea
+                                                id="toneInstructions"
+                                                name="toneInstructions"
+                                                autoComplete="off"
+                                                value={toneInstructions}
+                                                onChange={(e) => {
+                                                    setToneInstructions(e.target.value);
+                                                    setToneCustom(true);
+                                                }}
+                                                rows={3}
+                                                placeholder="Add your own tone instructions..."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                        <div className="space-y-0.5">
+                                            <Label className="text-sm font-medium flex items-center gap-2">
+                                                <PlusSignIcon size={16} className="text-primary" />
+                                                Outline-First Workflow
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Generate a structured outline, review/edit it, then create the full article. Deep research can take several minutes.
+                                            </p>
+                                        </div>
+                                        <Switch
+                                            checked={useOutlineWorkflow}
+                                            onCheckedChange={(value) => {
+                                                setUseOutlineWorkflow(value);
+                                                if (!value) {
+                                                    setOutlineText('');
+                                                    setOutlineNotes('');
+                                                    setOutlineSources([]);
+                                                }
+                                            }}
                                         />
+                                    </div>
+                                    {useOutlineWorkflow && showPromptEditor && (
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Outline workflow is disabled while the custom prompt editor is enabled.
+                                        </p>
                                     )}
-                                    <p className="text-[10px] text-muted-foreground">
-                                        These settings only affect the Article Generator. Main AI Settings are used elsewhere.
-                                    </p>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs text-muted-foreground">Thinking Budget</Label>
-                                    <Input
-                                        type="number"
-                                        min={0}
-                                        max={4096}
-                                        value={thinkingBudget}
-                                        onChange={(e) => setThinkingBudget(Math.max(0, parseInt(e.target.value) || 0))}
-                                    />
-                                    <p className="text-[10px] text-muted-foreground">
-                                        Set 0 to disable. Only supported on thinking-capable models.
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <p className="text-[10px] text-muted-foreground">
-                                    Model list {modelLoading ? 'loading…' : 'ready'}.
-                                </p>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => saveArticleSettings()}
-                                    disabled={articleSettingsSaving}
-                                >
-                                    {articleSettingsSaving ? 'Saving…' : 'Save Article Settings'}
-                                </Button>
-                            </div>
-                        </div>
 
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="targetWordCount">Target Word Count</Label>
-                                <Input
-                                    id="targetWordCount"
-                                    type="number"
-                                    min={300}
-                                    max={3000}
-                                    name="targetWordCount"
-                                    autoComplete="off"
-                                    value={targetWordCount}
-                                    onChange={(e) => setTargetWordCount(Math.max(300, Math.min(3000, parseInt(e.target.value) || 0)))}
-                                    className="w-28"
-                                />
-                            </div>
-                            <Slider
-                                min={300}
-                                max={3000}
-                                step={50}
-                                value={[targetWordCount]}
-                                onValueChange={(value) => setTargetWordCount(value[0] ?? 800)}
-                            />
-                            <p className="text-[10px] text-muted-foreground">
-                                Word count target is enforced in the prompt (±10%).
-                            </p>
-                        </div>
+                                    {useOutlineWorkflow && !showPromptEditor && (
+                                        <div className="space-y-2">
+                                            <Label>Outline (editable)</Label>
+                                            <Textarea
+                                                value={outlineText}
+                                                onChange={(e) => setOutlineText(e.target.value)}
+                                                rows={6}
+                                                placeholder="Generate an outline or write your own structure here..."
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Outline is injected into the prompt for the final article.
+                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => handleGenerateOutline()}
+                                                    disabled={outlineGenerating}
+                                                >
+                                                    {outlineGenerating ? 'Generating…' : 'Generate Outline'}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => {
+                                                        setOutlineText('');
+                                                        setOutlineNotes('');
+                                                        setOutlineSources([]);
+                                                    }}
+                                                >
+                                                    Clear
+                                                </Button>
+                                            </div>
+                                            {outlineNotes && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    <strong>Notes:</strong> {outlineNotes}
+                                                </div>
+                                            )}
+                                            {outlineSources.length > 0 && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    <strong>Outline Sources:</strong>
+                                                    <ul className="list-disc list-inside">
+                                                        {outlineSources.map((source, idx) => (
+                                                            <li key={`${source.url}-${idx}`}>
+                                                                {source.title || source.url}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            {researchSummary && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    <strong>Research Summary:</strong> {researchSummary}
+                                                </div>
+                                            )}
+                                            {researchSources.length > 0 && (
+                                                <div className="text-xs text-muted-foreground">
+                                                    <strong>Research Sources (last run):</strong>
+                                                    <ul className="list-disc list-inside">
+                                                        {researchSources.map((source, idx) => (
+                                                            <li key={`research-${source.url}-${idx}`}>
+                                                                {source.title || source.url}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
-                        <div className="space-y-2">
-                            <Label>Tone / Voice</Label>
-                            <Select value={toneStyle} onValueChange={(value) => { setToneStyle(value); setToneCustom(false); }}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select tone" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Client-Friendly">Client-Friendly</SelectItem>
-                                    <SelectItem value="Legal Memo">Legal Memo</SelectItem>
-                                    <SelectItem value="News Brief">News Brief</SelectItem>
-                                    <SelectItem value="Executive">Executive</SelectItem>
-                                    <SelectItem value="Neutral">Neutral</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <Label htmlFor="toneInstructions" className="text-xs text-muted-foreground">Tone Instructions (customizable)</Label>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 text-xs"
-                                        onClick={() => {
-                                            setToneInstructions(toneDefaults[toneStyle] || '');
-                                            setToneCustom(false);
-                                        }}
-                                    >
-                                        Reset to Default
-                                    </Button>
-                                </div>
-                                <Textarea
-                                    id="toneInstructions"
-                                    name="toneInstructions"
-                                    autoComplete="off"
-                                    value={toneInstructions}
-                                    onChange={(e) => {
-                                        setToneInstructions(e.target.value);
-                                        setToneCustom(true);
-                                    }}
-                                    rows={3}
-                                    placeholder="Add your own tone instructions..."
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
-                            <div className="space-y-0.5">
-                                <Label className="text-sm font-medium flex items-center gap-2">
-                                    <PlusSignIcon size={16} className="text-primary" />
-                                    Outline-First Workflow
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Generate a structured outline, review/edit it, then create the full article. Deep research can take several minutes.
-                                </p>
-                            </div>
-                            <Switch
-                                checked={useOutlineWorkflow}
-                                onCheckedChange={(value) => {
-                                    setUseOutlineWorkflow(value);
-                                    if (!value) {
-                                        setOutlineText('');
-                                        setOutlineNotes('');
-                                        setOutlineSources([]);
-                                    }
-                                }}
-                            />
-                        </div>
-                        {useOutlineWorkflow && showPromptEditor && (
-                            <p className="text-[10px] text-muted-foreground">
-                                Outline workflow is disabled while the custom prompt editor is enabled.
-                            </p>
-                        )}
-
-                        {useOutlineWorkflow && !showPromptEditor && (
-                            <div className="space-y-2">
-                                <Label>Outline (editable)</Label>
-                                <Textarea
-                                    value={outlineText}
-                                    onChange={(e) => setOutlineText(e.target.value)}
-                                    rows={6}
-                                    placeholder="Generate an outline or write your own structure here..."
-                                />
-                                <p className="text-[10px] text-muted-foreground">
-                                    Outline is injected into the prompt for the final article.
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleGenerateOutline()}
-                                        disabled={outlineGenerating}
-                                    >
-                                        {outlineGenerating ? 'Generating…' : 'Generate Outline'}
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => {
-                                            setOutlineText('');
-                                            setOutlineNotes('');
-                                            setOutlineSources([]);
-                                        }}
-                                    >
-                                        Clear
-                                    </Button>
-                                </div>
-                                {outlineNotes && (
-                                    <div className="text-xs text-muted-foreground">
-                                        <strong>Notes:</strong> {outlineNotes}
+                                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
+                                        <div className="space-y-0.5">
+                                            <Label className="text-sm font-medium flex items-center gap-2">
+                                                <PlusSignIcon size={16} className="text-primary" rotate={showPromptEditor ? 45 : 0} />
+                                                Customize System Prompt
+                                            </Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                View and edit the exact instructions sent to AI.
+                                            </p>
+                                        </div>
+                                        <Switch
+                                            checked={showPromptEditor}
+                                            onCheckedChange={(val) => {
+                                                if (val && !customPrompt) handlePreparePrompt();
+                                                setShowPromptEditor(val);
+                                            }}
+                                        />
                                     </div>
-                                )}
-                                {outlineSources.length > 0 && (
-                                    <div className="text-xs text-muted-foreground">
-                                        <strong>Outline Sources:</strong>
-                                        <ul className="list-disc list-inside">
-                                            {outlineSources.map((source, idx) => (
-                                                <li key={`${source.url}-${idx}`}>
-                                                    {source.title || source.url}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                {researchSummary && (
-                                    <div className="text-xs text-muted-foreground">
-                                        <strong>Research Summary:</strong> {researchSummary}
-                                    </div>
-                                )}
-                                {researchSources.length > 0 && (
-                                    <div className="text-xs text-muted-foreground">
-                                        <strong>Research Sources (last run):</strong>
-                                        <ul className="list-disc list-inside">
-                                            {researchSources.map((source, idx) => (
-                                                <li key={`research-${source.url}-${idx}`}>
-                                                    {source.title || source.url}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                            </div>
-                        )}
 
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-primary/10">
-                            <div className="space-y-0.5">
-                                <Label className="text-sm font-medium flex items-center gap-2">
-                                    <PlusSignIcon size={16} className="text-primary" rotate={showPromptEditor ? 45 : 0} />
-                                    Customize System Prompt
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    View and edit the exact instructions sent to AI.
-                                </p>
-                            </div>
-                            <Switch
-                                checked={showPromptEditor}
-                                onCheckedChange={(val) => {
-                                    if (val && !customPrompt) handlePreparePrompt();
-                                    setShowPromptEditor(val);
-                                }}
-                            />
-                        </div>
-
-                        {showPromptEditor && (
-                            <div className="space-y-2 pt-2">
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-xs uppercase text-muted-foreground">System Prompt Editor</Label>
-                                    <Button variant="ghost" size="sm" onClick={handleResetPrompt} className="text-xs h-7">
-                                        Reset to Default
-                                    </Button>
-                                </div>
-                                <Textarea
-                                    value={customPrompt}
-                                    onChange={(e) => setCustomPrompt(e.target.value)}
-                                    rows={10}
-                                    className="font-mono text-xs bg-muted/50"
-                                    placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings…"
-                                />
-                                <p className="text-[10px] text-orange-500 font-medium">
-                                    ⚠️ Caution: Manually changing the JSON structure instructions might break generation.
-                                </p>
-                            </div>
-                        )}
+                                    {showPromptEditor && (
+                                        <div className="space-y-2 pt-2">
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-xs uppercase text-muted-foreground">System Prompt Editor</Label>
+                                                <Button variant="ghost" size="sm" onClick={handleResetPrompt} className="text-xs h-7">
+                                                    Reset to Default
+                                                </Button>
+                                            </div>
+                                            <Textarea
+                                                value={customPrompt}
+                                                onChange={(e) => setCustomPrompt(e.target.value)}
+                                                rows={10}
+                                                className="font-mono text-xs bg-muted/50"
+                                                placeholder="Click 'Customize System Prompt' to generate the default prompt based on your settings…"
+                                            />
+                                            <p className="text-[10px] text-orange-500 font-medium">
+                                                Caution: manually changing JSON instructions may break generation.
+                                            </p>
+                                        </div>
+                                    )}
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
 
                         {!showPromptEditor && (
                             <div className="space-y-2">

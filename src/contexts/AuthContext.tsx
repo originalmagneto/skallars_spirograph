@@ -28,6 +28,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const roleErrorLoggedRef = useRef(false);
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+    const ROLE_CHECK_TIMEOUT_MS = 12000;
+
+    const isTimeoutError = (error: unknown) =>
+        error instanceof Error && /timed out/i.test(error.message);
 
     const readRoleCache = (userId: string) => {
         try {
@@ -87,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     fetch('/api/admin/role', {
                         headers: { Authorization: `Bearer ${session.access_token}` },
                     }),
-                    8000,
+                    ROLE_CHECK_TIMEOUT_MS,
                     'Server role check'
                 );
                 if (res.ok) {
@@ -109,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .select('role')
                     .eq('id', userId)
                     .maybeSingle(),
-                8000,
+                ROLE_CHECK_TIMEOUT_MS,
                 'Profile role check'
             );
 
@@ -122,14 +126,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             try {
                 const { data: isAdminRpc, error: adminRpcError } = await withTimeout(
                     supabase.rpc('is_profile_admin', { _user_id: userId }),
-                    8000,
+                    ROLE_CHECK_TIMEOUT_MS,
                     'Admin RPC check'
                 );
 
                 if (!adminRpcError && typeof isAdminRpc === 'boolean') {
                     const { data: isEditorRpc } = await withTimeout(
                         supabase.rpc('is_profile_editor', { _user_id: userId }),
-                        8000,
+                        ROLE_CHECK_TIMEOUT_MS,
                         'Editor RPC check'
                     );
 
@@ -148,6 +152,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsEditor(false);
         } catch (error) {
             if (cachedRole) return;
+            if (isTimeoutError(error)) {
+                setIsAdmin(false);
+                setIsEditor(false);
+                return;
+            }
             if (!roleErrorLoggedRef.current) {
                 console.error('Error fetching roles:', error);
                 roleErrorLoggedRef.current = true;

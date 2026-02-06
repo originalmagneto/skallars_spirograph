@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import {
     AlertDialog,
@@ -162,7 +163,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [imageStyle, setImageStyle] = useState('Editorial Photo');
     const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
     const [imageCount, setImageCount] = useState(2);
-    const [imageMode, setImageMode] = useState<'lite' | 'advanced'>('advanced');
+    const [imageMode, setImageMode] = useState<'lite' | 'advanced'>('lite');
     const [useGlobalImageSettings, setUseGlobalImageSettings] = useState(true);
     const [globalImageProvider, setGlobalImageProvider] = useState<'gemini' | 'turbo'>('gemini');
     const [globalImageModel, setGlobalImageModel] = useState('');
@@ -1770,20 +1771,6 @@ Rules:
                         >
                             {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
                         </Button>
-                        <Button
-                            variant="outline"
-                            onClick={loadLinkedInLogs}
-                            disabled={linkedinLogsLoading || !articleId || isNew}
-                        >
-                            {linkedinLogsLoading ? 'Refreshing…' : 'Refresh Share Log'}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={handleRunLinkedInScheduled}
-                            disabled={!articleId || isNew}
-                        >
-                            Run Scheduled
-                        </Button>
                         {(!articleId || isNew) && (
                             <span className="text-xs text-muted-foreground">
                                 Save the article before sharing.
@@ -1793,123 +1780,145 @@ Rules:
                 )}
 
                 {linkedinStatus?.connected && (
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr,180px] gap-3">
-                        <div className="space-y-2">
-                            <Label htmlFor="linkedinScheduleAt">Schedule share</Label>
-                            <Input
-                                id="linkedinScheduleAt"
-                                name="linkedinScheduleAt"
-                                type="datetime-local"
-                                value={linkedinScheduleAt}
-                                onChange={(e) => setLinkedinScheduleAt(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex items-end">
-                            <Button
-                                className="w-full"
-                                variant="outline"
-                                onClick={handleLinkedInSchedule}
-                                disabled={
-                                    !linkedinScheduleAt ||
-                                    !articleId ||
-                                    isNew ||
-                                    (linkedinShareMode === 'image' && !linkedinImageUrl)
-                                }
-                            >
-                                Schedule
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {linkedinStatus?.connected && (
-                    <div className="rounded-lg border bg-white p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-xs text-muted-foreground">Recent Shares</Label>
-                        </div>
-                        {linkedinLogs.length === 0 ? (
-                            <div className="text-xs text-muted-foreground">No shares logged yet.</div>
-                        ) : (
-                            <div className="space-y-2">
-                                {linkedinLogs.map((log) => (
-                                    <div
-                                        key={log.id}
-                                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+                    <Accordion type="single" collapsible className="w-full rounded-lg border bg-white px-3">
+                        <AccordionItem value="linkedin-advanced" className="border-b-0">
+                            <AccordionTrigger className="py-3 text-xs font-semibold no-underline hover:no-underline">
+                                Advanced LinkedIn Tools (Scheduling, Logs, Diagnostics)
+                            </AccordionTrigger>
+                            <AccordionContent className="space-y-3 pb-3">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <Button
+                                        variant="outline"
+                                        onClick={loadLinkedInLogs}
+                                        disabled={linkedinLogsLoading || !articleId || isNew}
                                     >
-                                        <div className="flex flex-col gap-1">
-                                            <span className="font-semibold text-foreground">
-                                                {log.status === 'success' ? 'Shared' : 'Error'}
-                                            </span>
-                                            <span className="text-muted-foreground">
-                                                {new Date(log.created_at).toLocaleString()}
-                                            </span>
-                                            {log.error_message && (
-                                                <span className="text-destructive">{log.error_message}</span>
-                                            )}
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className="text-muted-foreground">
-                                                {log.share_target || 'member'} · {log.visibility || 'PUBLIC'}
-                                            </span>
-                                            {log.share_url && (
-                                                <a
-                                                    href={log.share_url}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-primary underline"
+                                        {linkedinLogsLoading ? 'Refreshing…' : 'Refresh Share Log'}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleRunLinkedInScheduled}
+                                        disabled={!articleId || isNew}
+                                    >
+                                        Run Scheduled
+                                    </Button>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-[1fr,180px] gap-3">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="linkedinScheduleAt">Schedule share</Label>
+                                        <Input
+                                            id="linkedinScheduleAt"
+                                            name="linkedinScheduleAt"
+                                            type="datetime-local"
+                                            value={linkedinScheduleAt}
+                                            onChange={(e) => setLinkedinScheduleAt(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex items-end">
+                                        <Button
+                                            className="w-full"
+                                            variant="outline"
+                                            onClick={handleLinkedInSchedule}
+                                            disabled={
+                                                !linkedinScheduleAt ||
+                                                !articleId ||
+                                                isNew ||
+                                                (linkedinShareMode === 'image' && !linkedinImageUrl)
+                                            }
+                                        >
+                                            Schedule
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-lg border bg-white p-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs text-muted-foreground">Recent Shares</Label>
+                                    </div>
+                                    {linkedinLogs.length === 0 ? (
+                                        <div className="text-xs text-muted-foreground">No shares logged yet.</div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {linkedinLogs.map((log) => (
+                                                <div
+                                                    key={log.id}
+                                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
                                                 >
-                                                    View on LinkedIn
-                                                </a>
-                                            )}
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-semibold text-foreground">
+                                                            {log.status === 'success' ? 'Shared' : 'Error'}
+                                                        </span>
+                                                        <span className="text-muted-foreground">
+                                                            {new Date(log.created_at).toLocaleString()}
+                                                        </span>
+                                                        {log.error_message && (
+                                                            <span className="text-destructive">{log.error_message}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <span className="text-muted-foreground">
+                                                            {log.share_target || 'member'} · {log.visibility || 'PUBLIC'}
+                                                        </span>
+                                                        {log.share_url && (
+                                                            <a
+                                                                href={log.share_url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="text-primary underline"
+                                                            >
+                                                                View on LinkedIn
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
+                                    )}
+                                </div>
 
-                {linkedinStatus?.connected && (
-                    <div className="rounded-lg border bg-white p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-xs text-muted-foreground">Scheduled Shares</Label>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={loadLinkedInScheduled}
-                                disabled={linkedinScheduledLoading || !articleId || isNew}
-                            >
-                                {linkedinScheduledLoading ? 'Refreshing…' : 'Refresh'}
-                            </Button>
-                        </div>
-                        {linkedinScheduled.length === 0 ? (
-                            <div className="text-xs text-muted-foreground">No scheduled shares.</div>
-                        ) : (
-                            <div className="space-y-2">
-                                {linkedinScheduled.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
-                                    >
-                                        <div className="flex flex-col gap-1">
-                                            <span className="font-semibold text-foreground">
-                                                {item.status === 'scheduled' ? 'Scheduled' : item.status}
-                                            </span>
-                                            <span className="text-muted-foreground">
-                                                {new Date(item.scheduled_at).toLocaleString()}
-                                            </span>
-                                            {item.error_message && (
-                                                <span className="text-destructive">{item.error_message}</span>
-                                            )}
-                                        </div>
-                                        <div className="text-muted-foreground">
-                                            {item.share_target || 'member'} · {item.visibility || 'PUBLIC'} · {item.share_mode === 'image' ? 'image' : 'link'}
-                                        </div>
+                                <div className="rounded-lg border bg-white p-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs text-muted-foreground">Scheduled Shares</Label>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={loadLinkedInScheduled}
+                                            disabled={linkedinScheduledLoading || !articleId || isNew}
+                                        >
+                                            {linkedinScheduledLoading ? 'Refreshing…' : 'Refresh'}
+                                        </Button>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    {linkedinScheduled.length === 0 ? (
+                                        <div className="text-xs text-muted-foreground">No scheduled shares.</div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {linkedinScheduled.map((item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+                                                >
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-semibold text-foreground">
+                                                            {item.status === 'scheduled' ? 'Scheduled' : item.status}
+                                                        </span>
+                                                        <span className="text-muted-foreground">
+                                                            {new Date(item.scheduled_at).toLocaleString()}
+                                                        </span>
+                                                        {item.error_message && (
+                                                            <span className="text-destructive">{item.error_message}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-muted-foreground">
+                                                        {item.share_target || 'member'} · {item.visibility || 'PUBLIC'} · {item.share_mode === 'image' ? 'image' : 'link'}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 )}
             </div>
 

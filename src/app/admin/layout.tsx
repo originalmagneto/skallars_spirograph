@@ -24,6 +24,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const [accessChecking, setAccessChecking] = useState(false);
     const ROLE_CACHE_KEY = 'skallars_role_cache_v1';
     const ROLE_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
+    const ACCESS_TIMEOUT_MS = 12000;
+
+    const isTimeoutError = (error: unknown) =>
+        error instanceof Error && /timed out/i.test(error.message);
 
     const readRoleCache = (userId: string) => {
         try {
@@ -63,6 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
 
     const checkAccessViaRpc = async () => {
+        if (accessChecking) return;
         setAccessChecking(true);
         try {
             const targetId = user?.id;
@@ -73,14 +78,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             // Server-first role check is the primary source of truth.
             try {
-                const sessionRes = await withTimeout(supabase.auth.getSession(), 8000, 'Session check');
+                const sessionRes = await withTimeout(supabase.auth.getSession(), ACCESS_TIMEOUT_MS, 'Session check');
                 const token = sessionRes.data.session?.access_token;
                 if (token) {
                     const fallbackRes = await withTimeout(
                         fetch('/api/admin/role', {
                             headers: { Authorization: `Bearer ${token}` },
                         }),
-                        8000,
+                        ACCESS_TIMEOUT_MS,
                         'Server role check'
                     );
                     if (fallbackRes.ok) {
@@ -99,12 +104,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             const adminRpc = await withTimeout(
                 supabase.rpc('is_profile_admin', { _user_id: targetId }),
-                8000,
+                ACCESS_TIMEOUT_MS,
                 'Admin RPC check'
             );
             const editorRpc = await withTimeout(
                 supabase.rpc('is_profile_editor', { _user_id: targetId }),
-                8000,
+                ACCESS_TIMEOUT_MS,
                 'Editor RPC check'
             );
 
@@ -134,7 +139,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }
         } catch (error: any) {
             // Ignore RPC errors; fallback to context state.
-            setAccessCheckMessage(error?.message || 'Access check failed. Please re-login.');
+            if (isTimeoutError(error)) {
+                setAccessCheckMessage('Access check is taking longer than expected. Please retry.');
+            } else {
+                setAccessCheckMessage(error?.message || 'Access check failed. Please re-login.');
+            }
         } finally {
             setAccessChecking(false);
         }
@@ -173,8 +182,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             setAccessCheckMessage('Permission refresh timed out. Please try again.');
         }, 12000);
         try {
-            await withTimeout(refreshRoles(), 8000, 'Role refresh');
-            await withTimeout(checkAccessViaRpc(), 8000, 'Access check');
+            await withTimeout(refreshRoles(), ACCESS_TIMEOUT_MS, 'Role refresh');
+            await withTimeout(checkAccessViaRpc(), ACCESS_TIMEOUT_MS, 'Access check');
         } catch (error: any) {
             setAccessCheckMessage(error?.message || 'Refresh failed.');
         } finally {
@@ -211,7 +220,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             let sessionRes: any = null;
             try {
-                sessionRes = await withTimeout(supabase.auth.getSession(), 8000, 'Session check');
+                sessionRes = await withTimeout(supabase.auth.getSession(), ACCESS_TIMEOUT_MS, 'Session check');
                 result.session = {
                     userId: sessionRes.data.session?.user?.id || null,
                     email: sessionRes.data.session?.user?.email || null,
@@ -229,7 +238,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             let userRes: any = null;
             try {
-                userRes = await withTimeout(supabase.auth.getUser(), 8000, 'User check');
+                userRes = await withTimeout(supabase.auth.getUser(), ACCESS_TIMEOUT_MS, 'User check');
                 result.user = {
                     userId: userRes.data.user?.id || null,
                     email: userRes.data.user?.email || null,
@@ -251,7 +260,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     .select('id, role')
                     .eq('id', targetId)
                     .maybeSingle(),
-                    8000,
+                    ACCESS_TIMEOUT_MS,
                     'Profile check'
                 );
                 result.profile = {
@@ -261,7 +270,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 const adminRpc = await withTimeout(
                     supabase.rpc('is_profile_admin', { _user_id: targetId }),
-                    8000,
+                    ACCESS_TIMEOUT_MS,
                     'Admin RPC check'
                 );
                 result.is_profile_admin = {
@@ -271,7 +280,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
                 const editorRpc = await withTimeout(
                     supabase.rpc('is_profile_editor', { _user_id: targetId }),
-                    8000,
+                    ACCESS_TIMEOUT_MS,
                     'Editor RPC check'
                 );
                 result.is_profile_editor = {
@@ -284,7 +293,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     .from('site_content')
                     .select('key')
                     .limit(1),
-                    8000,
+                    ACCESS_TIMEOUT_MS,
                     'Site content check'
                 );
                 result.site_content_select = {
@@ -297,7 +306,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     .from('page_sections')
                     .select('section_key')
                     .limit(1),
-                    8000,
+                    ACCESS_TIMEOUT_MS,
                     'Page sections check'
                 );
                 result.page_sections_select = {
@@ -331,12 +340,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
 
     useEffect(() => {
-        if (!user?.id) return;
-        if (isAdmin || isEditor || accessOverride === true) return;
-        if (autoDiagnosticsRanRef.current) return;
-        autoDiagnosticsRanRef.current = true;
-        void runDiagnostics();
-    }, [user?.id, isAdmin, isEditor, accessOverride]);
+        if (isAdmin || isEditor || accessOverride === true) {
+            autoDiagnosticsRanRef.current = false;
+        }
+    }, [isAdmin, isEditor, accessOverride]);
 
     useEffect(() => {
         if (!user?.id) return;
