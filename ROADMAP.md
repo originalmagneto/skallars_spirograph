@@ -83,8 +83,10 @@ Progress notes (current pass):
 - Added section-level ownership guidance in `ContentManager`.
 - Added direct “Open <Manager>” links from copy sections to their canonical structured managers.
 - Added structured-key ownership detection in `ContentManager` and hidden-by-default rendering with a “Show structured keys” power toggle.
+- Added legacy duplicate-key pattern detection for Services/Team/Clients/Footer/Map legacy content keys and mapped each to its canonical manager.
+- Updated section item counters to reflect visible keys only (avoids inflated counts from hidden structured duplicates).
 - Added source-of-truth hint cards to Services, Team, Clients, and Footer managers.
-- Next pass: key-by-key cleanup to retire remaining legacy duplicate keys.
+- Completed key-by-key cleanup pass for legacy structured duplicates.
 
 Exit criteria:
 - no user-visible duplicate edit pathways for same field
@@ -96,7 +98,7 @@ Exit criteria:
 Goal: make Article Studio simple by default, powerful when expanded.
 
 Deliverables:
-- enforce `Simple` and `Power` modes consistently across:
+- [x] enforce `Simple` and `Power` modes consistently across:
   - article generation
   - outline workflow
   - image generation controls
@@ -108,6 +110,11 @@ Deliverables:
   - strong default model
   - sane thinking budget
   - lite image mode default
+
+Progress notes (current pass):
+- `AILab` now force-resets advanced controls when switching to `Basic` mode (`custom prompt`, `outline workflow`, `power controls`).
+- `AILab` now keeps source-link editor hidden in `Basic` mode unless explicitly toggled on (default is off).
+- `Power` mode auto-enables source-link editing to preserve full control workflow.
 
 Exit criteria:
 - average user can generate + save draft + publish without opening Power mode

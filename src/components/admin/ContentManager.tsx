@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
@@ -105,6 +105,14 @@ const STRUCTURED_KEY_OWNERSHIP: Array<{ prefix: string; tab: string; label: stri
     { prefix: 'team.members.', tab: 'team', label: 'Team Manager' },
     { prefix: 'footer.solutionsItems', tab: 'footer', label: 'Footer Manager' },
     { prefix: 'countries.officeInfo.', tab: 'map', label: 'Map Cities Manager' },
+];
+
+const LEGACY_STRUCTURED_KEY_PATTERNS: Array<{ pattern: RegExp; tab: string; label: string }> = [
+    { pattern: /^services\.[^.]+\.(title|description|icon|enabled|sort_order)$/i, tab: 'services', label: 'Services Manager' },
+    { pattern: /^team\.[^.]+\.(name|position|description|image_url|enabled|sort_order)$/i, tab: 'team', label: 'Team Manager' },
+    { pattern: /^clients\.[^.]+\.(name|logo_url|website|enabled|sort_order)$/i, tab: 'clients', label: 'Clients Manager' },
+    { pattern: /^footer\.link\.[^.]+\.(label|url|enabled|sort_order)$/i, tab: 'footer', label: 'Footer Manager' },
+    { pattern: /^countries\.office\.[^.]+\.(city|address|phone|enabled|sort_order)$/i, tab: 'map', label: 'Map Cities Manager' },
 ];
 
 // -- Components --
@@ -450,9 +458,15 @@ const ContentManager = () => {
     const registryMap = new Map(registry.map(r => [r.key, r]));
     const contentMap = new Map(content.map(c => [c.key, c]));
     const getStructuredOwner = (key: string) => {
-        const match = STRUCTURED_KEY_OWNERSHIP.find((owner) => key.startsWith(owner.prefix));
-        if (!match) return null;
-        return { tab: match.tab, label: match.label };
+        const prefixMatch = STRUCTURED_KEY_OWNERSHIP.find((owner) => key.startsWith(owner.prefix));
+        if (prefixMatch) {
+            return { tab: prefixMatch.tab, label: prefixMatch.label };
+        }
+        const legacyMatch = LEGACY_STRUCTURED_KEY_PATTERNS.find((owner) => owner.pattern.test(key));
+        if (legacyMatch) {
+            return { tab: legacyMatch.tab, label: legacyMatch.label };
+        }
+        return null;
     };
 
     // Merge
@@ -476,9 +490,10 @@ const ContentManager = () => {
         }))
     ];
 
-    const filteredItems = allItems
+    const visibleItems = allItems.filter((item) => showStructuredKeys || !item.structuredOwner);
+
+    const filteredItems = visibleItems
         .filter(item => {
-            if (!showStructuredKeys && item.structuredOwner) return false;
             if (searchQuery) return item.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 item.label?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 item.value_sk.toLowerCase().includes(searchQuery.toLowerCase());
@@ -488,7 +503,7 @@ const ContentManager = () => {
 
     const hiddenStructuredCount = allItems.filter((item) => item.section === activeSection && item.structuredOwner).length;
 
-    const sectionCounts = allItems.reduce((acc, item) => {
+    const sectionCounts = visibleItems.reduce((acc, item) => {
         acc[item.section] = (acc[item.section] || 0) + 1;
         return acc;
     }, {} as Record<string, number>);

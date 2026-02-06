@@ -57,6 +57,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [customPrompt, setCustomPrompt] = useState('');
     const [showPromptEditor, setShowPromptEditor] = useState(false);
     const [showPowerControls, setShowPowerControls] = useState(false);
+    const [showSourceLinks, setShowSourceLinks] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<GeneratedArticle | null>(null);
     const [useOutlineWorkflow, setUseOutlineWorkflow] = useState(false);
@@ -181,10 +182,20 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         if (uiMode !== 'simple') return;
         // Keep basic mode opinionated for faster onboarding.
         setArticleLength('Medium');
+        setShowPowerControls(false);
+        setShowPromptEditor(false);
+        setUseOutlineWorkflow(false);
+        setShowSourceLinks(false);
         setTargetLanguages((prev) => {
             if (prev.length === 2 && prev.includes('sk') && prev.includes('en')) return prev;
             return ['sk', 'en'];
         });
+    }, [uiMode]);
+
+    useEffect(() => {
+        if (uiMode === 'power') {
+            setShowSourceLinks(true);
+        }
     }, [uiMode]);
 
     useEffect(() => {
@@ -243,6 +254,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         de: 'German (DE)',
         cn: 'Chinese (CN)',
     };
+    const shouldShowLinksEditor = uiMode === 'power' || showSourceLinks;
 
     const formatDuration = (ms: number) => {
         const totalSeconds = Math.floor(ms / 1000);
@@ -1227,7 +1239,20 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             </div>
                         )}
 
-                        {!showPromptEditor && (
+                        {!showPromptEditor && uiMode === 'simple' && (
+                            <div className="flex items-center justify-between rounded-lg border border-primary/10 bg-muted/20 p-3">
+                                <div>
+                                    <p className="text-sm font-medium">Attach Source Links</p>
+                                    <p className="text-xs text-muted-foreground">Optional. Add URLs to steer the article context.</p>
+                                </div>
+                                <Switch
+                                    checked={showSourceLinks}
+                                    onCheckedChange={setShowSourceLinks}
+                                />
+                            </div>
+                        )}
+
+                        {!showPromptEditor && shouldShowLinksEditor && (
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <Label className="flex items-center gap-2">
