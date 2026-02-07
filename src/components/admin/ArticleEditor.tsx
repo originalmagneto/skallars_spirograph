@@ -257,10 +257,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             return {};
         }
     };
-    const previewContentHtml = useMemo(
-        () => formatArticleHtml(getCurrentContent() || ''),
-        [activeTab, formData.content_sk, formData.content_en, formData.content_de, formData.content_cn]
-    );
+    const previewContentHtml = useMemo(() => {
+        // Inline content resolution to avoid temporal dead zone (getCurrentContent is defined later)
+        let content = '';
+        switch (activeTab) {
+            case 'sk': content = formData.content_sk; break;
+            case 'en': content = formData.content_en; break;
+            case 'de': content = formData.content_de; break;
+            case 'cn': content = formData.content_cn; break;
+            default: content = formData.content_sk;
+        }
+        return formatArticleHtml(content || '');
+    }, [activeTab, formData.content_sk, formData.content_en, formData.content_de, formData.content_cn]);
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -1322,112 +1330,112 @@ Rules:
                 description="Edit content, media, workflow status, and LinkedIn sharing from one place."
                 actions={(
                     <div className="flex flex-wrap items-center gap-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(formData.status)}`}>
-                        {statusLabel(formData.status)}
-                    </span>
-                    {workflowFieldsAvailable && (
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="scheduleAt" className="text-xs text-muted-foreground">Schedule</Label>
-                            <Input
-                                id="scheduleAt"
-                                name="scheduleAt"
-                                autoComplete="off"
-                                type="datetime-local"
-                                value={toLocalInput(formData.scheduled_at)}
-                                onChange={(e) => setFormData(prev => ({ ...prev, scheduled_at: fromLocalInput(e.target.value) }))}
-                                className="h-9 w-[190px]"
-                            />
-                        </div>
-                    )}
-                    <Button onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
-                        <Save size={16} className="mr-2" />
-                        {saveMutation.isPending ? 'Saving...' : 'Save'}
-                    </Button>
-                    {!isNew && (
-                        <>
-                            <Button
-                                variant="outline"
-                                disabled={saveMutation.isPending}
-                                onClick={() => handleWorkflowUpdate({
-                                    status: 'draft',
-                                    is_published: false,
-                                    scheduled_at: null,
-                                    submitted_at: null,
-                                }, 'save_draft')}
-                            >
-                                Save Draft
-                            </Button>
-                            {isEditor && !isAdmin && (
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(formData.status)}`}>
+                            {statusLabel(formData.status)}
+                        </span>
+                        {workflowFieldsAvailable && (
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="scheduleAt" className="text-xs text-muted-foreground">Schedule</Label>
+                                <Input
+                                    id="scheduleAt"
+                                    name="scheduleAt"
+                                    autoComplete="off"
+                                    type="datetime-local"
+                                    value={toLocalInput(formData.scheduled_at)}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, scheduled_at: fromLocalInput(e.target.value) }))}
+                                    className="h-9 w-[190px]"
+                                />
+                            </div>
+                        )}
+                        <Button onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
+                            <Save size={16} className="mr-2" />
+                            {saveMutation.isPending ? 'Saving...' : 'Save'}
+                        </Button>
+                        {!isNew && (
+                            <>
                                 <Button
                                     variant="outline"
                                     disabled={saveMutation.isPending}
                                     onClick={() => handleWorkflowUpdate({
-                                        status: 'review',
+                                        status: 'draft',
                                         is_published: false,
-                                        submitted_at: new Date().toISOString(),
-                                    }, 'submit_review')}
+                                        scheduled_at: null,
+                                        submitted_at: null,
+                                    }, 'save_draft')}
                                 >
-                                    Submit for Review
+                                    Save Draft
                                 </Button>
-                            )}
-                            {isAdmin && (
-                                <>
-                                    <Button
-                                        variant="default"
-                                        disabled={saveMutation.isPending}
-                                        onClick={() => handleWorkflowUpdate({
-                                            status: 'published',
-                                            is_published: true,
-                                            published_at: new Date().toISOString(),
-                                            approved_at: new Date().toISOString(),
-                                            approved_by: user?.id ?? null,
-                                        }, 'publish_now')}
-                                    >
-                                        Publish Now
-                                    </Button>
+                                {isEditor && !isAdmin && (
                                     <Button
                                         variant="outline"
-                                        disabled={saveMutation.isPending || !formData.scheduled_at}
+                                        disabled={saveMutation.isPending}
                                         onClick={() => handleWorkflowUpdate({
-                                            status: 'scheduled',
-                                            is_published: true,
-                                            published_at: formData.scheduled_at,
-                                        }, 'schedule_publish')}
+                                            status: 'review',
+                                            is_published: false,
+                                            submitted_at: new Date().toISOString(),
+                                        }, 'submit_review')}
                                     >
-                                        Schedule
+                                        Submit for Review
                                     </Button>
-                                </>
-                            )}
-                        </>
-                    )}
+                                )}
+                                {isAdmin && (
+                                    <>
+                                        <Button
+                                            variant="default"
+                                            disabled={saveMutation.isPending}
+                                            onClick={() => handleWorkflowUpdate({
+                                                status: 'published',
+                                                is_published: true,
+                                                published_at: new Date().toISOString(),
+                                                approved_at: new Date().toISOString(),
+                                                approved_by: user?.id ?? null,
+                                            }, 'publish_now')}
+                                        >
+                                            Publish Now
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            disabled={saveMutation.isPending || !formData.scheduled_at}
+                                            onClick={() => handleWorkflowUpdate({
+                                                status: 'scheduled',
+                                                is_published: true,
+                                                published_at: formData.scheduled_at,
+                                            }, 'schedule_publish')}
+                                        >
+                                            Schedule
+                                        </Button>
+                                    </>
+                                )}
+                            </>
+                        )}
 
-                    {/* Delete Button */}
-                    {!isNew && isAdmin && (
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" aria-label="Delete article">
-                                    <Trash2 size={16} />
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Article</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Are you sure you want to delete this article? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        onClick={() => deleteMutation.mutate()}
-                                    >
-                                        Delete
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    )}
+                        {/* Delete Button */}
+                        {!isNew && isAdmin && (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="destructive" size="sm" aria-label="Delete article">
+                                        <Trash2 size={16} />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Article</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Are you sure you want to delete this article? This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                            onClick={() => deleteMutation.mutate()}
+                                        >
+                                            Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
                     </div>
                 )}
             />
@@ -1439,702 +1447,702 @@ Rules:
             )}
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-            {/* Cover Image */}
-            <AdminSectionCard className="space-y-2 xl:col-span-4">
-                <Label>Cover Image</Label>
-                {formData.cover_image_url ? (
-                    <div className="relative group">
-                        <img
-                            src={formData.cover_image_url}
-                            alt="Cover"
-                            width={1200}
-                            height={480}
-                            className="w-full h-48 object-cover rounded-lg"
-                        />
-                        <Button
-                            variant="destructive"
-                            size="sm"
-                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => setFormData(prev => ({ ...prev, cover_image_url: '' }))}
-                            aria-label="Remove cover image"
-                        >
-                            <X size={16} />
-                        </Button>
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-input rounded-lg bg-muted/30 transition-colors">
-                        <Upload size={32} className="text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground mb-4">
-                            {uploading ? 'Uploading...' : 'Upload cover image'}
-                        </p>
-                        <Button variant="outline" size="sm" asChild className="cursor-pointer">
-                            <label>
-                                Choose File
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={handleCoverUpload}
-                                    disabled={uploading}
-                                />
-                            </label>
-                        </Button>
-                    </div>
-                )}
-            </AdminSectionCard>
-
-            {/* AI Cover Image Generator */}
-            <AdminSectionCard className="space-y-3 bg-muted/20 xl:col-span-8">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <Sparkles size={16} className="text-primary" />
-                        <span className="text-sm font-semibold">Generate Cover Image</span>
-                    </div>
-                    <Button size="sm" variant="ghost" onClick={buildImagePromptFromArticle}>
-                        Use Article Content
-                    </Button>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="imagePrompt" className="text-xs text-muted-foreground">Image Prompt</Label>
-                    <Textarea
-                        id="imagePrompt"
-                        name="imagePrompt"
-                        autoComplete="off"
-                        value={imagePrompt}
-                        onChange={(e) => setImagePrompt(e.target.value)}
-                        rows={4}
-                        placeholder="Describe the desired cover image..."
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Style</Label>
-                        <Select value={imageStyle} onValueChange={setImageStyle}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select style" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Editorial Photo">Editorial Photo</SelectItem>
-                                <SelectItem value="Corporate Illustration">Corporate Illustration</SelectItem>
-                                <SelectItem value="Minimal Abstract">Minimal Abstract</SelectItem>
-                                <SelectItem value="Professional 3D">Professional 3D</SelectItem>
-                                <SelectItem value="Watercolor Illustration">Watercolor Illustration</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Aspect Ratio</Label>
-                        <Select value={imageAspect} onValueChange={(value) => setImageAspect(value as typeof imageAspect)}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select ratio" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="16:9">16:9 (Hero)</SelectItem>
-                                <SelectItem value="4:3">4:3 (Blog)</SelectItem>
-                                <SelectItem value="1:1">1:1 (Square)</SelectItem>
-                                <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Generation Mode</Label>
-                    <Select value={imageMode} onValueChange={(value) => setImageMode(value as 'lite' | 'advanced')}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="lite">Lite (Fast Draft)</SelectItem>
-                            <SelectItem value="advanced">Advanced (Full Controls)</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <p className="text-[10px] text-muted-foreground">
-                        Lite uses Turbo with one variant. Advanced unlocks model and provider controls.
-                    </p>
-                </div>
-
-                {imageMode === 'advanced' && (
-                    <>
-                        <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/20">
-                            <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Use Global AI Settings</Label>
-                                <p className="text-[10px] text-muted-foreground">
-                                    Uses defaults from AI Settings. Turn off to override for this article.
-                                </p>
-                            </div>
-                            <Switch checked={useGlobalImageSettings} onCheckedChange={setUseGlobalImageSettings} />
-                        </div>
-
-                        {useGlobalImageSettings ? (
-                            <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
-                                <div className="font-medium text-foreground">Using global image defaults</div>
-                                <div>Provider: {displayImageProvider === 'gemini' ? 'Gemini (Pro)' : 'Turbo (Fast)'}</div>
-                                {displayImageProvider === 'gemini' && displayImageModel && (
-                                    <div>Model: {displayImageModel}</div>
-                                )}
-                                <div>
-                                    Edit these in <span className="font-semibold">AI Settings</span>.
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Provider</Label>
-                                <Select
-                                    value={overrideImageProvider}
-                                    onValueChange={(value) => setOverrideImageProvider(value as 'gemini' | 'turbo')}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select provider" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="gemini">Gemini (Pro)</SelectItem>
-                                        <SelectItem value="turbo">Turbo (Fast)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-[10px] text-muted-foreground">
-                                    Gemini uses your API key. Turbo is fast and free for drafts.
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <Label className="text-xs text-muted-foreground">Image Variants</Label>
-                            <Input
-                                type="number"
-                                min={1}
-                                max={4}
-                                value={imageCount}
-                                onChange={(e) => setImageCount(Math.max(1, Math.min(4, parseInt(e.target.value) || 1)))}
+                {/* Cover Image */}
+                <AdminSectionCard className="space-y-2 xl:col-span-4">
+                    <Label>Cover Image</Label>
+                    {formData.cover_image_url ? (
+                        <div className="relative group">
+                            <img
+                                src={formData.cover_image_url}
+                                alt="Cover"
+                                width={1200}
+                                height={480}
+                                className="w-full h-48 object-cover rounded-lg"
                             />
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => setFormData(prev => ({ ...prev, cover_image_url: '' }))}
+                                aria-label="Remove cover image"
+                            >
+                                <X size={16} />
+                            </Button>
                         </div>
-
-                        {displayImageProvider === 'gemini' && !useGlobalImageSettings && (
-                            <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Gemini Image Model (optional)</Label>
-                                <Input
-                                    value={overrideImageModel}
-                                    onChange={(e) => setOverrideImageModel(e.target.value)}
-                                    placeholder="imagen-3.0-generate-001"
-                                />
-                                <p className="text-[10px] text-muted-foreground">
-                                    Leave empty to fall back to the global model.
-                                </p>
-                            </div>
-                        )}
-                    </>
-                )}
-
-                <Button onClick={handleGenerateImages} disabled={imageGenerating}>
-                    {imageGenerating ? 'Generating images...' : 'Generate Images'}
-                </Button>
-
-                {generatedImages.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                        {generatedImages.map((img, idx) => (
-                            <div key={`${img.url}-${idx}`} className="border rounded-lg overflow-hidden bg-white">
-                                <div className="aspect-video bg-muted">
-                                    <img
-                                        src={img.url}
-                                        alt={`Generated ${idx + 1}`}
-                                        width={1280}
-                                        height={720}
-                                        className="w-full h-full object-cover"
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-input rounded-lg bg-muted/30 transition-colors">
+                            <Upload size={32} className="text-muted-foreground mb-2" />
+                            <p className="text-sm text-muted-foreground mb-4">
+                                {uploading ? 'Uploading...' : 'Upload cover image'}
+                            </p>
+                            <Button variant="outline" size="sm" asChild className="cursor-pointer">
+                                <label>
+                                    Choose File
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleCoverUpload}
+                                        disabled={uploading}
                                     />
-                                </div>
-                                <div className="p-3 space-y-2">
-                                    <div className="text-[11px] text-muted-foreground">
-                                        Provider: {img.provider === 'gemini' ? 'Gemini' : 'Turbo'}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button size="sm" variant="outline" onClick={() => handleSaveImage(img.url)}>
-                                            Save
-                                        </Button>
-                                        <Button size="sm" onClick={() => handleUseAsCover(img.url)}>
-                                            Use as Cover
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                                </label>
+                            </Button>
+                        </div>
+                    )}
+                </AdminSectionCard>
+
+                {/* AI Cover Image Generator */}
+                <AdminSectionCard className="space-y-3 bg-muted/20 xl:col-span-8">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Sparkles size={16} className="text-primary" />
+                            <span className="text-sm font-semibold">Generate Cover Image</span>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={buildImagePromptFromArticle}>
+                            Use Article Content
+                        </Button>
                     </div>
-                )}
-            </AdminSectionCard>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="imagePrompt" className="text-xs text-muted-foreground">Image Prompt</Label>
+                        <Textarea
+                            id="imagePrompt"
+                            name="imagePrompt"
+                            autoComplete="off"
+                            value={imagePrompt}
+                            onChange={(e) => setImagePrompt(e.target.value)}
+                            rows={4}
+                            placeholder="Describe the desired cover image..."
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Style</Label>
+                            <Select value={imageStyle} onValueChange={setImageStyle}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select style" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Editorial Photo">Editorial Photo</SelectItem>
+                                    <SelectItem value="Corporate Illustration">Corporate Illustration</SelectItem>
+                                    <SelectItem value="Minimal Abstract">Minimal Abstract</SelectItem>
+                                    <SelectItem value="Professional 3D">Professional 3D</SelectItem>
+                                    <SelectItem value="Watercolor Illustration">Watercolor Illustration</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Aspect Ratio</Label>
+                            <Select value={imageAspect} onValueChange={(value) => setImageAspect(value as typeof imageAspect)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select ratio" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="16:9">16:9 (Hero)</SelectItem>
+                                    <SelectItem value="4:3">4:3 (Blog)</SelectItem>
+                                    <SelectItem value="1:1">1:1 (Square)</SelectItem>
+                                    <SelectItem value="3:4">3:4 (Portrait)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Generation Mode</Label>
+                        <Select value={imageMode} onValueChange={(value) => setImageMode(value as 'lite' | 'advanced')}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select mode" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="lite">Lite (Fast Draft)</SelectItem>
+                                <SelectItem value="advanced">Advanced (Full Controls)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">
+                            Lite uses Turbo with one variant. Advanced unlocks model and provider controls.
+                        </p>
+                    </div>
+
+                    {imageMode === 'advanced' && (
+                        <>
+                            <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/20">
+                                <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Use Global AI Settings</Label>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Uses defaults from AI Settings. Turn off to override for this article.
+                                    </p>
+                                </div>
+                                <Switch checked={useGlobalImageSettings} onCheckedChange={setUseGlobalImageSettings} />
+                            </div>
+
+                            {useGlobalImageSettings ? (
+                                <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+                                    <div className="font-medium text-foreground">Using global image defaults</div>
+                                    <div>Provider: {displayImageProvider === 'gemini' ? 'Gemini (Pro)' : 'Turbo (Fast)'}</div>
+                                    {displayImageProvider === 'gemini' && displayImageModel && (
+                                        <div>Model: {displayImageModel}</div>
+                                    )}
+                                    <div>
+                                        Edit these in <span className="font-semibold">AI Settings</span>.
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-muted-foreground">Provider</Label>
+                                    <Select
+                                        value={overrideImageProvider}
+                                        onValueChange={(value) => setOverrideImageProvider(value as 'gemini' | 'turbo')}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select provider" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="gemini">Gemini (Pro)</SelectItem>
+                                            <SelectItem value="turbo">Turbo (Fast)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Gemini uses your API key. Turbo is fast and free for drafts.
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="space-y-2">
+                                <Label className="text-xs text-muted-foreground">Image Variants</Label>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={4}
+                                    value={imageCount}
+                                    onChange={(e) => setImageCount(Math.max(1, Math.min(4, parseInt(e.target.value) || 1)))}
+                                />
+                            </div>
+
+                            {displayImageProvider === 'gemini' && !useGlobalImageSettings && (
+                                <div className="space-y-2">
+                                    <Label className="text-xs text-muted-foreground">Gemini Image Model (optional)</Label>
+                                    <Input
+                                        value={overrideImageModel}
+                                        onChange={(e) => setOverrideImageModel(e.target.value)}
+                                        placeholder="imagen-3.0-generate-001"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Leave empty to fall back to the global model.
+                                    </p>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    <Button onClick={handleGenerateImages} disabled={imageGenerating}>
+                        {imageGenerating ? 'Generating images...' : 'Generate Images'}
+                    </Button>
+
+                    {generatedImages.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            {generatedImages.map((img, idx) => (
+                                <div key={`${img.url}-${idx}`} className="border rounded-lg overflow-hidden bg-white">
+                                    <div className="aspect-video bg-muted">
+                                        <img
+                                            src={img.url}
+                                            alt={`Generated ${idx + 1}`}
+                                            width={1280}
+                                            height={720}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <div className="p-3 space-y-2">
+                                        <div className="text-[11px] text-muted-foreground">
+                                            Provider: {img.provider === 'gemini' ? 'Gemini' : 'Turbo'}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="outline" onClick={() => handleSaveImage(img.url)}>
+                                                Save
+                                            </Button>
+                                            <Button size="sm" onClick={() => handleUseAsCover(img.url)}>
+                                                Use as Cover
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </AdminSectionCard>
             </div>
 
             {/* LinkedIn Share */}
             <div ref={linkedinSectionRef}>
-            <AdminSectionCard className="space-y-4 bg-muted/20">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                        <Label className="text-sm font-semibold">LinkedIn Share</Label>
-                        <p className="text-xs text-muted-foreground">
-                            Connect your LinkedIn account and share this article.
-                        </p>
-                    </div>
-                    {linkedinLoading ? (
-                        <Button size="sm" variant="outline" disabled>
-                            Checking...
-                        </Button>
-                    ) : linkedinStatus?.connected ? (
-                        <Button size="sm" variant="outline" onClick={handleLinkedInDisconnect}>
-                            Disconnect
-                        </Button>
-                    ) : (
-                        <Button size="sm" onClick={handleLinkedInConnect}>
-                            Connect LinkedIn
-                        </Button>
-                    )}
-                </div>
-
-                {linkedinStatus?.connected && (
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>Connected as {linkedinStatus.member_name || 'LinkedIn Member'}</span>
-                        {linkedinStatus.expires_at && (
-                            <span>
-                                Token expires {new Date(linkedinStatus.expires_at).toLocaleString()}
-                            </span>
-                        )}
-                        {linkedinStatus.expired && (
-                            <span className="text-destructive">Token expired — reconnect.</span>
-                        )}
-                        {!hasOrgScope && (
-                            <span className="text-muted-foreground">
-                                Company pages disabled (missing org scopes).
-                            </span>
-                        )}
-                        {linkedinTarget === 'organization' && organizationOptions.length > 0 && (
-                            <span>{organizationOptions.length} orgs available</span>
-                        )}
-                        {latestLinkedInShare?.created_at && (
-                            <span className="flex items-center gap-2">
-                                Last shared {new Date(latestLinkedInShare.created_at).toLocaleString()}
-                                {latestLinkedInShare.share_url && (
-                                    <a
-                                        href={latestLinkedInShare.share_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary hover:text-primary/80 underline"
-                                    >
-                                        View post
-                                    </a>
-                                )}
-                            </span>
-                        )}
-                    </div>
-                )}
-
-                {linkedinStatus?.connected && (
-                    <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
-                        <div className="space-y-0.5">
-                            <div className="text-xs font-semibold text-foreground">Mode</div>
-                            <div className="text-[11px] text-muted-foreground">Basic for quick share, Power for full controls.</div>
+                <AdminSectionCard className="space-y-4 bg-muted/20">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <Label className="text-sm font-semibold">LinkedIn Share</Label>
+                            <p className="text-xs text-muted-foreground">
+                                Connect your LinkedIn account and share this article.
+                            </p>
                         </div>
-                        <div className="inline-flex rounded-md border bg-muted/20 p-1">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant={linkedinUiMode === 'basic' ? 'default' : 'ghost'}
-                                className="h-7 px-3 text-xs"
-                                onClick={() => setLinkedinUiMode('basic')}
-                            >
-                                Basic
+                        {linkedinLoading ? (
+                            <Button size="sm" variant="outline" disabled>
+                                Checking...
                             </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant={linkedinUiMode === 'power' ? 'default' : 'ghost'}
-                                className="h-7 px-3 text-xs"
-                                onClick={() => setLinkedinUiMode('power')}
-                            >
-                                Power
+                        ) : linkedinStatus?.connected ? (
+                            <Button size="sm" variant="outline" onClick={handleLinkedInDisconnect}>
+                                Disconnect
                             </Button>
-                        </div>
+                        ) : (
+                            <Button size="sm" onClick={handleLinkedInConnect}>
+                                Connect LinkedIn
+                            </Button>
+                        )}
                     </div>
-                )}
 
-                {linkedinStatus?.connected && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Share As</Label>
-                            <Select
-                                value={linkedinTarget}
-                                onValueChange={(value) => setLinkedinTarget(value as 'member' | 'organization')}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select share target" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="member">Personal Profile</SelectItem>
-                                    <SelectItem value="organization" disabled={!hasOrgScope}>
-                                        Company Page
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                    {linkedinStatus?.connected && (
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <span>Connected as {linkedinStatus.member_name || 'LinkedIn Member'}</span>
+                            {linkedinStatus.expires_at && (
+                                <span>
+                                    Token expires {new Date(linkedinStatus.expires_at).toLocaleString()}
+                                </span>
+                            )}
+                            {linkedinStatus.expired && (
+                                <span className="text-destructive">Token expired — reconnect.</span>
+                            )}
                             {!hasOrgScope && (
-                                <p className="text-[10px] text-muted-foreground">
-                                    Company page sharing requires LinkedIn organization scopes and approval.
-                                </p>
+                                <span className="text-muted-foreground">
+                                    Company pages disabled (missing org scopes).
+                                </span>
+                            )}
+                            {linkedinTarget === 'organization' && organizationOptions.length > 0 && (
+                                <span>{organizationOptions.length} orgs available</span>
+                            )}
+                            {latestLinkedInShare?.created_at && (
+                                <span className="flex items-center gap-2">
+                                    Last shared {new Date(latestLinkedInShare.created_at).toLocaleString()}
+                                    {latestLinkedInShare.share_url && (
+                                        <a
+                                            href={latestLinkedInShare.share_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:text-primary/80 underline"
+                                        >
+                                            View post
+                                        </a>
+                                    )}
+                                </span>
                             )}
                         </div>
+                    )}
 
-                        {linkedinUiMode === 'power' && (
+                    {linkedinStatus?.connected && (
+                        <div className="flex items-center justify-between rounded-md border bg-white px-3 py-2">
+                            <div className="space-y-0.5">
+                                <div className="text-xs font-semibold text-foreground">Mode</div>
+                                <div className="text-[11px] text-muted-foreground">Basic for quick share, Power for full controls.</div>
+                            </div>
+                            <div className="inline-flex rounded-md border bg-muted/20 p-1">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={linkedinUiMode === 'basic' ? 'default' : 'ghost'}
+                                    className="h-7 px-3 text-xs"
+                                    onClick={() => setLinkedinUiMode('basic')}
+                                >
+                                    Basic
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={linkedinUiMode === 'power' ? 'default' : 'ghost'}
+                                    className="h-7 px-3 text-xs"
+                                    onClick={() => setLinkedinUiMode('power')}
+                                >
+                                    Power
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {linkedinStatus?.connected && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Share Type</Label>
+                                <Label>Share As</Label>
                                 <Select
-                                    value={linkedinShareMode}
-                                    onValueChange={(value) => {
-                                        setLinkedinShareMode(value as 'article' | 'image');
-                                        setLinkedinShareModeTouched(true);
-                                    }}
+                                    value={linkedinTarget}
+                                    onValueChange={(value) => setLinkedinTarget(value as 'member' | 'organization')}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select share type" />
+                                        <SelectValue placeholder="Select share target" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="article">Link preview</SelectItem>
-                                        <SelectItem value="image">Image post</SelectItem>
+                                        <SelectItem value="member">Personal Profile</SelectItem>
+                                        <SelectItem value="organization" disabled={!hasOrgScope}>
+                                            Company Page
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p className="text-[10px] text-muted-foreground">
-                                    Image posts upload the image and append the article link to the text.
-                                    LinkedIn may omit preview images for API link posts.
-                                </p>
-                            </div>
-                        )}
-
-                        {linkedinTarget === 'organization' && (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <Label>Organization</Label>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={loadLinkedInOrganizations}
-                                    >
-                                        Refresh
-                                    </Button>
-                                </div>
-                                {organizationOptions.length > 0 ? (
-                                    <Select
-                                        value={linkedinOrganizationUrn}
-                                        onValueChange={setLinkedinOrganizationUrn}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select organization" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {organizationOptions.map((org) => (
-                                                <SelectItem key={org.urn} value={org.urn}>
-                                                    {org.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <Input
-                                            value={linkedinOrganizationUrn}
-                                            onChange={(e) => setLinkedinOrganizationUrn(e.target.value)}
-                                            placeholder="urn:li:organization:123456"
-                                        />
-                                        <p className="text-[10px] text-muted-foreground">
-                                            If the list is empty, paste your company URN (from LinkedIn page admin URL or API).
-                                        </p>
-                                    </div>
-                                )}
-                                {!linkedinOrganizationUrn && linkedinDefaultOrgUrn && (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => setLinkedinOrganizationUrn(linkedinDefaultOrgUrn)}
-                                    >
-                                        Use saved default URN
-                                    </Button>
-                                )}
-                                {!effectiveLinkedInOrganizationUrn && (
-                                    <p className="text-[10px] text-amber-700">
-                                        No organization is selected. Set a default organization URN in LinkedIn Settings or choose one here.
+                                {!hasOrgScope && (
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Company page sharing requires LinkedIn organization scopes and approval.
                                     </p>
                                 )}
-                                {linkedinOrgNotice && (
-                                    <p className="text-[10px] text-amber-700">{linkedinOrgNotice}</p>
-                                )}
                             </div>
-                        )}
-                    </div>
-                )}
 
-                {linkedinStatus?.connected && linkedinUiMode === 'power' && effectiveLinkedInShareMode === 'image' && (
-                    <div className="space-y-2">
-                        <Label>Image URL</Label>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <Input
-                                value={linkedinImageUrl}
-                                onChange={(e) => setLinkedinImageUrl(e.target.value)}
-                                placeholder="https://..."
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setLinkedinImageUrl(formData.cover_image_url || '')}
-                                disabled={!formData.cover_image_url}
-                            >
-                                Use Cover Image
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {linkedinStatus?.connected && (
-                    <div className="space-y-2">
-                        <Label>LinkedIn Post Text</Label>
-                        <Textarea
-                            value={linkedinMessage}
-                            onChange={(e) => setLinkedinMessage(e.target.value)}
-                            rows={3}
-                            placeholder="Add your LinkedIn intro..."
-                        />
-                    </div>
-                )}
-
-                {linkedinStatus?.connected && (
-                    <div className="rounded-lg border bg-white p-3 space-y-2">
-                        <div className="text-xs text-muted-foreground">Preview</div>
-                        <div className="flex flex-col gap-3">
-                            {(effectiveLinkedInShareMode === 'image' ? effectiveLinkedInImageUrl : formData.cover_image_url) && (
-                                <img
-                                    src={effectiveLinkedInShareMode === 'image'
-                                        ? effectiveLinkedInImageUrl
-                                        : formData.cover_image_url}
-                                    alt="LinkedIn preview"
-                                    width={1200}
-                                    height={630}
-                                    className="w-full h-40 object-cover rounded-md"
-                                />
+                            {linkedinUiMode === 'power' && (
+                                <div className="space-y-2">
+                                    <Label>Share Type</Label>
+                                    <Select
+                                        value={linkedinShareMode}
+                                        onValueChange={(value) => {
+                                            setLinkedinShareMode(value as 'article' | 'image');
+                                            setLinkedinShareModeTouched(true);
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select share type" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="article">Link preview</SelectItem>
+                                            <SelectItem value="image">Image post</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-muted-foreground">
+                                        Image posts upload the image and append the article link to the text.
+                                        LinkedIn may omit preview images for API link posts.
+                                    </p>
+                                </div>
                             )}
-                            <div className="space-y-1">
-                                <div className="text-sm font-semibold">{getCurrentTitle() || 'Untitled Article'}</div>
-                                <div className="text-xs text-muted-foreground line-clamp-2">
-                                    {getCurrentExcerpt() || 'Add an excerpt to improve the preview.'}
+
+                            {linkedinTarget === 'organization' && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Label>Organization</Label>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={loadLinkedInOrganizations}
+                                        >
+                                            Refresh
+                                        </Button>
+                                    </div>
+                                    {organizationOptions.length > 0 ? (
+                                        <Select
+                                            value={linkedinOrganizationUrn}
+                                            onValueChange={setLinkedinOrganizationUrn}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select organization" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {organizationOptions.map((org) => (
+                                                    <SelectItem key={org.urn} value={org.urn}>
+                                                        {org.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            <Input
+                                                value={linkedinOrganizationUrn}
+                                                onChange={(e) => setLinkedinOrganizationUrn(e.target.value)}
+                                                placeholder="urn:li:organization:123456"
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">
+                                                If the list is empty, paste your company URN (from LinkedIn page admin URL or API).
+                                            </p>
+                                        </div>
+                                    )}
+                                    {!linkedinOrganizationUrn && linkedinDefaultOrgUrn && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setLinkedinOrganizationUrn(linkedinDefaultOrgUrn)}
+                                        >
+                                            Use saved default URN
+                                        </Button>
+                                    )}
+                                    {!effectiveLinkedInOrganizationUrn && (
+                                        <p className="text-[10px] text-amber-700">
+                                            No organization is selected. Set a default organization URN in LinkedIn Settings or choose one here.
+                                        </p>
+                                    )}
+                                    {linkedinOrgNotice && (
+                                        <p className="text-[10px] text-amber-700">{linkedinOrgNotice}</p>
+                                    )}
                                 </div>
-                                <div className="text-[11px] text-muted-foreground">
-                                    {getArticleUrl() || 'Save a slug to generate the article link.'}
+                            )}
+                        </div>
+                    )}
+
+                    {linkedinStatus?.connected && linkedinUiMode === 'power' && effectiveLinkedInShareMode === 'image' && (
+                        <div className="space-y-2">
+                            <Label>Image URL</Label>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <Input
+                                    value={linkedinImageUrl}
+                                    onChange={(e) => setLinkedinImageUrl(e.target.value)}
+                                    placeholder="https://..."
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setLinkedinImageUrl(formData.cover_image_url || '')}
+                                    disabled={!formData.cover_image_url}
+                                >
+                                    Use Cover Image
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {linkedinStatus?.connected && (
+                        <div className="space-y-2">
+                            <Label>LinkedIn Post Text</Label>
+                            <Textarea
+                                value={linkedinMessage}
+                                onChange={(e) => setLinkedinMessage(e.target.value)}
+                                rows={3}
+                                placeholder="Add your LinkedIn intro..."
+                            />
+                        </div>
+                    )}
+
+                    {linkedinStatus?.connected && (
+                        <div className="rounded-lg border bg-white p-3 space-y-2">
+                            <div className="text-xs text-muted-foreground">Preview</div>
+                            <div className="flex flex-col gap-3">
+                                {(effectiveLinkedInShareMode === 'image' ? effectiveLinkedInImageUrl : formData.cover_image_url) && (
+                                    <img
+                                        src={effectiveLinkedInShareMode === 'image'
+                                            ? effectiveLinkedInImageUrl
+                                            : formData.cover_image_url}
+                                        alt="LinkedIn preview"
+                                        width={1200}
+                                        height={630}
+                                        className="w-full h-40 object-cover rounded-md"
+                                    />
+                                )}
+                                <div className="space-y-1">
+                                    <div className="text-sm font-semibold">{getCurrentTitle() || 'Untitled Article'}</div>
+                                    <div className="text-xs text-muted-foreground line-clamp-2">
+                                        {getCurrentExcerpt() || 'Add an excerpt to improve the preview.'}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">
+                                        {getArticleUrl() || 'Save a slug to generate the article link.'}
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {linkedinStatus?.connected && (
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                            onClick={handleLinkedInShare}
-                            disabled={
-                                linkedinSharing ||
-                                linkedinStatus?.expired ||
-                                (linkedinTarget === 'organization' && !effectiveLinkedInOrganizationUrn) ||
-                                (effectiveLinkedInShareMode === 'article' ? !getArticleUrl() : !effectiveLinkedInImageUrl)
-                            }
-                        >
-                            {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
-                        </Button>
-                        {(!articleId || isNew) && (
-                            <span className="text-xs text-muted-foreground">
-                                Save the article before sharing.
-                            </span>
-                        )}
-                    </div>
-                )}
+                    {linkedinStatus?.connected && (
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Button
+                                onClick={handleLinkedInShare}
+                                disabled={
+                                    linkedinSharing ||
+                                    linkedinStatus?.expired ||
+                                    (linkedinTarget === 'organization' && !effectiveLinkedInOrganizationUrn) ||
+                                    (effectiveLinkedInShareMode === 'article' ? !getArticleUrl() : !effectiveLinkedInImageUrl)
+                                }
+                            >
+                                {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
+                            </Button>
+                            {(!articleId || isNew) && (
+                                <span className="text-xs text-muted-foreground">
+                                    Save the article before sharing.
+                                </span>
+                            )}
+                        </div>
+                    )}
 
-                {linkedinStatus?.connected && linkedinUiMode === 'power' && (
-                    <Accordion type="single" collapsible className="w-full rounded-lg border bg-white px-3">
-                        <AccordionItem value="linkedin-advanced" className="border-b-0">
-                            <AccordionTrigger className="py-3 text-xs font-semibold no-underline hover:no-underline">
-                                Advanced LinkedIn Tools (Scheduling, Logs, Diagnostics)
-                            </AccordionTrigger>
-                            <AccordionContent className="space-y-3 pb-3">
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <Button
-                                        variant="outline"
-                                        onClick={loadLinkedInLogs}
-                                        disabled={linkedinLogsLoading || !articleId || isNew}
-                                    >
-                                        {linkedinLogsLoading ? 'Refreshing…' : 'Refresh Share Log'}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleRunLinkedInScheduled}
-                                        disabled={!articleId || isNew}
-                                    >
-                                        Run Scheduled
-                                    </Button>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-[1fr,180px] gap-3">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="linkedinScheduleAt">Schedule share</Label>
-                                        <Input
-                                            id="linkedinScheduleAt"
-                                            name="linkedinScheduleAt"
-                                            type="datetime-local"
-                                            value={linkedinScheduleAt}
-                                            onChange={(e) => setLinkedinScheduleAt(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="flex items-end">
+                    {linkedinStatus?.connected && linkedinUiMode === 'power' && (
+                        <Accordion type="single" collapsible className="w-full rounded-lg border bg-white px-3">
+                            <AccordionItem value="linkedin-advanced" className="border-b-0">
+                                <AccordionTrigger className="py-3 text-xs font-semibold no-underline hover:no-underline">
+                                    Advanced LinkedIn Tools (Scheduling, Logs, Diagnostics)
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-3 pb-3">
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <Button
-                                            className="w-full"
                                             variant="outline"
-                                            onClick={handleLinkedInSchedule}
-                                            disabled={
-                                            !linkedinScheduleAt ||
-                                            !articleId ||
-                                            isNew ||
-                                            (effectiveLinkedInShareMode === 'image' && !effectiveLinkedInImageUrl)
-                                        }
-                                    >
-                                            Schedule
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                <div className="rounded-lg border bg-white p-3 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-xs text-muted-foreground">Recent Shares</Label>
-                                    </div>
-                                    {linkedinLogs.length === 0 ? (
-                                        <div className="text-xs text-muted-foreground">No shares logged yet.</div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {linkedinLogs.map((log) => (
-                                                <div
-                                                    key={log.id}
-                                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
-                                                >
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-semibold text-foreground">
-                                                            {log.status === 'success' ? 'Shared' : 'Error'}
-                                                        </span>
-                                                        <span className="text-muted-foreground">
-                                                            {new Date(log.created_at).toLocaleString()}
-                                                        </span>
-                                                        {log.error_message && (
-                                                            <span className="text-destructive">{log.error_message}</span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex flex-col items-end gap-1">
-                                                        <span className="text-muted-foreground">
-                                                            {log.share_target || 'member'} · {log.visibility || 'PUBLIC'}
-                                                        </span>
-                                                        {log.share_url && (
-                                                            <a
-                                                                href={log.share_url}
-                                                                target="_blank"
-                                                                rel="noreferrer"
-                                                                className="text-primary underline"
-                                                            >
-                                                                View on LinkedIn
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="rounded-lg border bg-white p-3 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label className="text-xs text-muted-foreground">Scheduled Shares</Label>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={loadLinkedInScheduled}
-                                            disabled={linkedinScheduledLoading || !articleId || isNew}
+                                            onClick={loadLinkedInLogs}
+                                            disabled={linkedinLogsLoading || !articleId || isNew}
                                         >
-                                            {linkedinScheduledLoading ? 'Refreshing…' : 'Refresh'}
+                                            {linkedinLogsLoading ? 'Refreshing…' : 'Refresh Share Log'}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleRunLinkedInScheduled}
+                                            disabled={!articleId || isNew}
+                                        >
+                                            Run Scheduled
                                         </Button>
                                     </div>
-                                    {linkedinScheduled.length === 0 ? (
-                                        <div className="text-xs text-muted-foreground">No scheduled shares.</div>
-                                    ) : (
+
+                                    <div className="grid grid-cols-1 md:grid-cols-[1fr,180px] gap-3">
                                         <div className="space-y-2">
-                                            {linkedinScheduled.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
-                                                >
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-semibold text-foreground">
-                                                            {item.status === 'scheduled' ? 'Scheduled' : item.status}
-                                                        </span>
-                                                        <span className="text-muted-foreground">
-                                                            {new Date(item.scheduled_at).toLocaleString()}
-                                                        </span>
-                                                        {item.error_message && (
-                                                            <span className="text-destructive">{item.error_message}</span>
-                                                        )}
-                                                    </div>
-                                                    <div className="text-muted-foreground">
-                                                        {item.share_target || 'member'} · {item.visibility || 'PUBLIC'} · {item.share_mode === 'image' ? 'image' : 'link'}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                            <Label htmlFor="linkedinScheduleAt">Schedule share</Label>
+                                            <Input
+                                                id="linkedinScheduleAt"
+                                                name="linkedinScheduleAt"
+                                                type="datetime-local"
+                                                value={linkedinScheduleAt}
+                                                onChange={(e) => setLinkedinScheduleAt(e.target.value)}
+                                            />
                                         </div>
-                                    )}
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                )}
-            </AdminSectionCard>
+                                        <div className="flex items-end">
+                                            <Button
+                                                className="w-full"
+                                                variant="outline"
+                                                onClick={handleLinkedInSchedule}
+                                                disabled={
+                                                    !linkedinScheduleAt ||
+                                                    !articleId ||
+                                                    isNew ||
+                                                    (effectiveLinkedInShareMode === 'image' && !effectiveLinkedInImageUrl)
+                                                }
+                                            >
+                                                Schedule
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-lg border bg-white p-3 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs text-muted-foreground">Recent Shares</Label>
+                                        </div>
+                                        {linkedinLogs.length === 0 ? (
+                                            <div className="text-xs text-muted-foreground">No shares logged yet.</div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {linkedinLogs.map((log) => (
+                                                    <div
+                                                        key={log.id}
+                                                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+                                                    >
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="font-semibold text-foreground">
+                                                                {log.status === 'success' ? 'Shared' : 'Error'}
+                                                            </span>
+                                                            <span className="text-muted-foreground">
+                                                                {new Date(log.created_at).toLocaleString()}
+                                                            </span>
+                                                            {log.error_message && (
+                                                                <span className="text-destructive">{log.error_message}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className="text-muted-foreground">
+                                                                {log.share_target || 'member'} · {log.visibility || 'PUBLIC'}
+                                                            </span>
+                                                            {log.share_url && (
+                                                                <a
+                                                                    href={log.share_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="text-primary underline"
+                                                                >
+                                                                    View on LinkedIn
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="rounded-lg border bg-white p-3 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-xs text-muted-foreground">Scheduled Shares</Label>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={loadLinkedInScheduled}
+                                                disabled={linkedinScheduledLoading || !articleId || isNew}
+                                            >
+                                                {linkedinScheduledLoading ? 'Refreshing…' : 'Refresh'}
+                                            </Button>
+                                        </div>
+                                        {linkedinScheduled.length === 0 ? (
+                                            <div className="text-xs text-muted-foreground">No scheduled shares.</div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {linkedinScheduled.map((item) => (
+                                                    <div
+                                                        key={item.id}
+                                                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
+                                                    >
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className="font-semibold text-foreground">
+                                                                {item.status === 'scheduled' ? 'Scheduled' : item.status}
+                                                            </span>
+                                                            <span className="text-muted-foreground">
+                                                                {new Date(item.scheduled_at).toLocaleString()}
+                                                            </span>
+                                                            {item.error_message && (
+                                                                <span className="text-destructive">{item.error_message}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-muted-foreground">
+                                                            {item.share_target || 'member'} · {item.visibility || 'PUBLIC'} · {item.share_mode === 'image' ? 'image' : 'link'}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    )}
+                </AdminSectionCard>
             </div>
 
             {/* Language Tabs */}
             <AdminSectionCard className="overflow-x-auto p-0">
-            <div className="flex min-w-[560px] gap-2 border-b px-4">
-                <button
-                    onClick={() => setActiveTab('sk')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'sk'
-                        ? 'border-primary text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    🇸🇰 Slovensky
-                </button>
-                <button
-                    onClick={() => setActiveTab('en')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'en'
-                        ? 'border-primary text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    🇬🇧 English
-                </button>
-                <button
-                    onClick={() => setActiveTab('de')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'de'
-                        ? 'border-primary text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    🇩🇪 Deutsch
-                </button>
-                <button
-                    onClick={() => setActiveTab('cn')}
-                    className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'cn'
-                        ? 'border-primary text-foreground'
-                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                        }`}
-                >
-                    🇨🇳 Chinese
-                </button>
-            </div>
+                <div className="flex min-w-[560px] gap-2 border-b px-4">
+                    <button
+                        onClick={() => setActiveTab('sk')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'sk'
+                            ? 'border-primary text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        🇸🇰 Slovensky
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('en')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'en'
+                            ? 'border-primary text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        🇬🇧 English
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('de')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'de'
+                            ? 'border-primary text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        🇩🇪 Deutsch
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('cn')}
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'cn'
+                            ? 'border-primary text-foreground'
+                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        🇨🇳 Chinese
+                    </button>
+                </div>
             </AdminSectionCard>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
@@ -2279,167 +2287,167 @@ Rules:
                     </AdminSectionCard>
 
                     <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-                    {/* SEO Metadata */}
-                    <AdminSectionCard className={`space-y-4 bg-muted/30 ${BENTO_SIZE_CLASS[editorLayout.seo]}`}>
-                        <div className="flex items-center justify-between gap-2">
-                            <Label className="text-sm font-semibold">SEO Metadata</Label>
-                            <div className="flex items-center gap-2">
-                                <label htmlFor="articleSeoSize" className="text-xs text-muted-foreground">Size</label>
-                                <select
-                                    id="articleSeoSize"
-                                    value={editorLayout.seo}
-                                    onChange={(e) => updateEditorLayoutSize('seo', e.target.value as BentoSize)}
-                                    className="h-8 rounded-md border bg-white px-2 text-xs"
-                                >
-                                    <option value="sm">S</option>
-                                    <option value="md">M</option>
-                                    <option value="lg">L</option>
-                                    <option value="full">Full</option>
-                                </select>
-                                {seoFieldsAvailable && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => {
-                                            updateMetaField('meta_title', getCurrentTitle());
-                                            updateMetaField('meta_description', getCurrentExcerpt());
-                                            if (!getCurrentMetaKeywords()) {
-                                                updateMetaField('meta_keywords', formData.tags.join(', '));
-                                            }
-                                        }}
-                                    >
-                                        Use Title + Excerpt
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                        {!seoFieldsAvailable && (
-                            <div className="text-xs text-destructive">
-                                SEO fields are not available in the database. Run `supabase/articles_meta_fields.sql` in Supabase to enable them.
-                            </div>
-                        )}
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label>Meta Title</Label>
-                            <Input
-                                value={getCurrentMetaTitle()}
-                                onChange={(e) => updateMetaField('meta_title', e.target.value)}
-                                placeholder="SEO title (max ~60 chars)"
-                                disabled={!seoFieldsAvailable}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Meta Keywords</Label>
-                            <Input
-                                value={getCurrentMetaKeywords()}
-                                onChange={(e) => updateMetaField('meta_keywords', e.target.value)}
-                                placeholder="comma-separated keywords"
-                                disabled={!seoFieldsAvailable}
-                            />
-                        </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Meta Description</Label>
-                            <Textarea
-                                value={getCurrentMetaDescription()}
-                                onChange={(e) => updateMetaField('meta_description', e.target.value)}
-                                placeholder="SEO description (max ~160 chars)"
-                                rows={3}
-                                disabled={!seoFieldsAvailable}
-                            />
-                        </div>
-                    </AdminSectionCard>
-
-                    {/* Editorial Tools */}
-                    <AdminSectionCard className={`space-y-3 bg-muted/30 ${BENTO_SIZE_CLASS[editorLayout.tools]}`}>
-                        <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                                <Sparkles size={16} />
-                                <Label className="text-sm font-semibold">Editorial Tools (AI)</Label>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <label htmlFor="articleToolsSize" className="text-xs text-muted-foreground">Size</label>
-                                <select
-                                    id="articleToolsSize"
-                                    value={editorLayout.tools}
-                                    onChange={(e) => updateEditorLayoutSize('tools', e.target.value as BentoSize)}
-                                    className="h-8 rounded-md border bg-white px-2 text-xs"
-                                >
-                                    <option value="sm">S</option>
-                                    <option value="md">M</option>
-                                    <option value="lg">L</option>
-                                    <option value="full">Full</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Apply To</Label>
-                                <Select value={editTarget} onValueChange={(value) => setEditTarget(value as 'content' | 'excerpt')}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select target" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="content">Content</SelectItem>
-                                        <SelectItem value="excerpt">Excerpt</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Action</Label>
-                                <Select value={editMode} onValueChange={(value) => setEditMode(value as 'rewrite' | 'expand' | 'shorten' | 'simplify')}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select action" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="rewrite">Rewrite</SelectItem>
-                                        <SelectItem value="expand">Expand</SelectItem>
-                                        <SelectItem value="shorten">Shorten</SelectItem>
-                                        <SelectItem value="simplify">Simplify</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Custom Instructions (optional)</Label>
-                            <Textarea
-                                value={editInstruction}
-                                onChange={(e) => setEditInstruction(e.target.value)}
-                                rows={2}
-                                placeholder="e.g., Keep tone formal and cite Slovak regulations."
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button size="sm" onClick={handleEditorialEdit} disabled={editLoading}>
-                                {editLoading ? 'Editing...' : 'Generate AI Edit'}
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={handleEnhanceFormatting} disabled={editLoading}>
-                                Enhance Formatting
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
-                                Clear Output
-                            </Button>
-                        </div>
-                        {editOutput && (
-                            <div className="space-y-2">
-                                <Label>AI Output (review before applying)</Label>
-                                <Textarea
-                                    value={editOutput}
-                                    onChange={(e) => setEditOutput(e.target.value)}
-                                    rows={6}
-                                    className="font-mono text-xs"
-                                />
+                        {/* SEO Metadata */}
+                        <AdminSectionCard className={`space-y-4 bg-muted/30 ${BENTO_SIZE_CLASS[editorLayout.seo]}`}>
+                            <div className="flex items-center justify-between gap-2">
+                                <Label className="text-sm font-semibold">SEO Metadata</Label>
                                 <div className="flex items-center gap-2">
-                                    <Button size="sm" onClick={applyEditorialEdit}>
-                                        Apply to {editTarget}
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
-                                        Discard
-                                    </Button>
+                                    <label htmlFor="articleSeoSize" className="text-xs text-muted-foreground">Size</label>
+                                    <select
+                                        id="articleSeoSize"
+                                        value={editorLayout.seo}
+                                        onChange={(e) => updateEditorLayoutSize('seo', e.target.value as BentoSize)}
+                                        className="h-8 rounded-md border bg-white px-2 text-xs"
+                                    >
+                                        <option value="sm">S</option>
+                                        <option value="md">M</option>
+                                        <option value="lg">L</option>
+                                        <option value="full">Full</option>
+                                    </select>
+                                    {seoFieldsAvailable && (
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                updateMetaField('meta_title', getCurrentTitle());
+                                                updateMetaField('meta_description', getCurrentExcerpt());
+                                                if (!getCurrentMetaKeywords()) {
+                                                    updateMetaField('meta_keywords', formData.tags.join(', '));
+                                                }
+                                            }}
+                                        >
+                                            Use Title + Excerpt
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
-                        )}
-                    </AdminSectionCard>
+                            {!seoFieldsAvailable && (
+                                <div className="text-xs text-destructive">
+                                    SEO fields are not available in the database. Run `supabase/articles_meta_fields.sql` in Supabase to enable them.
+                                </div>
+                            )}
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>Meta Title</Label>
+                                    <Input
+                                        value={getCurrentMetaTitle()}
+                                        onChange={(e) => updateMetaField('meta_title', e.target.value)}
+                                        placeholder="SEO title (max ~60 chars)"
+                                        disabled={!seoFieldsAvailable}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Meta Keywords</Label>
+                                    <Input
+                                        value={getCurrentMetaKeywords()}
+                                        onChange={(e) => updateMetaField('meta_keywords', e.target.value)}
+                                        placeholder="comma-separated keywords"
+                                        disabled={!seoFieldsAvailable}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Meta Description</Label>
+                                <Textarea
+                                    value={getCurrentMetaDescription()}
+                                    onChange={(e) => updateMetaField('meta_description', e.target.value)}
+                                    placeholder="SEO description (max ~160 chars)"
+                                    rows={3}
+                                    disabled={!seoFieldsAvailable}
+                                />
+                            </div>
+                        </AdminSectionCard>
+
+                        {/* Editorial Tools */}
+                        <AdminSectionCard className={`space-y-3 bg-muted/30 ${BENTO_SIZE_CLASS[editorLayout.tools]}`}>
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Sparkles size={16} />
+                                    <Label className="text-sm font-semibold">Editorial Tools (AI)</Label>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <label htmlFor="articleToolsSize" className="text-xs text-muted-foreground">Size</label>
+                                    <select
+                                        id="articleToolsSize"
+                                        value={editorLayout.tools}
+                                        onChange={(e) => updateEditorLayoutSize('tools', e.target.value as BentoSize)}
+                                        className="h-8 rounded-md border bg-white px-2 text-xs"
+                                    >
+                                        <option value="sm">S</option>
+                                        <option value="md">M</option>
+                                        <option value="lg">L</option>
+                                        <option value="full">Full</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Apply To</Label>
+                                    <Select value={editTarget} onValueChange={(value) => setEditTarget(value as 'content' | 'excerpt')}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select target" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="content">Content</SelectItem>
+                                            <SelectItem value="excerpt">Excerpt</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Action</Label>
+                                    <Select value={editMode} onValueChange={(value) => setEditMode(value as 'rewrite' | 'expand' | 'shorten' | 'simplify')}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select action" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="rewrite">Rewrite</SelectItem>
+                                            <SelectItem value="expand">Expand</SelectItem>
+                                            <SelectItem value="shorten">Shorten</SelectItem>
+                                            <SelectItem value="simplify">Simplify</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Custom Instructions (optional)</Label>
+                                <Textarea
+                                    value={editInstruction}
+                                    onChange={(e) => setEditInstruction(e.target.value)}
+                                    rows={2}
+                                    placeholder="e.g., Keep tone formal and cite Slovak regulations."
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button size="sm" onClick={handleEditorialEdit} disabled={editLoading}>
+                                    {editLoading ? 'Editing...' : 'Generate AI Edit'}
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={handleEnhanceFormatting} disabled={editLoading}>
+                                    Enhance Formatting
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
+                                    Clear Output
+                                </Button>
+                            </div>
+                            {editOutput && (
+                                <div className="space-y-2">
+                                    <Label>AI Output (review before applying)</Label>
+                                    <Textarea
+                                        value={editOutput}
+                                        onChange={(e) => setEditOutput(e.target.value)}
+                                        rows={6}
+                                        className="font-mono text-xs"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <Button size="sm" onClick={applyEditorialEdit}>
+                                            Apply to {editTarget}
+                                        </Button>
+                                        <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
+                                            Discard
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </AdminSectionCard>
                     </div>
 
                     {/* Compliance & Fact Check */}
