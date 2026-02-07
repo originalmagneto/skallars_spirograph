@@ -692,12 +692,16 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
 
             return newArticleId;
         },
-        onSuccess: () => {
+        onSuccess: (newArticleId) => {
             toast.success(isNew ? 'Article created!' : 'Article saved!');
             queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
             queryClient.invalidateQueries({ queryKey: ['articles'] });
-            if (onClose) {
-                onClose();
+
+            // If it was a new article, we want to update the URL to include the ID
+            // so subsequent saves update the same article instead of creating new ones
+            if (isNew && newArticleId) {
+                const params = new URLSearchParams(searchParams.toString());
+                router.replace(`?articleId=${newArticleId}&${params.toString()}`);
             }
         },
         onError: (error: any) => {
@@ -1720,14 +1724,15 @@ Rules:
                                 <span className="flex items-center gap-2">
                                     Last shared {new Date(latestLinkedInShare.created_at).toLocaleString()}
                                     {latestLinkedInShare.share_url && (
-                                        <a
-                                            href={latestLinkedInShare.share_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary hover:text-primary/80 underline"
-                                        >
-                                            View post
-                                        </a>
+                                        <Button size="sm" variant="link" className="h-auto p-0 text-primary underline" asChild>
+                                            <a
+                                                href={latestLinkedInShare.share_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                View post
+                                            </a>
+                                        </Button>
                                     )}
                                 </span>
                             )}
