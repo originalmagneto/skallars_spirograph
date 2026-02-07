@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Globe02Icon, SaveEnergy01Icon } from 'hugeicons-react';
-import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard, BENTO_SIZE_CLASS, BentoSize, useBentoLayout } from '@/components/admin/AdminPrimitives';
 
 interface CountriesSettingsRow {
   id?: string;
@@ -32,6 +32,10 @@ const defaultSettings: CountriesSettingsRow = {
 export default function CountriesSettingsPanel() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<CountriesSettingsRow>(defaultSettings);
+  const { layout, updateLayoutSize } = useBentoLayout<'visibility' | 'focus'>(
+    'admin:countries:bento-layout:v1',
+    { visibility: 'lg', focus: 'md' }
+  );
 
   const { data, isLoading } = useQuery({
     queryKey: ['countries-settings'],
@@ -97,10 +101,26 @@ export default function CountriesSettingsPanel() {
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <AdminSectionCard className="space-y-4 bg-muted/10 xl:col-span-8">
-          <div className="flex items-center gap-2 text-sm font-semibold">
+        <AdminSectionCard className={`space-y-4 bg-muted/10 ${BENTO_SIZE_CLASS[layout.visibility]}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-semibold">
             <Globe02Icon size={16} className="text-primary" />
             Visibility
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="countriesVisibilitySize" className="text-xs text-muted-foreground">Size</label>
+              <select
+                id="countriesVisibilitySize"
+                value={layout.visibility}
+                onChange={(e) => updateLayoutSize('visibility', e.target.value as BentoSize)}
+                className="h-8 rounded-md border bg-white px-2 text-xs"
+              >
+                <option value="sm">S</option>
+                <option value="md">M</option>
+                <option value="lg">L</option>
+                <option value="full">Full</option>
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex items-center gap-2 rounded-md border bg-white p-3">
@@ -122,8 +142,24 @@ export default function CountriesSettingsPanel() {
           </div>
         </AdminSectionCard>
 
-        <AdminSectionCard className="space-y-4 bg-muted/10 xl:col-span-4">
-          <div className="text-sm font-semibold">Default Focus</div>
+        <AdminSectionCard className={`space-y-4 bg-muted/10 ${BENTO_SIZE_CLASS[layout.focus]}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold">Default Focus</div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="countriesFocusSize" className="text-xs text-muted-foreground">Size</label>
+              <select
+                id="countriesFocusSize"
+                value={layout.focus}
+                onChange={(e) => updateLayoutSize('focus', e.target.value as BentoSize)}
+                className="h-8 rounded-md border bg-white px-2 text-xs"
+              >
+                <option value="sm">S</option>
+                <option value="md">M</option>
+                <option value="lg">L</option>
+                <option value="full">Full</option>
+              </select>
+            </div>
+          </div>
           <div className="rounded-md border bg-white p-3">
             <Label className="text-xs">Initial map view</Label>
             <Select

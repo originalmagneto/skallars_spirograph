@@ -28,7 +28,8 @@ import {
 import Link from 'next/link';
 import { generateAIEdit, generateAIImage } from '@/lib/aiService';
 import { fetchAISettings } from '@/lib/aiSettings';
-import { AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
+import { formatArticleHtml } from '@/lib/articleFormat';
+import { AdminPanelHeader, AdminSectionCard, BENTO_SIZE_CLASS, BentoSize, useBentoLayout } from '@/components/admin/AdminPrimitives';
 
 interface ArticleFormData {
     title_sk: string;
@@ -216,6 +217,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     }>>([]);
     const [linkedinScheduledLoading, setLinkedinScheduledLoading] = useState(false);
     const [linkedinUiMode, setLinkedinUiMode] = useState<'basic' | 'power'>('basic');
+    const { layout: editorLayout, updateLayoutSize: updateEditorLayoutSize } = useBentoLayout<'seo' | 'tools'>(
+        'admin:article-editor:bento-layout:v1',
+        { seo: 'md', tools: 'lg' }
+    );
 
     const hasOrgScope = Boolean(
         linkedinStatus?.scopes?.includes('w_organization_social') ||
@@ -252,6 +257,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             return {};
         }
     };
+    const previewContentHtml = useMemo(
+        () => formatArticleHtml(getCurrentContent() || ''),
+        [activeTab, formData.content_sk, formData.content_en, formData.content_de, formData.content_cn]
+    );
 
     // Fetch existing article
     const { data: article, isLoading: articleLoading } = useQuery({
@@ -2128,320 +2137,391 @@ Rules:
             </div>
             </AdminSectionCard>
 
-            {/* Title & Excerpt */}
-            <AdminSectionCard className="space-y-4">
-                <div className="space-y-2">
-                    <Label>{getLabel('Title', 'Titulok')}</Label>
-                    <Input
-                        value={getCurrentTitle()}
-                        onChange={(e) => updateField('title', e.target.value)}
-                        placeholder={getLabel('Article title...', 'Názov článku...')}
-                    />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label>Slug (URL)</Label>
-                        <Input
-                            value={formData.slug}
-                            onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
-                            placeholder="article-url-slug"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Tags (comma separated)</Label>
-                        <Input
-                            value={tagsInput}
-                            onChange={(e) => {
-                                const next = e.target.value;
-                                setTagsInput(next);
-                                setFormData(prev => ({ ...prev, tags: parseTagsInput(next) }));
-                            }}
-                            placeholder="ai, regulation, compliance"
-                        />
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label>{getLabel('Excerpt', 'Krátky popis')}</Label>
-                    <Textarea
-                        value={getCurrentExcerpt()}
-                        onChange={(e) => updateField('excerpt', e.target.value)}
-                        placeholder={getLabel('Short article description...', 'Krátky popis článku...')}
-                        rows={3}
-                    />
-                </div>
-            </AdminSectionCard>
-
-            {/* Content Editor */}
-            <AdminSectionCard className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <Label>{getLabel('Content', 'Obsah')}</Label>
-                    <div className="flex gap-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={editorMode === 'visual' ? 'default' : 'outline'}
-                            onClick={() => setEditorMode('visual')}
-                        >
-                            Visual
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={editorMode === 'html' ? 'default' : 'outline'}
-                            onClick={() => setEditorMode('html')}
-                        >
-                            HTML
-                        </Button>
-                    </div>
-                </div>
-
-                {editorMode === 'visual' ? (
-                    <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('bold')}>
-                                Bold
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('italic')}>
-                                Italic
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('underline')}>
-                                Underline
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'H2')}>
-                                H2
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'H3')}>
-                                H3
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'P')}>
-                                Paragraph
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('insertUnorderedList')}>
-                                Bullets
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('insertOrderedList')}>
-                                Numbered
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                    const url = window.prompt('Enter link URL');
-                                    if (url) applyEditorCommand('createLink', url);
-                                }}
-                            >
-                                Link
-                            </Button>
-                            <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('unlink')}>
-                                Unlink
-                            </Button>
-                        </div>
-                        <div
-                            ref={editorRef}
-                            className="min-h-[260px] rounded-lg border border-input bg-background p-4 text-sm prose max-w-none focus:outline-none"
-                            contentEditable
-                            role="textbox"
-                            aria-label="Article content editor"
-                            aria-multiline="true"
-                            onInput={(e) => {
-                                const html = (e.target as HTMLDivElement).innerHTML;
-                                updateField('content', html);
-                            }}
-                            suppressContentEditableWarning
-                        />
-                        <p className="text-[10px] text-muted-foreground">
-                            Tip: Use headings and short paragraphs for best readability.
-                        </p>
-                    </div>
-                ) : (
-                    <Textarea
-                        value={getCurrentContent()}
-                        onChange={(e) => updateField('content', e.target.value)}
-                        placeholder={getLabel('Start writing article content…', 'Začnite písať obsah článku…')}
-                        rows={12}
-                        className="font-mono text-sm"
-                    />
-                )}
-            </AdminSectionCard>
-
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-            {/* SEO Metadata */}
-            <AdminSectionCard className="space-y-4 bg-muted/30 xl:col-span-5">
-                <div className="flex items-center justify-between gap-2">
-                    <Label className="text-sm font-semibold">SEO Metadata</Label>
-                    {seoFieldsAvailable && (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                                updateMetaField('meta_title', getCurrentTitle());
-                                updateMetaField('meta_description', getCurrentExcerpt());
-                                if (!getCurrentMetaKeywords()) {
-                                    updateMetaField('meta_keywords', formData.tags.join(', '));
-                                }
-                            }}
-                        >
-                            Use Title + Excerpt
-                        </Button>
-                    )}
-                </div>
-                {!seoFieldsAvailable && (
-                    <div className="text-xs text-destructive">
-                        SEO fields are not available in the database. Run `supabase/articles_meta_fields.sql` in Supabase to enable them.
-                    </div>
-                )}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                    <Label>Meta Title</Label>
-                    <Input
-                        value={getCurrentMetaTitle()}
-                        onChange={(e) => updateMetaField('meta_title', e.target.value)}
-                        placeholder="SEO title (max ~60 chars)"
-                        disabled={!seoFieldsAvailable}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Meta Keywords</Label>
-                    <Input
-                        value={getCurrentMetaKeywords()}
-                        onChange={(e) => updateMetaField('meta_keywords', e.target.value)}
-                        placeholder="comma-separated keywords"
-                        disabled={!seoFieldsAvailable}
-                    />
-                </div>
-                </div>
-                <div className="space-y-2">
-                    <Label>Meta Description</Label>
-                    <Textarea
-                        value={getCurrentMetaDescription()}
-                        onChange={(e) => updateMetaField('meta_description', e.target.value)}
-                        placeholder="SEO description (max ~160 chars)"
-                        rows={3}
-                        disabled={!seoFieldsAvailable}
-                    />
-                </div>
-            </AdminSectionCard>
-
-            {/* Editorial Tools */}
-            <AdminSectionCard className="space-y-3 bg-muted/30 xl:col-span-7">
-                <div className="flex items-center gap-2">
-                    <Sparkles size={16} />
-                    <Label className="text-sm font-semibold">Editorial Tools (AI)</Label>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Apply To</Label>
-                        <Select value={editTarget} onValueChange={(value) => setEditTarget(value as 'content' | 'excerpt')}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select target" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="content">Content</SelectItem>
-                                <SelectItem value="excerpt">Excerpt</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Action</Label>
-                        <Select value={editMode} onValueChange={(value) => setEditMode(value as 'rewrite' | 'expand' | 'shorten' | 'simplify')}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select action" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="rewrite">Rewrite</SelectItem>
-                                <SelectItem value="expand">Expand</SelectItem>
-                                <SelectItem value="shorten">Shorten</SelectItem>
-                                <SelectItem value="simplify">Simplify</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label>Custom Instructions (optional)</Label>
-                    <Textarea
-                        value={editInstruction}
-                        onChange={(e) => setEditInstruction(e.target.value)}
-                        rows={2}
-                        placeholder="e.g., Keep tone formal and cite Slovak regulations."
-                    />
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={handleEditorialEdit} disabled={editLoading}>
-                        {editLoading ? 'Editing...' : 'Generate AI Edit'}
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={handleEnhanceFormatting} disabled={editLoading}>
-                        Enhance Formatting
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
-                        Clear Output
-                    </Button>
-                </div>
-                {editOutput && (
-                    <div className="space-y-2">
-                        <Label>AI Output (review before applying)</Label>
-                        <Textarea
-                            value={editOutput}
-                            onChange={(e) => setEditOutput(e.target.value)}
-                            rows={6}
-                            className="font-mono text-xs"
-                        />
-                        <div className="flex items-center gap-2">
-                            <Button size="sm" onClick={applyEditorialEdit}>
-                                Apply to {editTarget}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
-                                Discard
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </AdminSectionCard>
-            </div>
-
-            {/* Compliance & Fact Check */}
-            <AdminSectionCard className="space-y-4 bg-muted/30">
-                <Label className="text-sm font-semibold">Fact-Check & Compliance</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {factChecklistDefaults.map((item) => (
-                        <div key={item.key} className="flex items-center justify-between gap-3 border rounded-md px-3 py-2 bg-white">
-                            <div className="text-xs text-muted-foreground">{item.label}</div>
-                            <Switch
-                                checked={Boolean(formData.fact_checklist?.[item.key])}
-                                onCheckedChange={(checked) =>
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        fact_checklist: {
-                                            ...(prev.fact_checklist || {}),
-                                            [item.key]: checked,
-                                        },
-                                    }))
-                                }
+                <div className="space-y-4 xl:col-span-8">
+                    {/* Title & Excerpt */}
+                    <AdminSectionCard className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>{getLabel('Title', 'Titulok')}</Label>
+                            <Input
+                                value={getCurrentTitle()}
+                                onChange={(e) => updateField('title', e.target.value)}
+                                placeholder={getLabel('Article title...', 'Názov článku...')}
                             />
                         </div>
-                    ))}
-                </div>
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label>{getLabel('Compliance Disclaimer', 'Právne upozornenie')}</Label>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateDisclaimer(disclaimerDefaults[activeTab] || '')}
-                        >
-                            Use Default Disclaimer
-                        </Button>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label>Slug (URL)</Label>
+                                <Input
+                                    value={formData.slug}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
+                                    placeholder="article-url-slug"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Tags (comma separated)</Label>
+                                <Input
+                                    value={tagsInput}
+                                    onChange={(e) => {
+                                        const next = e.target.value;
+                                        setTagsInput(next);
+                                        setFormData(prev => ({ ...prev, tags: parseTagsInput(next) }));
+                                    }}
+                                    placeholder="ai, regulation, compliance"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>{getLabel('Excerpt', 'Krátky popis')}</Label>
+                            <Textarea
+                                value={getCurrentExcerpt()}
+                                onChange={(e) => updateField('excerpt', e.target.value)}
+                                placeholder={getLabel('Short article description...', 'Krátky popis článku...')}
+                                rows={3}
+                            />
+                        </div>
+                    </AdminSectionCard>
+
+                    {/* Content Editor */}
+                    <AdminSectionCard className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <Label>{getLabel('Content', 'Obsah')}</Label>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={editorMode === 'visual' ? 'default' : 'outline'}
+                                    onClick={() => setEditorMode('visual')}
+                                >
+                                    Visual
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={editorMode === 'html' ? 'default' : 'outline'}
+                                    onClick={() => setEditorMode('html')}
+                                >
+                                    HTML
+                                </Button>
+                            </div>
+                        </div>
+
+                        {editorMode === 'visual' ? (
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap gap-2">
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('bold')}>
+                                        Bold
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('italic')}>
+                                        Italic
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('underline')}>
+                                        Underline
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'H2')}>
+                                        H2
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'H3')}>
+                                        H3
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('formatBlock', 'P')}>
+                                        Paragraph
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('insertUnorderedList')}>
+                                        Bullets
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('insertOrderedList')}>
+                                        Numbered
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            const url = window.prompt('Enter link URL');
+                                            if (url) applyEditorCommand('createLink', url);
+                                        }}
+                                    >
+                                        Link
+                                    </Button>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => applyEditorCommand('unlink')}>
+                                        Unlink
+                                    </Button>
+                                </div>
+                                <div
+                                    ref={editorRef}
+                                    className="min-h-[260px] rounded-lg border border-input bg-background p-4 text-sm prose max-w-none focus:outline-none"
+                                    contentEditable
+                                    role="textbox"
+                                    aria-label="Article content editor"
+                                    aria-multiline="true"
+                                    onInput={(e) => {
+                                        const html = (e.target as HTMLDivElement).innerHTML;
+                                        updateField('content', html);
+                                    }}
+                                    suppressContentEditableWarning
+                                />
+                                <p className="text-[10px] text-muted-foreground">
+                                    Tip: Use headings and short paragraphs for best readability.
+                                </p>
+                            </div>
+                        ) : (
+                            <Textarea
+                                value={getCurrentContent()}
+                                onChange={(e) => updateField('content', e.target.value)}
+                                placeholder={getLabel('Start writing article content…', 'Začnite písať obsah článku…')}
+                                rows={12}
+                                className="font-mono text-sm"
+                            />
+                        )}
+                    </AdminSectionCard>
+
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                    {/* SEO Metadata */}
+                    <AdminSectionCard className={`space-y-4 bg-muted/30 ${BENTO_SIZE_CLASS[editorLayout.seo]}`}>
+                        <div className="flex items-center justify-between gap-2">
+                            <Label className="text-sm font-semibold">SEO Metadata</Label>
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="articleSeoSize" className="text-xs text-muted-foreground">Size</label>
+                                <select
+                                    id="articleSeoSize"
+                                    value={editorLayout.seo}
+                                    onChange={(e) => updateEditorLayoutSize('seo', e.target.value as BentoSize)}
+                                    className="h-8 rounded-md border bg-white px-2 text-xs"
+                                >
+                                    <option value="sm">S</option>
+                                    <option value="md">M</option>
+                                    <option value="lg">L</option>
+                                    <option value="full">Full</option>
+                                </select>
+                                {seoFieldsAvailable && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            updateMetaField('meta_title', getCurrentTitle());
+                                            updateMetaField('meta_description', getCurrentExcerpt());
+                                            if (!getCurrentMetaKeywords()) {
+                                                updateMetaField('meta_keywords', formData.tags.join(', '));
+                                            }
+                                        }}
+                                    >
+                                        Use Title + Excerpt
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                        {!seoFieldsAvailable && (
+                            <div className="text-xs text-destructive">
+                                SEO fields are not available in the database. Run `supabase/articles_meta_fields.sql` in Supabase to enable them.
+                            </div>
+                        )}
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label>Meta Title</Label>
+                            <Input
+                                value={getCurrentMetaTitle()}
+                                onChange={(e) => updateMetaField('meta_title', e.target.value)}
+                                placeholder="SEO title (max ~60 chars)"
+                                disabled={!seoFieldsAvailable}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Meta Keywords</Label>
+                            <Input
+                                value={getCurrentMetaKeywords()}
+                                onChange={(e) => updateMetaField('meta_keywords', e.target.value)}
+                                placeholder="comma-separated keywords"
+                                disabled={!seoFieldsAvailable}
+                            />
+                        </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Meta Description</Label>
+                            <Textarea
+                                value={getCurrentMetaDescription()}
+                                onChange={(e) => updateMetaField('meta_description', e.target.value)}
+                                placeholder="SEO description (max ~160 chars)"
+                                rows={3}
+                                disabled={!seoFieldsAvailable}
+                            />
+                        </div>
+                    </AdminSectionCard>
+
+                    {/* Editorial Tools */}
+                    <AdminSectionCard className={`space-y-3 bg-muted/30 ${BENTO_SIZE_CLASS[editorLayout.tools]}`}>
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <Sparkles size={16} />
+                                <Label className="text-sm font-semibold">Editorial Tools (AI)</Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="articleToolsSize" className="text-xs text-muted-foreground">Size</label>
+                                <select
+                                    id="articleToolsSize"
+                                    value={editorLayout.tools}
+                                    onChange={(e) => updateEditorLayoutSize('tools', e.target.value as BentoSize)}
+                                    className="h-8 rounded-md border bg-white px-2 text-xs"
+                                >
+                                    <option value="sm">S</option>
+                                    <option value="md">M</option>
+                                    <option value="lg">L</option>
+                                    <option value="full">Full</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Apply To</Label>
+                                <Select value={editTarget} onValueChange={(value) => setEditTarget(value as 'content' | 'excerpt')}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select target" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="content">Content</SelectItem>
+                                        <SelectItem value="excerpt">Excerpt</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Action</Label>
+                                <Select value={editMode} onValueChange={(value) => setEditMode(value as 'rewrite' | 'expand' | 'shorten' | 'simplify')}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select action" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="rewrite">Rewrite</SelectItem>
+                                        <SelectItem value="expand">Expand</SelectItem>
+                                        <SelectItem value="shorten">Shorten</SelectItem>
+                                        <SelectItem value="simplify">Simplify</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Custom Instructions (optional)</Label>
+                            <Textarea
+                                value={editInstruction}
+                                onChange={(e) => setEditInstruction(e.target.value)}
+                                rows={2}
+                                placeholder="e.g., Keep tone formal and cite Slovak regulations."
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button size="sm" onClick={handleEditorialEdit} disabled={editLoading}>
+                                {editLoading ? 'Editing...' : 'Generate AI Edit'}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={handleEnhanceFormatting} disabled={editLoading}>
+                                Enhance Formatting
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
+                                Clear Output
+                            </Button>
+                        </div>
+                        {editOutput && (
+                            <div className="space-y-2">
+                                <Label>AI Output (review before applying)</Label>
+                                <Textarea
+                                    value={editOutput}
+                                    onChange={(e) => setEditOutput(e.target.value)}
+                                    rows={6}
+                                    className="font-mono text-xs"
+                                />
+                                <div className="flex items-center gap-2">
+                                    <Button size="sm" onClick={applyEditorialEdit}>
+                                        Apply to {editTarget}
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setEditOutput('')}>
+                                        Discard
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </AdminSectionCard>
                     </div>
-                    <Textarea
-                        value={getCurrentDisclaimer()}
-                        onChange={(e) => updateDisclaimer(e.target.value)}
-                        rows={3}
-                        placeholder="Add a legal disclaimer for this language..."
-                    />
+
+                    {/* Compliance & Fact Check */}
+                    <AdminSectionCard className="space-y-4 bg-muted/30">
+                        <Label className="text-sm font-semibold">Fact-Check & Compliance</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {factChecklistDefaults.map((item) => (
+                                <div key={item.key} className="flex items-center justify-between gap-3 border rounded-md px-3 py-2 bg-white">
+                                    <div className="text-xs text-muted-foreground">{item.label}</div>
+                                    <Switch
+                                        checked={Boolean(formData.fact_checklist?.[item.key])}
+                                        onCheckedChange={(checked) =>
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                fact_checklist: {
+                                                    ...(prev.fact_checklist || {}),
+                                                    [item.key]: checked,
+                                                },
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>{getLabel('Compliance Disclaimer', 'Právne upozornenie')}</Label>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => updateDisclaimer(disclaimerDefaults[activeTab] || '')}
+                                >
+                                    Use Default Disclaimer
+                                </Button>
+                            </div>
+                            <Textarea
+                                value={getCurrentDisclaimer()}
+                                onChange={(e) => updateDisclaimer(e.target.value)}
+                                rows={3}
+                                placeholder="Add a legal disclaimer for this language..."
+                            />
+                        </div>
+                    </AdminSectionCard>
                 </div>
-            </AdminSectionCard>
+
+                <AdminSectionCard className="space-y-3 h-fit xl:col-span-4 xl:sticky xl:top-24">
+                    <div className="flex items-center justify-between gap-2">
+                        <Label className="text-sm font-semibold">Live Preview</Label>
+                        <span className="text-xs text-muted-foreground">{languageLabel()}</span>
+                    </div>
+                    {formData.cover_image_url && (
+                        <img
+                            src={formData.cover_image_url}
+                            alt={getCurrentTitle() || 'Cover preview'}
+                            className="h-40 w-full rounded-lg object-cover"
+                        />
+                    )}
+                    <div className="space-y-1">
+                        <h3 className="text-xl font-bold text-[#210059] leading-tight">
+                            {getCurrentTitle() || 'Untitled article'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            {getCurrentExcerpt() || 'Add an excerpt to improve summary and SEO.'}
+                        </p>
+                    </div>
+                    <div
+                        className="max-h-[70vh] overflow-y-auto rounded-lg border bg-white p-4 prose prose-base max-w-none
+                            prose-headings:font-bold prose-headings:text-[#210059] prose-headings:tracking-tight
+                            prose-h2:mt-8 prose-h2:mb-3 prose-h3:mt-6 prose-h3:mb-2
+                            prose-p:mt-3 prose-p:mb-4 prose-p:text-gray-600 prose-p:leading-relaxed
+                            prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
+                            prose-strong:text-[#210059] prose-strong:font-semibold
+                            prose-em:text-gray-700 prose-li:text-gray-600 prose-li:my-1
+                            prose-ul:my-4 prose-ol:my-4
+                            prose-blockquote:border-l-4 prose-blockquote:border-[#210059]/30
+                            prose-blockquote:bg-[#f7f3ff] prose-blockquote:rounded-md
+                            prose-blockquote:px-4 prose-blockquote:py-3 prose-blockquote:not-italic
+                            prose-sup:text-[0.7em] prose-sup:text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: previewContentHtml || '<p>Start writing to see preview.</p>' }}
+                    />
+                </AdminSectionCard>
+            </div>
         </div>
     );
 }

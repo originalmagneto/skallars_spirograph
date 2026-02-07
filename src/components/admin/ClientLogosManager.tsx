@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import MediaLibraryPicker from '@/components/admin/MediaLibraryPicker';
 import ImageCropperModal from '@/components/admin/ImageCropperModal';
-import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard, BENTO_SIZE_CLASS, BentoSize, useBentoLayout } from '@/components/admin/AdminPrimitives';
 
 interface Client {
     id: string;
@@ -67,6 +67,10 @@ const ClientLogosManager = () => {
         label?: string;
         onApply: (url: string) => void;
     } | null>(null);
+    const { layout, updateLayoutSize } = useBentoLayout<'settings' | 'snapshot'>(
+        'admin:clients:bento-layout:v1',
+        { settings: 'lg', snapshot: 'md' }
+    );
 
     const { data: clients, isLoading } = useQuery({
         queryKey: ['clients'],
@@ -407,10 +411,26 @@ const ClientLogosManager = () => {
             </AdminSectionCard>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-                <AdminSectionCard className="space-y-4 bg-muted/20 xl:col-span-8">
-                    <div className="flex items-center gap-2">
-                        <Image01Icon size={18} className="text-primary" />
-                        <h3 className="text-sm font-semibold">Clients Section Settings</h3>
+                <AdminSectionCard className={`space-y-4 bg-muted/20 ${BENTO_SIZE_CLASS[layout.settings]}`}>
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <Image01Icon size={18} className="text-primary" />
+                            <h3 className="text-sm font-semibold">Clients Section Settings</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="clientsSettingsSize" className="text-xs text-muted-foreground">Size</label>
+                            <select
+                                id="clientsSettingsSize"
+                                value={layout.settings}
+                                onChange={(e) => updateLayoutSize('settings', e.target.value as BentoSize)}
+                                className="h-8 rounded-md border bg-white px-2 text-xs"
+                            >
+                                <option value="sm">S</option>
+                                <option value="md">M</option>
+                                <option value="lg">L</option>
+                                <option value="full">Full</option>
+                            </select>
+                        </div>
                     </div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div className="rounded-md border bg-white p-3">
@@ -451,8 +471,24 @@ const ClientLogosManager = () => {
                     </div>
                 </AdminSectionCard>
 
-                <AdminSectionCard className="space-y-3 xl:col-span-4">
-                    <div className="text-sm font-semibold">Snapshot</div>
+                <AdminSectionCard className={`space-y-3 ${BENTO_SIZE_CLASS[layout.snapshot]}`}>
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold">Snapshot</div>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="clientsSnapshotSize" className="text-xs text-muted-foreground">Size</label>
+                            <select
+                                id="clientsSnapshotSize"
+                                value={layout.snapshot}
+                                onChange={(e) => updateLayoutSize('snapshot', e.target.value as BentoSize)}
+                                className="h-8 rounded-md border bg-white px-2 text-xs"
+                            >
+                                <option value="sm">S</option>
+                                <option value="md">M</option>
+                                <option value="lg">L</option>
+                                <option value="full">Full</option>
+                            </select>
+                        </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                         <div className="rounded-md border bg-muted/30 p-2">Visible: {settingsForm.visible_count}</div>
                         <div className="rounded-md border bg-muted/30 p-2">Autoplay: {settingsForm.autoplay ? 'On' : 'Off'}</div>

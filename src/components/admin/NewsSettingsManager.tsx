@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { NewsIcon, SaveEnergy01Icon } from 'hugeicons-react';
-import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
+import { AdminActionBar, AdminPanelHeader, AdminSectionCard, BENTO_SIZE_CLASS, BentoSize, useBentoLayout } from '@/components/admin/AdminPrimitives';
 
 interface NewsSettingsRow {
   id?: string;
@@ -32,6 +32,10 @@ const defaultSettings: NewsSettingsRow = {
 export default function NewsSettingsManager() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<NewsSettingsRow>(defaultSettings);
+  const { layout, updateLayoutSize } = useBentoLayout<'feed' | 'playback'>(
+    'admin:news-settings:bento-layout:v1',
+    { feed: 'lg', playback: 'md' }
+  );
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['news-settings'],
@@ -100,8 +104,24 @@ export default function NewsSettingsManager() {
       )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <AdminSectionCard className="space-y-4 bg-muted/10 xl:col-span-7">
-          <div className="text-sm font-semibold">Feed Limits</div>
+        <AdminSectionCard className={`space-y-4 bg-muted/10 ${BENTO_SIZE_CLASS[layout.feed]}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold">Feed Limits</div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="newsFeedSize" className="text-xs text-muted-foreground">Size</label>
+              <select
+                id="newsFeedSize"
+                value={layout.feed}
+                onChange={(e) => updateLayoutSize('feed', e.target.value as BentoSize)}
+                className="h-8 rounded-md border bg-white px-2 text-xs"
+              >
+                <option value="sm">S</option>
+                <option value="md">M</option>
+                <option value="lg">L</option>
+                <option value="full">Full</option>
+              </select>
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-md border bg-white p-3">
               <Label className="text-xs">Posts to show</Label>
@@ -128,8 +148,24 @@ export default function NewsSettingsManager() {
           </div>
         </AdminSectionCard>
 
-        <AdminSectionCard className="space-y-4 bg-muted/10 xl:col-span-5">
-          <div className="text-sm font-semibold">Playback</div>
+        <AdminSectionCard className={`space-y-4 bg-muted/10 ${BENTO_SIZE_CLASS[layout.playback]}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold">Playback</div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="newsPlaybackSize" className="text-xs text-muted-foreground">Size</label>
+              <select
+                id="newsPlaybackSize"
+                value={layout.playback}
+                onChange={(e) => updateLayoutSize('playback', e.target.value as BentoSize)}
+                className="h-8 rounded-md border bg-white px-2 text-xs"
+              >
+                <option value="sm">S</option>
+                <option value="md">M</option>
+                <option value="lg">L</option>
+                <option value="full">Full</option>
+              </select>
+            </div>
+          </div>
           <div className="rounded-md border bg-white p-3">
             <Label className="text-xs">Autoplay Interval (ms)</Label>
             <Input

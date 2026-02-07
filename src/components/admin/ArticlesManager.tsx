@@ -44,6 +44,22 @@ interface Article {
     created_at: string;
 }
 
+type BentoSize = 'sm' | 'md' | 'lg' | 'full';
+type ArticlesLayoutKey = 'overview' | 'filters' | 'list';
+
+const ARTICLES_LAYOUT_STORAGE_KEY = 'admin:articles:bento-layout:v1';
+const BENTO_SIZE_CLASS: Record<BentoSize, string> = {
+    sm: 'xl:col-span-4',
+    md: 'xl:col-span-6',
+    lg: 'xl:col-span-8',
+    full: 'xl:col-span-12',
+};
+const ARTICLES_LAYOUT_DEFAULTS: Record<ArticlesLayoutKey, BentoSize> = {
+    overview: 'full',
+    filters: 'full',
+    list: 'full',
+};
+
 export default function ArticlesManager() {
     const queryClient = useQueryClient();
     const { isAdmin, session } = useAuth();
@@ -68,6 +84,7 @@ export default function ArticlesManager() {
             }
         >
     >({});
+    const [layout, setLayout] = useState<Record<ArticlesLayoutKey, BentoSize>>(ARTICLES_LAYOUT_DEFAULTS);
 
     useEffect(() => {
         const editId = searchParams.get('edit');
@@ -80,6 +97,27 @@ export default function ArticlesManager() {
             setEditingArticleId(null);
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const raw = window.localStorage.getItem(ARTICLES_LAYOUT_STORAGE_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as Partial<Record<ArticlesLayoutKey, BentoSize>>;
+            setLayout((prev) => ({ ...prev, ...parsed }));
+        } catch {
+            // ignore invalid persisted layout
+        }
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            window.localStorage.setItem(ARTICLES_LAYOUT_STORAGE_KEY, JSON.stringify(layout));
+        } catch {
+            // ignore storage failures
+        }
+    }, [layout]);
 
     // Fetch articles
     const { data: articles, isLoading, error } = useQuery({
@@ -209,6 +247,9 @@ export default function ArticlesManager() {
         { value: 'published', label: 'Published' },
         { value: 'shared', label: 'LinkedIn Shared' },
     ];
+    const updateLayoutSize = (key: ArticlesLayoutKey, size: BentoSize) => {
+        setLayout((prev) => ({ ...prev, [key]: size }));
+    };
 
     const filteredArticles = useMemo(() => {
         const source = articles || [];
@@ -308,117 +349,173 @@ export default function ArticlesManager() {
                 )}
             />
 
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                <div className="rounded-xl border bg-white px-4 py-3">
-                    <div className="text-xs text-muted-foreground">Total</div>
-                    <div className="mt-1 text-2xl font-semibold">{summary.total}</div>
-                </div>
-                <div className="rounded-xl border bg-white px-4 py-3">
-                    <div className="text-xs text-muted-foreground">Draft</div>
-                    <div className="mt-1 text-2xl font-semibold">{summary.draft}</div>
-                </div>
-                <div className="rounded-xl border bg-white px-4 py-3">
-                    <div className="text-xs text-muted-foreground">Review</div>
-                    <div className="mt-1 text-2xl font-semibold">{summary.review}</div>
-                </div>
-                <div className="rounded-xl border bg-white px-4 py-3">
-                    <div className="text-xs text-muted-foreground">Scheduled</div>
-                    <div className="mt-1 text-2xl font-semibold">{summary.scheduled}</div>
-                </div>
-                <div className="rounded-xl border bg-white px-4 py-3">
-                    <div className="text-xs text-muted-foreground">Published</div>
-                    <div className="mt-1 text-2xl font-semibold">{summary.published}</div>
-                </div>
-                <div className="rounded-xl border bg-white px-4 py-3">
-                    <div className="text-xs text-muted-foreground">LinkedIn Shared</div>
-                    <div className="mt-1 text-2xl font-semibold">{summary.shared}</div>
-                </div>
-            </div>
-
-            <AdminActionBar>
-                <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr),220px,auto]">
-                    <div className="relative">
-                        <label htmlFor="articleSearch" className="sr-only">Search articles</label>
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            id="articleSearch"
-                            name="articleSearch"
-                            autoComplete="off"
-                            aria-label="Search articles"
-                            placeholder="Search title or slug..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9"
-                        />
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                <AdminSectionCard className={`space-y-3 ${BENTO_SIZE_CLASS[layout.overview]}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">Overview</p>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="articlesOverviewSize" className="text-xs text-muted-foreground">Size</label>
+                            <select
+                                id="articlesOverviewSize"
+                                value={layout.overview}
+                                onChange={(e) => updateLayoutSize('overview', e.target.value as BentoSize)}
+                                className="h-8 rounded-md border bg-white px-2 text-xs"
+                            >
+                                <option value="sm">S</option>
+                                <option value="md">M</option>
+                                <option value="lg">L</option>
+                                <option value="full">Full</option>
+                            </select>
+                        </div>
                     </div>
-                    <select
-                        aria-label="Filter by status"
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as any)}
-                        className="h-9 rounded-md border px-3 text-sm bg-white"
-                    >
-                        <option value="all">All statuses</option>
-                        <option value="needs-action">Needs action</option>
-                        <option value="draft">Draft</option>
-                        <option value="review">In Review</option>
-                        <option value="scheduled">Scheduled</option>
-                        <option value="published">Published</option>
-                        <option value="shared">LinkedIn shared</option>
-                    </select>
-                    <select
-                        aria-label="Sort articles"
-                        value={sortOrder}
-                        onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                        className="h-9 rounded-md border px-3 text-sm bg-white"
-                    >
-                        <option value="newest">Newest first</option>
-                        <option value="oldest">Oldest first</option>
-                    </select>
-                    <div className="flex items-center justify-end text-xs text-muted-foreground lg:justify-start">
-                        {filteredArticles.length} / {summary.total}
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">Total</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.total}</div>
+                        </div>
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">Draft</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.draft}</div>
+                        </div>
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">Review</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.review}</div>
+                        </div>
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">Scheduled</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.scheduled}</div>
+                        </div>
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">Published</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.published}</div>
+                        </div>
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">LinkedIn Shared</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.shared}</div>
+                        </div>
                     </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 pt-2">
-                    {quickFilters.map((filter) => (
-                        <Button
-                            key={filter.value}
-                            type="button"
-                            size="sm"
-                            variant={statusFilter === filter.value ? 'default' : 'outline'}
-                            onClick={() => setStatusFilter(filter.value)}
-                            className="h-8"
-                        >
-                            {filter.label}
-                        </Button>
-                    ))}
-                </div>
-            </AdminActionBar>
-
-            {/* Articles List */}
-            {isLoading ? (
-                <AdminSectionCard className="py-12 text-center">
-                    <p className="text-muted-foreground">Loading articles…</p>
                 </AdminSectionCard>
-            ) : filteredArticles.length === 0 ? (
-                <AdminSectionCard className="py-12 text-center">
-                    <p className="text-muted-foreground mb-4">
-                        {searchQuery ? 'No articles match your search' : 'No articles yet'}
-                    </p>
-                    {!searchQuery && (
-                        <Button onClick={() => setIsCreating(true)}>
-                            <Plus size={16} className="mr-2" />
-                            Create First Article
-                        </Button>
-                    )}
+
+                <AdminSectionCard className={`space-y-3 ${BENTO_SIZE_CLASS[layout.filters]}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">Filters</p>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="articlesFiltersSize" className="text-xs text-muted-foreground">Size</label>
+                            <select
+                                id="articlesFiltersSize"
+                                value={layout.filters}
+                                onChange={(e) => updateLayoutSize('filters', e.target.value as BentoSize)}
+                                className="h-8 rounded-md border bg-white px-2 text-xs"
+                            >
+                                <option value="sm">S</option>
+                                <option value="md">M</option>
+                                <option value="lg">L</option>
+                                <option value="full">Full</option>
+                            </select>
+                        </div>
+                    </div>
+                    <AdminActionBar>
+                        <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr),220px,auto]">
+                            <div className="relative">
+                                <label htmlFor="articleSearch" className="sr-only">Search articles</label>
+                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    id="articleSearch"
+                                    name="articleSearch"
+                                    autoComplete="off"
+                                    aria-label="Search articles"
+                                    placeholder="Search title or slug..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-9"
+                                />
+                            </div>
+                            <select
+                                aria-label="Filter by status"
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                                className="h-9 rounded-md border px-3 text-sm bg-white"
+                            >
+                                <option value="all">All statuses</option>
+                                <option value="needs-action">Needs action</option>
+                                <option value="draft">Draft</option>
+                                <option value="review">In Review</option>
+                                <option value="scheduled">Scheduled</option>
+                                <option value="published">Published</option>
+                                <option value="shared">LinkedIn shared</option>
+                            </select>
+                            <select
+                                aria-label="Sort articles"
+                                value={sortOrder}
+                                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                                className="h-9 rounded-md border px-3 text-sm bg-white"
+                            >
+                                <option value="newest">Newest first</option>
+                                <option value="oldest">Oldest first</option>
+                            </select>
+                            <div className="flex items-center justify-end text-xs text-muted-foreground lg:justify-start">
+                                {filteredArticles.length} / {summary.total}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 pt-2">
+                            {quickFilters.map((filter) => (
+                                <Button
+                                    key={filter.value}
+                                    type="button"
+                                    size="sm"
+                                    variant={statusFilter === filter.value ? 'default' : 'outline'}
+                                    onClick={() => setStatusFilter(filter.value)}
+                                    className="h-8"
+                                >
+                                    {filter.label}
+                                </Button>
+                            ))}
+                        </div>
+                    </AdminActionBar>
                 </AdminSectionCard>
-            ) : (
-                <div className="grid gap-4">
-                    {filteredArticles.map((article) => (
-                        <AdminSectionCard
-                            key={article.id}
-                            className="flex flex-col gap-4 hover:bg-muted/20 transition-colors md:flex-row md:items-center"
-                        >
+
+                <AdminSectionCard className={`space-y-4 ${BENTO_SIZE_CLASS[layout.list]}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">Articles List</p>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="articlesListSize" className="text-xs text-muted-foreground">Size</label>
+                            <select
+                                id="articlesListSize"
+                                value={layout.list}
+                                onChange={(e) => updateLayoutSize('list', e.target.value as BentoSize)}
+                                className="h-8 rounded-md border bg-white px-2 text-xs"
+                            >
+                                <option value="sm">S</option>
+                                <option value="md">M</option>
+                                <option value="lg">L</option>
+                                <option value="full">Full</option>
+                            </select>
+                        </div>
+                    </div>
+                    {isLoading ? (
+                        <div className="py-12 text-center">
+                            <p className="text-muted-foreground">Loading articles...</p>
+                        </div>
+                    ) : filteredArticles.length === 0 ? (
+                        <div className="py-12 text-center">
+                            <p className="text-muted-foreground mb-4">
+                                {searchQuery ? 'No articles match your search' : 'No articles yet'}
+                            </p>
+                            {!searchQuery && (
+                                <Button onClick={() => setIsCreating(true)}>
+                                    <Plus size={16} className="mr-2" />
+                                    Create First Article
+                                </Button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="grid gap-4">
+                            {filteredArticles.map((article) => (
+                                <div
+                                    key={article.id}
+                                    className="flex flex-col gap-4 rounded-xl border p-4 hover:bg-muted/20 transition-colors md:flex-row md:items-center"
+                                >
                             {/* Cover Image Thumbnail */}
                             <div className="w-20 h-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
                                 {article.cover_image_url ? (
@@ -525,10 +622,12 @@ export default function ArticlesManager() {
                                     </AlertDialog>
                                 )}
                             </div>
-                        </AdminSectionCard>
-                    ))}
-                </div>
-            )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </AdminSectionCard>
+            </div>
         </div>
     );
 }
