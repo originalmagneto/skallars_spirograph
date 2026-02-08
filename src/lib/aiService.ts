@@ -100,6 +100,54 @@ const estimateMaxOutputTokens = (targetWordCount?: number, languageCount?: numbe
     const langs = languageCount && languageCount > 0 ? languageCount : 1;
     const estimated = Math.round(words * langs * 2.2);
     return Math.min(8192, Math.max(2048, estimated));
+    return Math.min(8192, Math.max(2048, estimated));
+};
+
+type ModelConfig = {
+    temperature: number;
+    topP: number;
+    topK: number;
+    maxOutputTokens: number;
+    systemInstructionAddon?: string;
+    supportsThinking: boolean;
+};
+
+const getModelConfig = (model: string): ModelConfig => {
+    const isPro = /pro/i.test(model);
+    const isUltra = /ultra/i.test(model);
+    const isFlash = /flash/i.test(model);
+    const isThinking = /thinking/i.test(model);
+    const isV3 = /gemini[-]?3/i.test(model); // Supports -3.0 or -3
+    const isV2_5 = /gemini[-]?2\.5/i.test(model);
+
+    // Default (Flash 2.0/standard)
+    let config: ModelConfig = {
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 40,
+        maxOutputTokens: 8192,
+        supportsThinking: isThinking
+    };
+
+    if (isV3 || isPro || isUltra) {
+        // High-reasoning models: Lower temp for precision, higher instruction complexity allowed
+        config.temperature = 0.4;
+        config.systemInstructionAddon = "Deploy your advanced reasoning capabilities to ensure maximum depth, nuance, and logical coherence.";
+        config.maxOutputTokens = 16384; // Enable longer context for stronger models
+    }
+
+    if (isFlash && !isThinking) {
+        // Fast models: Higher temp often helps creativity as they can be dry
+        config.temperature = 0.7;
+    }
+
+    // Specific tuning for known versions
+    if (isV3) {
+        config.maxOutputTokens = 32768; // V3 supports massive outputs
+        config.temperature = 0.3; // V3 is very steerable, lower temp prevents hallucination
+    }
+
+    return config;
 };
 
 const buildThinkingConfig = (model: string, thinkingBudget?: number | null) => {
@@ -750,13 +798,24 @@ export async function generateAIArticle(
     const selectedModel = options.modelOverride || await getArticleModelSetting();
     console.log('[AI] Using Gemini model:', selectedModel);
 
+    const modelConfig = getModelConfig(selectedModel);
     const { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
     const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
     const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
-    const maxOutputTokens = estimateMaxOutputTokens(options.targetWordCount, targetLanguages.length);
+
+    // Use model specific max tokens if available, otherwise estimate
+    const estimatedTokens = estimateMaxOutputTokens(options.targetWordCount, targetLanguages.length);
+    const maxOutputTokens = Math.max(estimatedTokens, modelConfig.maxOutputTokens);
+
     const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
-    const finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
+    let finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
+
+    // Inject model-specific system instruction if available
+    if (modelConfig.systemInstructionAddon) {
+        finalPrompt = `${modelConfig.systemInstructionAddon}\n\n${finalPrompt}`;
+    }
+
     const languageLabels: Record<string, string> = {
         sk: 'Slovak (SK)',
         en: 'English (EN)',
@@ -769,11 +828,16 @@ export async function generateAIArticle(
             contents: [{ parts: [{ text: promptText }] }],
             generationConfig: {
                 // Some Gemini models reject responseSchema with grounding/tools.
-                responseMimeType: "application/json",
-                response_mime_type: "application/json",
+                // Also, responseMimeType: "application/json" is unsupported with tools.
+                ...(groundingEnabled ? {} : { responseMimeType: "application/json" }),
+
+                // request specific params taking model config into account
+                temperature: modelConfig.temperature,
+                topP: modelConfig.topP,
+                topK: modelConfig.topK,
                 maxOutputTokens,
                 ...(thinkingConfig || {}),
-                ...(groundingEnabled ? {} : { responseSchema: getArticleResponseSchema(targetLanguages), response_schema: getArticleResponseSchema(targetLanguages) })
+                ...(groundingEnabled ? {} : { responseSchema: getArticleResponseSchema(targetLanguages) })
             }
         };
 

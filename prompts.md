@@ -114,3 +114,24 @@ The model is instructed to strictly return a **JSON object**:
   "tags": ["tag1", "tag2"]
 }
 ```
+
+## Dynamic Model Adjustments
+
+The system automatically detects the selected Gemini model variant (e.g., Flash, Pro, 3.0) and tunes the parameters and prompt instruction.
+
+### Parameter Tuning
+
+| Model Family | Temperature | TopP | Max Tokens | Rationale |
+| :--- | :--- | :--- | :--- | :--- |
+| **Flash** (Standard) | 0.7 | 0.95 | 8192 | Balanced creativity and speed. |
+| **Pro / Ultra** | 0.4 | 0.95 | 16384 | Lower temperature for precision and adherence to complex logic. |
+| **Gemini 3.0** | 0.3 | 0.95 | 32768 | Very low temperature to prevent hallucination; high token limit for massive context. |
+
+### Prompt Injection
+
+For advanced models (**Pro**, **Ultra**, **Gemini 3.0**), an additional system instruction is prepended to the prompt to leverage their reasoning capabilities:
+
+> Deploy your advanced reasoning capabilities to ensure maximum depth, nuance, and logical coherence.
+
+### Thinking Models
+If a **Thinking** model (e.g., `gemini-2.0-flash-thinking`) is detected, the `thinking_config` is automatically enabled, allowing the model to "think" before generating the JSON response.
