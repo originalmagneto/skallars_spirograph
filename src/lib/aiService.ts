@@ -104,10 +104,10 @@ const estimateMaxOutputTokens = (targetWordCount?: number, languageCount?: numbe
 
 const buildThinkingConfig = (model: string, thinkingBudget?: number | null) => {
     if (!thinkingBudget || thinkingBudget <= 0) return null;
-    if (!/gemini-2\.5/i.test(model)) return null;
+    // Support models that explicitly mention "thinking" or are 2.5+ (which often implies it)
+    if (!/thinking/i.test(model) && !/gemini-2\.5/i.test(model)) return null;
     return {
-        thinkingConfig: { thinkingBudget },
-        thinking_config: { thinkingBudget }
+        thinking_config: { include_thoughts: true, thinking_budget_token_count: thinkingBudget }
     };
 };
 
