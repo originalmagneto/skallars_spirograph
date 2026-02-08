@@ -104,8 +104,9 @@ const estimateMaxOutputTokens = (targetWordCount?: number, languageCount?: numbe
 
 const buildThinkingConfig = (model: string, thinkingBudget?: number | null) => {
     if (!thinkingBudget || thinkingBudget <= 0) return null;
-    // Support models that explicitly mention "thinking" or are 2.5+ (which often implies it)
-    if (!/thinking/i.test(model) && !/gemini-2\.5/i.test(model)) return null;
+    // Only apply thinking config to models that explicitly recognize it (e.g. "flash-thinking")
+    // sending this config to standard models (like gemini-2.5-flash) causes 400 errors.
+    if (!/thinking/i.test(model)) return null;
     return {
         thinking_config: { include_thoughts: true, thinking_budget_token_count: thinkingBudget }
     };
