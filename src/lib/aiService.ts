@@ -54,18 +54,24 @@ let settingsCacheTs = 0;
 /**
  * Fetch with automatic retry for transient errors (503, 429).
  * Uses exponential backoff: 2s, 4s, 8s delays between retries.
+ * If a preview model fails after all retries, automatically fallback to stable model.
  */
+const FALLBACK_STABLE_MODEL = 'gemini-2.5-flash';
+
 const fetchWithRetry = async (
     url: string,
     options: RequestInit,
     maxRetries = 3
 ): Promise<Response> => {
     let lastError: Error | null = null;
+    let lastResponse: Response | null = null;
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
             const response = await fetch(url, options);
             // Retry on 503 (overloaded) or 429 (rate limit)
             if (response.status === 503 || response.status === 429) {
+                lastResponse = response;
                 const delayMs = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
                 console.warn(`[AI] ${response.status} error, retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
                 await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -82,6 +88,23 @@ const fetchWithRetry = async (
             }
         }
     }
+
+    // If we exhausted retries and this was a preview model, try fallback to stable model
+    const isPreviewModel = url.includes('-preview');
+    if (isPreviewModel && lastResponse && (lastResponse.status === 503 || lastResponse.status === 429)) {
+        console.warn(`[AI] Preview model overloaded. Falling back to stable model: ${FALLBACK_STABLE_MODEL}`);
+        const fallbackUrl = url.replace(/gemini-[^:]+/, FALLBACK_STABLE_MODEL);
+        try {
+            const fallbackResponse = await fetch(fallbackUrl, options);
+            if (fallbackResponse.ok || (fallbackResponse.status !== 503 && fallbackResponse.status !== 429)) {
+                console.log(`[AI] Fallback to ${FALLBACK_STABLE_MODEL} succeeded`);
+                return fallbackResponse;
+            }
+        } catch (fallbackErr) {
+            console.error('[AI] Fallback model also failed:', fallbackErr);
+        }
+    }
+
     throw lastError || new Error('Request failed after retries');
 };
 
