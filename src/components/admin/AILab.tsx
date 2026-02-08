@@ -52,7 +52,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [articleType, setArticleType] = useState('Deep Dive');
     const [articleLength, setArticleLength] = useState('Medium');
     const [uiMode, setUiMode] = useState<'simple' | 'power'>('simple');
-    const [researchDepth, setResearchDepth] = useState<'Quick' | 'Deep'>('Quick');
+    const [researchMode, setResearchMode] = useState<'none' | 'deep' | 'grounding'>('none');
     const [targetWordCount, setTargetWordCount] = useState(800);
     const [customPrompt, setCustomPrompt] = useState('');
     const [showPromptEditor, setShowPromptEditor] = useState(false);
@@ -239,7 +239,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             type: articleType,
             length: articleLength,
             targetLanguages,
-            researchDepth,
+            researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
             targetWordCount,
             tone: toneStyle,
             toneInstructions
@@ -253,7 +253,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             type: articleType,
             length: articleLength,
             targetLanguages,
-            researchDepth,
+            researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
             targetWordCount,
             tone: toneStyle,
             toneInstructions
@@ -289,7 +289,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             targetLanguages.join(','),
             ...validLinks
         ].join(' ').length;
-        const promptTokens = Math.ceil(promptChars / 3.8) + (researchDepth === 'Deep' ? 1400 : 350);
+        const promptTokens = Math.ceil(promptChars / 3.8) + (researchMode === 'deep' ? 1400 : 350);
         const outputTokens = Math.ceil(targetWordCount * 1.8) + (useOutlineWorkflow ? 250 : 0) + Math.max(0, thinkingBudget || 0);
         return {
             promptTokens,
@@ -324,7 +324,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         articleType,
         articleLength,
         targetLanguages,
-        researchDepth,
+        researchMode,
         targetWordCount,
         useOutlineWorkflow,
         thinkingBudget,
@@ -437,8 +437,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 details: {
                     promptLength: promptValue.length,
                     linkCount: validLinks.length,
-                    useGrounding: researchDepth === 'Deep',
-                    researchDepth,
+                    useGrounding: researchMode !== 'none',
+                    researchMode,
                     targetWordCount,
                     targetLanguages,
                     articleType,
@@ -572,9 +572,13 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const validLinks = links.filter(l => l.trim() !== '');
             let researchFindings = '';
             let researchSourcesLocal: Array<{ title?: string; url?: string }> = [];
-            let useGroundingForArticle = researchDepth === 'Deep';
+            // Research mode logic:
+            // - 'deep': Run pre-pass research, then write WITHOUT tools (uses findings)
+            // - 'grounding': No pre-pass, write WITH Google Search tool active
+            // - 'none': No research, no tools
+            let useGroundingForArticle = researchMode === 'grounding';
 
-            if (researchDepth === 'Deep') {
+            if (researchMode === 'deep') {
                 setGenerationStatus('Gathering sources and research...');
                 try {
                     const researchPack = await generateAIResearchPack(prompt || customPrompt, validLinks, {
@@ -609,7 +613,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     researchFindings,
                     useGroundingOverride: false,
                     signal: controller.signal,
-                    timeoutMs: researchDepth === 'Deep' ? 600000 : 120000,
+                    timeoutMs: researchMode === 'deep' ? 600000 : 120000,
                     modelOverride: currentModel,
                     thinkingBudgetOverride: thinkingBudget
                 });
@@ -628,7 +632,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 useGrounding: useGroundingForArticle,
                 customPrompt: customPromptOverride,
                 targetLanguages,
-                researchDepth,
+                researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
                 targetWordCount,
                 tone: toneStyle,
                 toneInstructions,
@@ -707,7 +711,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 options.signal.addEventListener('abort', () => outlineController.abort(), { once: true });
             }
         }
-        const defaultTimeoutMs = researchDepth === 'Deep' ? 600000 : 120000;
+        const defaultTimeoutMs = researchMode === 'deep' ? 600000 : 120000;
         const timeoutMs = options?.timeoutMs ?? defaultTimeoutMs;
         const outlineTimeout = window.setTimeout(() => {
             outlineController.abort();
@@ -717,11 +721,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const primaryLang = targetLanguages[0] || 'en';
             const useGrounding = typeof options?.useGroundingOverride === 'boolean'
                 ? options.useGroundingOverride
-                : (researchDepth === 'Deep');
+                : (researchMode === 'deep');
             const outlineResult = await generateAIOutline(prompt, validLinks, {
                 type: articleType,
                 length: articleLength,
-                researchDepth,
+                researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
                 targetWordCount,
                 tone: toneStyle,
                 toneInstructions,
@@ -1060,21 +1064,24 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                         <div className="space-y-2 p-3 bg-muted/50 rounded-lg border border-primary/10">
                             <Label className="text-sm font-medium flex items-center gap-2">
                                 <GlobalSearchIcon size={16} className="text-primary" />
-                                Research Depth
+                                Research Mode
                             </Label>
-                            <Select value={researchDepth} onValueChange={(value) => setResearchDepth(value as 'Quick' | 'Deep')}>
+                            <Select value={researchMode} onValueChange={(value) => setResearchMode(value as 'none' | 'deep' | 'grounding')}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select depth" />
+                                    <SelectValue placeholder="Select research mode" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Quick">Quick (No web grounding)</SelectItem>
-                                    <SelectItem value="Deep">Deep (Use Google Search)</SelectItem>
+                                    <SelectItem value="none">None (Fast, no external search)</SelectItem>
+                                    <SelectItem value="deep">Deep Research (Pre-compile sources)</SelectItem>
+                                    <SelectItem value="grounding">Live Grounding (Inline Google Search)</SelectItem>
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">
-                                {researchDepth === 'Deep'
-                                    ? 'Deep mode uses Google Search grounding to verify facts.'
-                                    : 'Quick mode uses only your prompt + links; no external search.'}
+                                {researchMode === 'deep'
+                                    ? 'Deep Research: Gathers sources first, then writes the article using compiled findings. Best for factual accuracy.'
+                                    : researchMode === 'grounding'
+                                        ? 'Live Grounding: Uses Google Search inline during writing. May affect JSON stability with some models.'
+                                        : 'None: Uses only your prompt and provided links. Fastest generation.'}
                             </p>
                         </div>
 
