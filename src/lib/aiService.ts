@@ -51,6 +51,40 @@ const SETTINGS_CACHE_TTL_MS = 30_000;
 let settingsCache: Record<string, string> | null = null;
 let settingsCacheTs = 0;
 
+/**
+ * Fetch with automatic retry for transient errors (503, 429).
+ * Uses exponential backoff: 2s, 4s, 8s delays between retries.
+ */
+const fetchWithRetry = async (
+    url: string,
+    options: RequestInit,
+    maxRetries = 3
+): Promise<Response> => {
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(url, options);
+            // Retry on 503 (overloaded) or 429 (rate limit)
+            if (response.status === 503 || response.status === 429) {
+                const delayMs = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+                console.warn(`[AI] ${response.status} error, retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                continue;
+            }
+            return response;
+        } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+            // Network errors: retry with backoff
+            if (attempt < maxRetries - 1) {
+                const delayMs = Math.pow(2, attempt + 1) * 1000;
+                console.warn(`[AI] Network error, retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+        }
+    }
+    throw lastError || new Error('Request failed after retries');
+};
+
 const loadSettingsMap = async () => {
     const now = Date.now();
     if (settingsCache && now - settingsCacheTs < SETTINGS_CACHE_TTL_MS) {
@@ -250,7 +284,7 @@ ${rawContent}`;
         }
     };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify(body),
@@ -752,7 +786,7 @@ export async function generateAIResearchPack(
         tools: [{ google_search: {} }]
     };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify(body),
@@ -907,7 +941,7 @@ export async function generateAIArticle(
             body.tools = [{ google_search: {} }];
         }
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
             body: JSON.stringify(body),
