@@ -823,6 +823,13 @@ export async function generateAIArticle(
         useGrounding = false;
     }
 
+    // If research findings are provided (e.g. from Deep Dive phase 1), we don't need grounding.
+    // Disabling grounding allows us to use responseMimeType="application/json" which prevents parse errors.
+    if (useGrounding && options.researchFindings) {
+        console.log('[AI] Disabling grounding because research findings are provided.');
+        useGrounding = false;
+    }
+
     // Use model specific max tokens if available, otherwise estimate
     const isDeepDive = options.type === 'Deep Dive';
     let maxOutputTokens = modelConfig.maxOutputTokens;
