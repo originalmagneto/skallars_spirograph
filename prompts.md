@@ -135,3 +135,10 @@ For advanced models (**Pro**, **Ultra**, **Gemini 3.0**), an additional system i
 
 ### Thinking Models
 If a **Thinking** model (e.g., `gemini-2.0-flash-thinking`) is detected, the `thinking_config` is automatically enabled, allowing the model to "think" before generating the JSON response.
+
+### Gemini 3 Integration (Thinking Level)
+
+For **Gemini 3** models (e.g., `gemini-3-flash-preview`), the system automatically switches from the legacy `thinking_budget` to the new **Thinking Level** parameter:
+-   **Default**: `high` (Maximum reasoning depth).
+-   **Structure**: `{ thinking_config: { thinking_level: "high" } }`.
+This usage replaces the token budget system for cleaner, more predictable reasoning behavior.

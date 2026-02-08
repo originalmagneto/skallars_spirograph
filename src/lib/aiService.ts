@@ -151,6 +151,13 @@ const getModelConfig = (model: string): ModelConfig => {
 };
 
 const buildThinkingConfig = (model: string, thinkingBudget?: number | null) => {
+    // Gemini 3: Use thinking_level
+    // Default to 'high' as it mimics the previous 'enabled' state for reasoning models
+    if (/gemini-?3/i.test(model)) {
+        return { thinking_config: { thinking_level: "high" } };
+    }
+
+    // Gemini 2: Use thinking_budget_token_count
     if (!thinkingBudget || thinkingBudget <= 0) return null;
     // Only apply thinking config to models that explicitly recognize it (e.g. "flash-thinking")
     // sending this config to standard models (like gemini-2.5-flash) causes 400 errors.
