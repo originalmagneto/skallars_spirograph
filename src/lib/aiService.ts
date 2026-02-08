@@ -811,7 +811,7 @@ export async function generateAIArticle(
 
     // Get selected model, fallback to gemini-2.0-flash
     const selectedModel = options.modelOverride || await getArticleModelSetting();
-    console.log('[AI] Using Gemini model:', selectedModel);
+    console.log('[AI] Using Gemini model:', selectedModel, '(override:', options.modelOverride || 'none', ')');
 
     const modelConfig = getModelConfig(selectedModel);
     let { useGrounding = false, customPrompt, signal, sources: providedSources } = options;

@@ -594,11 +594,13 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     // We already grounded in research phase; avoid double grounding in generation.
                     useGroundingForArticle = false;
                 } catch (researchError: any) {
-                    console.warn('Research pre-pass failed, falling back to direct grounded generation:', researchError);
+                    console.warn('Research pre-pass failed, continuing without grounding:', researchError);
                     setResearchSources([]);
                     setResearchSummary('');
-                    useGroundingForArticle = true;
-                    toast.warning('Research pre-pass failed. Continuing with direct grounded generation.');
+                    // Keep grounding DISABLED to preserve JSON mode for article generation.
+                    // Enabling grounding here would break JSON parsing.
+                    useGroundingForArticle = false;
+                    toast.warning('Research failed. Generating article without web grounding.');
                 }
             }
 
