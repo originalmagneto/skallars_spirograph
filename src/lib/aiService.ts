@@ -799,9 +799,15 @@ export async function generateAIArticle(
     console.log('[AI] Using Gemini model:', selectedModel);
 
     const modelConfig = getModelConfig(selectedModel);
-    const { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
+    let { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
     const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
     const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
+
+    // Disable grounding for Gemini 2.5 as it currently causes 400 errors (likely unsupported)
+    if (useGrounding && /gemini-2\.5/i.test(selectedModel)) {
+        console.warn('[AI] Disabling grounding for Gemini 2.5 (unsupported)');
+        useGrounding = false;
+    }
 
     // Use model specific max tokens if available, otherwise estimate
     const estimatedTokens = estimateMaxOutputTokens(options.targetWordCount, targetLanguages.length);
@@ -842,7 +848,8 @@ export async function generateAIArticle(
         };
 
         if (groundingEnabled) {
-            body.tools = [{ googleSearch: {} }];
+            // Use snake_case 'google_search' as per v1beta spec
+            body.tools = [{ google_search: {} }];
         }
 
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
