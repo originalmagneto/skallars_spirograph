@@ -155,7 +155,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     useEffect(() => {
         const init = async () => {
             const settings = await fetchAISettings();
-            const articleModel = settings.geminiArticleModel || settings.geminiModel || 'gemini-2.0-flash';
+            // Priority: Global model from Settings is the default.
+            // geminiArticleModel is only used if explicitly set in Power Controls.
+            const articleModel = settings.geminiModel || settings.geminiArticleModel || 'gemini-2.0-flash';
             setCurrentModel(articleModel);
             setSavedModel(articleModel);
             const budget = settings.geminiArticleThinkingBudget ?? 0;

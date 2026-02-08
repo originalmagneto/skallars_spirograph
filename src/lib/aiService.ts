@@ -87,9 +87,13 @@ const toNumber = (value?: string | null) => {
 };
 
 const getArticleModelSetting = async () => {
+    // Priority: Global model from Settings is the default.
+    // gemini_article_model is only used if explicitly saved in Power Controls.
+    const globalModel = await getSetting('gemini_model');
+    if (globalModel) return globalModel;
     const articleModel = await getSetting('gemini_article_model');
     if (articleModel) return articleModel;
-    return (await getSetting('gemini_model')) || 'gemini-2.0-flash';
+    return 'gemini-2.0-flash';
 };
 
 const getArticleThinkingBudget = async () => {
