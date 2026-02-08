@@ -829,6 +829,26 @@ export async function generateAIArticle(
         cn: 'Chinese (CN)',
     };
 
+    const injectCitations = (text: string, candidate: any) => {
+        const supports = candidate?.groundingMetadata?.groundingSupports;
+        const chunks = candidate?.groundingMetadata?.groundingChunks;
+        if (!supports || !chunks || !text) return text;
+        const sortedSupports = [...supports].sort((a: any, b: any) => (b.segment?.endIndex ?? 0) - (a.segment?.endIndex ?? 0));
+        let output = text;
+        for (const support of sortedSupports) {
+            const endIndex = support.segment?.endIndex;
+            if (endIndex === undefined || !support.groundingChunkIndices?.length) continue;
+            const links = support.groundingChunkIndices.map((i: number) => {
+                const uri = chunks[i]?.web?.uri;
+                return uri ? `[${i + 1}](${uri})` : null;
+            }).filter(Boolean);
+            if (links.length > 0) {
+                output = output.slice(0, endIndex) + " " + links.join(" ") + output.slice(endIndex);
+            }
+        }
+        return output;
+    };
+
     const requestModelOutput = async (promptText: string, groundingEnabled = useGrounding) => {
         const body: any = {
             contents: [{ parts: [{ text: promptText }] }],
@@ -865,11 +885,17 @@ export async function generateAIArticle(
         }
 
         const result = await response.json();
-        const modelText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const candidate = result?.candidates?.[0];
+        let modelText = candidate?.content?.parts?.[0]?.text;
+
+        if (groundingEnabled && candidate?.groundingMetadata && modelText) {
+            modelText = injectCitations(modelText, candidate);
+        }
+
         if (!modelText) throw new Error(formatGeminiError(result));
         return {
             content: modelText as string,
-            groundingMetadata: result?.candidates?.[0]?.groundingMetadata,
+            groundingMetadata: candidate?.groundingMetadata,
             usageMetadata: result?.usageMetadata
         };
     };
