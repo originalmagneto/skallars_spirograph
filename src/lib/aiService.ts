@@ -522,8 +522,14 @@ export function getAIArticlePrompt(
     const researchGuidance = researchFindings
         ? `- **Research Depth**: Deep (provided). Use the research brief below; do not call external tools.`
         : getResearchGuidance(researchDepth);
+    const isDeepDive = type === 'Deep Dive';
     const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
-    const lengthGuide = getLengthGuide(length, targetWordCount);
+    let lengthGuide = getLengthGuide(length, targetWordCount);
+
+    if (isDeepDive) {
+        lengthGuide = 'Maximum depth. No word limit. Expand as necessary to cover the topic exhaustively. Ignore target word count constraints.';
+        // Force instruction to ignore brevity
+    }
     const toneBlock = getToneGuide(tone, toneInstructions);
     const outlineBlock = outline
         ? `\n\n### APPROVED OUTLINE\nUse this outline exactly. Do not add or remove sections unless strictly necessary.\n${outline}\n`
@@ -729,15 +735,16 @@ export async function generateAIResearchPack(
     const body: any = {
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: {
-            responseMimeType: "application/json",
-            response_mime_type: "application/json",
+            // responseMimeType: "application/json" is NOT supported with tools (grounding)
+            // We rely on the prompt to enforce JSON
             responseSchema: getResearchPackResponseSchema(),
             response_schema: getResearchPackResponseSchema(),
             temperature: 0.3,
             maxOutputTokens: 4096,
             ...(thinkingConfig || {})
         },
-        tools: [{ googleSearch: {} }]
+        // Use google_search (snake_case) for v1beta compliance
+        tools: [{ google_search: {} }]
     };
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
@@ -817,8 +824,17 @@ export async function generateAIArticle(
     }
 
     // Use model specific max tokens if available, otherwise estimate
-    const estimatedTokens = estimateMaxOutputTokens(options.targetWordCount, targetLanguages.length);
-    const maxOutputTokens = Math.max(estimatedTokens, modelConfig.maxOutputTokens);
+    const isDeepDive = options.type === 'Deep Dive';
+    let maxOutputTokens = modelConfig.maxOutputTokens;
+
+    if (!isDeepDive) {
+        const estimatedTokens = estimateMaxOutputTokens(options.targetWordCount, targetLanguages.length);
+        maxOutputTokens = Math.max(estimatedTokens, modelConfig.maxOutputTokens);
+    } else {
+        // For Deep Dive, use the absolute maximum the model supports
+        // ensuring we don't truncate.
+        maxOutputTokens = modelConfig.maxOutputTokens;
+    }
 
     const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
