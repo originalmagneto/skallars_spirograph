@@ -62,6 +62,7 @@ const loadSettingsMap = async () => {
         .select('key, value');
 
     if (error || !data) {
+        console.warn('[AI Settings] Failed to load settings from Supabase:', error?.message || 'No data returned');
         return settingsCache || {};
     }
 
