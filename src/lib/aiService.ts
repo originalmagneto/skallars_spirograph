@@ -751,8 +751,8 @@ export function getAIResearchPrompt(
     const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
     const toneBlock = getToneGuide(tone, toneInstructions);
     const researchContext = links.length > 0
-        ? `\n\n### RESEARCH SOURCES\nAnalyze and synthesize these sources. Prioritize verifiable facts and cite the sources explicitly in the JSON.\n${links.join('\n')}`
-        : '';
+        ? `\n\n### RESEARCH SOURCES (PROVIDED)\nThese are PRIMARY sources you MUST analyze:\n${links.join('\n')}\n\n### ADDITIONAL RESEARCH\nSupplement the provided sources with Google Search to find additional authoritative sources, recent updates, and supporting data. Do NOT limit yourself to only the provided links.`
+        : '\n\n### RESEARCH DIRECTIVE\nUse Google Search to find authoritative sources, recent data, and expert perspectives on this topic.';
 
     return `You are a research analyst. Collect factual notes to support a future article.
 
