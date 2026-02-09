@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 export interface GeneratedArticle {
+    slug?: string;  // URL-friendly identifier
     title_sk?: string;
     title_en?: string;
     title_de?: string;
@@ -661,6 +662,7 @@ ${toneBlock}
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown, no commentary. Even with Google grounding enabled, output JSON only.
 {
+  "slug": "url-friendly-slug-from-title",
 ${jsonFields},
   "sources": [{"title": "Source title", "url": "https://source.com"}],
   "tags": ["tag1", "tag2", "tag3"]
