@@ -269,6 +269,21 @@ const tryParseJson = (content: string) => {
     }
 };
 
+/**
+ * Convert common markdown syntax to HTML.
+ * Handles **bold**, *italic*, __bold__, _italic_.
+ */
+const convertMarkdownToHtml = (html: string): string => {
+    if (!html) return html;
+    return html
+        // Bold: **text** or __text__
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+        // Italic: *text* or _text_ (but not inside URLs or words)
+        .replace(/(?<![a-zA-Z0-9])\*([^*\n]+)\*(?![a-zA-Z0-9])/g, '<em>$1</em>')
+        .replace(/(?<![a-zA-Z0-9])_([^_\n]+)_(?![a-zA-Z0-9])/g, '<em>$1</em>');
+};
+
 const hasMeaningfulArticleHtml = (html?: string) => {
     if (!html) return false;
     const normalized = String(html).trim();
@@ -1040,7 +1055,8 @@ ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs return
 
         for (const lang of targetLanguages) {
             const field = `content_${lang}`;
-            parsedContent[field] = normalizeArticleHtml(parsedContent[field] || '');
+            // Convert any markdown syntax to HTML, then normalize
+            parsedContent[field] = normalizeArticleHtml(convertMarkdownToHtml(parsedContent[field] || ''));
         }
 
         const enhancements = await Promise.all(
