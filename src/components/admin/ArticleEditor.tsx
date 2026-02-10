@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,7 +26,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import Link from 'next/link';
 import { generateAIEdit, generateAIImage } from '@/lib/aiService';
 import { fetchAISettings } from '@/lib/aiSettings';
 import { formatArticleHtml } from '@/lib/articleFormat';
@@ -197,6 +197,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [linkedinImageUrl, setLinkedinImageUrl] = useState('');
     const [linkedinLogs, setLinkedinLogs] = useState<Array<{
         id: string;
+        article_title?: string | null;
         status: string;
         share_target: string | null;
         share_mode?: string | null;
@@ -230,6 +231,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     }>>([]);
     const [linkedinScheduledLoading, setLinkedinScheduledLoading] = useState(false);
     const [linkedinUiMode, setLinkedinUiMode] = useState<'basic' | 'power'>('basic');
+    const [linkedinAdvancedOpen, setLinkedinAdvancedOpen] = useState('');
     const { layout: editorLayout, updateLayoutSize: updateEditorLayoutSize } = useBentoLayout<'seo' | 'tools'>(
         'admin:article-editor:bento-layout:v1',
         { seo: 'md', tools: 'lg' }
@@ -658,6 +660,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         if (panelParam !== 'linkedin') return;
         if (!linkedinSectionRef.current) return;
         const el = linkedinSectionRef.current;
+        setLinkedinUiMode('power');
+        setLinkedinAdvancedOpen('linkedin-advanced');
         const timer = window.setTimeout(() => {
             el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 150);
@@ -746,7 +750,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             // so subsequent saves update the same article instead of creating new ones
             if (isNew && newArticleId) {
                 const params = new URLSearchParams(searchParams.toString());
-                router.replace(`?articleId=${newArticleId}&${params.toString()}`);
+                params.delete('create');
+                params.delete('articleId');
+                params.set('edit', newArticleId);
+                router.replace(`?${params.toString()}`);
             }
         },
         onError: (error: any) => {
@@ -1386,6 +1393,28 @@ Rules:
     const getLabel = (enLabel: string, skLabel: string) => {
         return activeTab === 'sk' ? skLabel : enLabel + ` (${activeTab.toUpperCase()})`;
     };
+    const currentTitle = getCurrentTitle();
+    const currentExcerpt = getCurrentExcerpt();
+    const currentContent = getCurrentContent();
+    const articleUrl = getArticleUrl();
+    const contentChecklist = {
+        title: Boolean(currentTitle.trim()),
+        excerpt: Boolean(currentExcerpt.trim()),
+        slug: Boolean(formData.slug.trim()),
+        content: Boolean(stripHtml(currentContent).trim()),
+    };
+    const contentReadyCount = Object.values(contentChecklist).filter(Boolean).length;
+    const successfulLinkedInShares = linkedinLogs.filter((log) => log.status === 'success');
+    const pendingLinkedInShares = linkedinScheduled.filter((item) =>
+        ['scheduled', 'retry', 'processing'].includes(item.status)
+    );
+    const latestLinkedInMetricSet = successfulLinkedInShares.find((log) => log.metrics)?.metrics || null;
+    const jumpToLinkedInPanel = () => {
+        if (!linkedinSectionRef.current) return;
+        setLinkedinUiMode('power');
+        setLinkedinAdvancedOpen('linkedin-advanced');
+        linkedinSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
 
     return (
         <div className="space-y-6">
@@ -1395,86 +1424,19 @@ Rules:
                 description="Edit content, media, workflow status, and LinkedIn sharing from one place."
                 actions={(
                     <div className="flex flex-wrap items-center gap-3">
+                        {onClose && (
+                            <Button variant="outline" size="sm" onClick={onClose}>
+                                <ArrowLeft size={14} className="mr-1" />
+                                Back
+                            </Button>
+                        )}
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(formData.status)}`}>
                             {statusLabel(formData.status)}
                         </span>
-                        {workflowFieldsAvailable && (
-                            <div className="flex items-center gap-2">
-                                <Label htmlFor="scheduleAt" className="text-xs text-muted-foreground">Schedule</Label>
-                                <Input
-                                    id="scheduleAt"
-                                    name="scheduleAt"
-                                    autoComplete="off"
-                                    type="datetime-local"
-                                    value={toLocalInput(formData.scheduled_at)}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, scheduled_at: fromLocalInput(e.target.value) }))}
-                                    className="h-9 w-[190px]"
-                                />
-                            </div>
-                        )}
                         <Button onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
                             <Save size={16} className="mr-2" />
                             {saveMutation.isPending ? 'Saving...' : 'Save'}
                         </Button>
-                        {!isNew && (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    disabled={saveMutation.isPending}
-                                    onClick={() => handleWorkflowUpdate({
-                                        status: 'draft',
-                                        is_published: false,
-                                        scheduled_at: null,
-                                        submitted_at: null,
-                                    }, 'save_draft')}
-                                >
-                                    Save Draft
-                                </Button>
-                                {isEditor && !isAdmin && (
-                                    <Button
-                                        variant="outline"
-                                        disabled={saveMutation.isPending}
-                                        onClick={() => handleWorkflowUpdate({
-                                            status: 'review',
-                                            is_published: false,
-                                            submitted_at: new Date().toISOString(),
-                                        }, 'submit_review')}
-                                    >
-                                        Submit for Review
-                                    </Button>
-                                )}
-                                {isAdmin && (
-                                    <>
-                                        <Button
-                                            variant="default"
-                                            disabled={saveMutation.isPending}
-                                            onClick={() => handleWorkflowUpdate({
-                                                status: 'published',
-                                                is_published: true,
-                                                published_at: new Date().toISOString(),
-                                                approved_at: new Date().toISOString(),
-                                                approved_by: user?.id ?? null,
-                                            }, 'publish_now')}
-                                        >
-                                            Publish Now
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            disabled={saveMutation.isPending || !formData.scheduled_at}
-                                            onClick={() => handleWorkflowUpdate({
-                                                status: 'scheduled',
-                                                is_published: true,
-                                                published_at: formData.scheduled_at,
-                                            }, 'schedule_publish')}
-                                        >
-                                            Schedule
-                                        </Button>
-                                    </>
-                                )}
-                            </>
-                        )}
-
-                        {/* Delete Button */}
                         {!isNew && isAdmin && (
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -1510,6 +1472,154 @@ Rules:
                     Workflow fields are not available in the database. Run `supabase/articles_workflow.sql` to enable approvals + scheduling.
                 </div>
             )}
+
+            <AdminSectionCard className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <Label className="text-sm font-semibold">Workflow Checklist</Label>
+                        <p className="text-xs text-muted-foreground">
+                            1) Complete content, 2) set publishing status, 3) distribute and track on LinkedIn.
+                        </p>
+                    </div>
+                    {!isNew && (
+                        <Button variant="outline" size="sm" onClick={jumpToLinkedInPanel}>
+                            Open LinkedIn Distribution
+                        </Button>
+                    )}
+                </div>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                        <div className="text-xs font-semibold text-foreground">Content Readiness</div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            {contentReadyCount}/4 required fields complete
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            <Badge variant={contentChecklist.title ? 'secondary' : 'outline'}>Title</Badge>
+                            <Badge variant={contentChecklist.excerpt ? 'secondary' : 'outline'}>Excerpt</Badge>
+                            <Badge variant={contentChecklist.slug ? 'secondary' : 'outline'}>Slug</Badge>
+                            <Badge variant={contentChecklist.content ? 'secondary' : 'outline'}>Content</Badge>
+                        </div>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                        <div className="text-xs font-semibold text-foreground">Publishing</div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            Status: {statusLabel(formData.status)}
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                            {formData.published_at
+                                ? `Published at ${new Date(formData.published_at).toLocaleString()}`
+                                : formData.scheduled_at
+                                ? `Scheduled for ${new Date(formData.scheduled_at).toLocaleString()}`
+                                : 'No publish date set yet.'}
+                        </div>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                        <div className="text-xs font-semibold text-foreground">LinkedIn Distribution</div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            {successfulLinkedInShares.length} shared · {pendingLinkedInShares.length} queued
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                            {articleUrl ? 'Article URL is ready for sharing.' : 'Add and save slug to generate article URL.'}
+                        </div>
+                    </div>
+                </div>
+                {!isNew && workflowFieldsAvailable && (
+                    <div className="grid grid-cols-1 gap-3 rounded-lg border bg-white p-3 xl:grid-cols-[240px,1fr]">
+                        <div className="space-y-2">
+                            <Label htmlFor="scheduleAt">Schedule Publish</Label>
+                            <Input
+                                id="scheduleAt"
+                                name="scheduleAt"
+                                autoComplete="off"
+                                type="datetime-local"
+                                value={toLocalInput(formData.scheduled_at)}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, scheduled_at: fromLocalInput(e.target.value) }))}
+                                className="h-9"
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-end gap-2">
+                            <Button
+                                variant="outline"
+                                disabled={saveMutation.isPending}
+                                onClick={() =>
+                                    handleWorkflowUpdate(
+                                        {
+                                            status: 'draft',
+                                            is_published: false,
+                                            scheduled_at: null,
+                                            submitted_at: null,
+                                        },
+                                        'save_draft'
+                                    )
+                                }
+                            >
+                                Save Draft
+                            </Button>
+                            {isEditor && !isAdmin && (
+                                <Button
+                                    variant="outline"
+                                    disabled={saveMutation.isPending}
+                                    onClick={() =>
+                                        handleWorkflowUpdate(
+                                            {
+                                                status: 'review',
+                                                is_published: false,
+                                                submitted_at: new Date().toISOString(),
+                                            },
+                                            'submit_review'
+                                        )
+                                    }
+                                >
+                                    Submit for Review
+                                </Button>
+                            )}
+                            {isAdmin && (
+                                <>
+                                    <Button
+                                        variant="default"
+                                        disabled={saveMutation.isPending}
+                                        onClick={() =>
+                                            handleWorkflowUpdate(
+                                                {
+                                                    status: 'published',
+                                                    is_published: true,
+                                                    published_at: new Date().toISOString(),
+                                                    approved_at: new Date().toISOString(),
+                                                    approved_by: user?.id ?? null,
+                                                },
+                                                'publish_now'
+                                            )
+                                        }
+                                    >
+                                        Publish Now
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        disabled={saveMutation.isPending || !formData.scheduled_at}
+                                        onClick={() =>
+                                            handleWorkflowUpdate(
+                                                {
+                                                    status: 'scheduled',
+                                                    is_published: true,
+                                                    published_at: formData.scheduled_at,
+                                                },
+                                                'schedule_publish'
+                                            )
+                                        }
+                                    >
+                                        Schedule Publish
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+                {isNew && (
+                    <div className="rounded-lg border bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+                        Save the article once to enable publishing workflow and LinkedIn actions.
+                    </div>
+                )}
+            </AdminSectionCard>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
                 {/* Cover Image */}
@@ -1830,6 +1940,31 @@ Rules:
                     )}
 
                     {linkedinStatus?.connected && (
+                        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            <div className="rounded-md border bg-white px-3 py-2">
+                                <div className="text-[11px] text-muted-foreground">Shares Logged</div>
+                                <div className="text-lg font-semibold">{successfulLinkedInShares.length}</div>
+                            </div>
+                            <div className="rounded-md border bg-white px-3 py-2">
+                                <div className="text-[11px] text-muted-foreground">Queued Shares</div>
+                                <div className="text-lg font-semibold">{pendingLinkedInShares.length}</div>
+                            </div>
+                            <div className="rounded-md border bg-white px-3 py-2">
+                                <div className="text-[11px] text-muted-foreground">Latest Impressions</div>
+                                <div className="text-lg font-semibold">
+                                    {formatCompactMetric(latestLinkedInMetricSet?.impressionCount) || '—'}
+                                </div>
+                            </div>
+                            <div className="rounded-md border bg-white px-3 py-2">
+                                <div className="text-[11px] text-muted-foreground">Article URL</div>
+                                <div className="text-sm font-semibold">
+                                    {articleUrl ? 'Ready' : 'Missing slug'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {linkedinStatus?.connected && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Share As</Label>
@@ -1992,12 +2127,12 @@ Rules:
                                     />
                                 )}
                                 <div className="space-y-1">
-                                    <div className="text-sm font-semibold">{getCurrentTitle() || 'Untitled Article'}</div>
+                                    <div className="text-sm font-semibold">{currentTitle || 'Untitled Article'}</div>
                                     <div className="text-xs text-muted-foreground line-clamp-2">
-                                        {getCurrentExcerpt() || 'Add an excerpt to improve the preview.'}
+                                        {currentExcerpt || 'Add an excerpt to improve the preview.'}
                                     </div>
                                     <div className="text-[11px] text-muted-foreground">
-                                        {getArticleUrl() || 'Save a slug to generate the article link.'}
+                                        {articleUrl || 'Save a slug to generate the article link.'}
                                     </div>
                                 </div>
                             </div>
@@ -2012,7 +2147,7 @@ Rules:
                                     linkedinSharing ||
                                     linkedinStatus?.expired ||
                                     (linkedinTarget === 'organization' && !effectiveLinkedInOrganizationUrn) ||
-                                    (effectiveLinkedInShareMode === 'article' ? !getArticleUrl() : !effectiveLinkedInImageUrl)
+                                    (effectiveLinkedInShareMode === 'article' ? !articleUrl : !effectiveLinkedInImageUrl)
                                 }
                             >
                                 {linkedinSharing ? 'Sharing…' : 'Share on LinkedIn'}
@@ -2026,7 +2161,13 @@ Rules:
                     )}
 
                     {linkedinStatus?.connected && linkedinUiMode === 'power' && (
-                        <Accordion type="single" collapsible className="w-full rounded-lg border bg-white px-3">
+                        <Accordion
+                            type="single"
+                            collapsible
+                            value={linkedinAdvancedOpen}
+                            onValueChange={setLinkedinAdvancedOpen}
+                            className="w-full rounded-lg border bg-white px-3"
+                        >
                             <AccordionItem value="linkedin-advanced" className="border-b-0">
                                 <AccordionTrigger className="py-3 text-xs font-semibold no-underline hover:no-underline">
                                     Advanced LinkedIn Tools (Scheduling, Logs, Diagnostics)
@@ -2079,7 +2220,9 @@ Rules:
 
                                     <div className="rounded-lg border bg-white p-3 space-y-2">
                                         <div className="flex items-center justify-between">
-                                            <Label className="text-xs text-muted-foreground">Recent Shares</Label>
+                                            <Label className="text-xs text-muted-foreground">
+                                                Recent Shares for {currentTitle || 'this article'}
+                                            </Label>
                                         </div>
                                         {linkedinMetricsNote && (
                                             <p className="text-[11px] text-muted-foreground">{linkedinMetricsNote}</p>
@@ -2094,6 +2237,11 @@ Rules:
                                                         className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs"
                                                     >
                                                         <div className="flex flex-col gap-1">
+                                                            {log.article_title && (
+                                                                <span className="text-[11px] text-muted-foreground">
+                                                                    {log.article_title}
+                                                                </span>
+                                                            )}
                                                             <span className="font-semibold text-foreground">
                                                                 {log.status === 'success' ? 'Shared' : 'Error'}
                                                             </span>

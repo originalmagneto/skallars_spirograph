@@ -184,3 +184,24 @@ High-impact mismatches found and now resolved:
     - `src/app/api/linkedin/logs/route.ts`
   - Updated `ArticlesManager.tsx` to show LinkedIn interaction snippets in list rows and added explicit LinkedIn sync action.
   - Updated `ArticleEditor.tsx` to display per-share LinkedIn metrics in advanced logs and keep LinkedIn activity synchronized.
+
+## Change Log (Feb 10, 2026 - UX Pass 2)
+- **Settings Workspace De-clutter**:
+  - Split admin settings into dedicated panels (`AI Usage & Config`, `LinkedIn`, `SEO`) via `settingsPanel` query param in `src/app/admin/page.tsx`.
+  - Split AI workspace into tabs in `src/components/admin/AISettings.tsx`:
+    - `Usage & Tracking`
+    - `Provider & Policies`
+  - Refined `src/components/admin/LinkedInSettings.tsx` with top-level KPI cards (success/fail/queued/with-metrics) and auto-expanded advanced sections in Power mode.
+  - Added generation-level tracking API in `src/app/api/admin/ai-generation-summary/route.ts`.
+  - Updated `src/components/admin/AIUsageStats.tsx` with tracked generation totals, cap notice, and corrected monthly trend scaling.
+- **Article List Workflow UX** (`src/components/admin/ArticlesManager.tsx`):
+  - Added deep-link based edit/create/share flow (`edit`, `create`, `panel=linkedin`) for consistent navigation.
+  - Added workflow-aware overview counters: `Ready for LinkedIn` and `LinkedIn Queued`.
+  - Added per-article next-step messaging and action emphasis (e.g., promote LinkedIn publish CTA for published-but-unshared articles).
+- **Article Editor Workflow UX** (`src/components/admin/ArticleEditor.tsx`):
+  - Simplified header actions (Back, status, Save, Delete) and moved workflow controls into a dedicated `Workflow Checklist` panel.
+  - Added explicit content readiness checklist (Title/Excerpt/Slug/Content) and publish/distribution status snapshots.
+  - Added quick jump to LinkedIn distribution panel from workflow card.
+  - Auto-opens LinkedIn Power mode + advanced accordion when editor is opened with `panel=linkedin`.
+  - Added visible LinkedIn snapshot cards (shares, queued items, latest impressions, URL readiness) so key status is visible without digging through advanced tools.
+  - Updated advanced share log heading to include current article context (`Recent Shares for …`).

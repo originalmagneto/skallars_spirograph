@@ -132,6 +132,15 @@ export default function LinkedInSettings() {
         });
         return map;
     }, [analytics]);
+    const successfulShareCount = logs.filter((log) => log.status === "success").length;
+    const failedShareCount = logs.filter((log) => log.status !== "success").length;
+    const queuedShareCount = scheduled.filter((item) =>
+        ["scheduled", "retry", "processing"].includes(item.status)
+    ).length;
+    const logsWithMetricsCount = logs.filter((log) => {
+        const metrics = analyticsByLogId.get(log.id)?.metrics;
+        return Boolean(metrics);
+    }).length;
 
     const parseJsonSafe = async (res: Response) => {
         try {
@@ -177,6 +186,14 @@ export default function LinkedInSettings() {
         setOrgAutoLoadAttempted(true);
         loadOrganizations();
     }, [session?.access_token, connected, hasOrgScope, organizations.length, orgsLoading, orgAutoLoadAttempted]);
+
+    useEffect(() => {
+        if (settingsMode === "power") {
+            setAdvancedOpen(["analytics", "schedule"]);
+            return;
+        }
+        setAdvancedOpen([]);
+    }, [settingsMode]);
 
     const loadStatus = async () => {
         if (!session?.access_token) return;
@@ -619,6 +636,24 @@ export default function LinkedInSettings() {
                         <p className="text-xs text-muted-foreground">
                             Share logs, article-level context, and engagement metrics.
                         </p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    <div className="rounded-lg border bg-white px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">Successful Shares</div>
+                        <div className="text-lg font-semibold">{successfulShareCount}</div>
+                    </div>
+                    <div className="rounded-lg border bg-white px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">Failed Shares</div>
+                        <div className="text-lg font-semibold">{failedShareCount}</div>
+                    </div>
+                    <div className="rounded-lg border bg-white px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">Queued Shares</div>
+                        <div className="text-lg font-semibold">{queuedShareCount}</div>
+                    </div>
+                    <div className="rounded-lg border bg-white px-3 py-2">
+                        <div className="text-[11px] text-muted-foreground">Rows With Metrics</div>
+                        <div className="text-lg font-semibold">{logsWithMetricsCount}</div>
                     </div>
                 </div>
                 <div className="rounded-lg border bg-white p-2">

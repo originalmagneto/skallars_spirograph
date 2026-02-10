@@ -98,14 +98,19 @@ export default function ArticlesManager() {
 
     useEffect(() => {
         const editId = searchParams.get('edit');
+        const create = searchParams.get('create') === 'true';
         if (editId) {
             setEditingArticleId(editId);
             setIsCreating(false);
+            return;
         }
-        if (searchParams.get('create') === 'true') {
+        if (create) {
             setIsCreating(true);
             setEditingArticleId(null);
+            return;
         }
+        setEditingArticleId(null);
+        setIsCreating(false);
     }, [searchParams]);
 
     useEffect(() => {
@@ -317,6 +322,24 @@ export default function ArticlesManager() {
         if (impressions !== null) parts.push(`${impressions} impressions`);
         return parts.length > 0 ? parts.join(' · ') : null;
     };
+    const getPrimaryTitle = (article: Article) => article.title_sk || article.title_en || article.title_de || article.title_cn || 'Untitled';
+    const getWorkflowHint = (article: Article) => {
+        const status = getStatus(article);
+        const linkedIn = linkedinSummary[article.id];
+        if (status === 'draft') return 'Complete content and metadata, then publish.';
+        if (status === 'review') return 'Awaiting admin approval before publish.';
+        if (status === 'scheduled') return 'Scheduled for site publish.';
+        if (!linkedIn?.sharedAt && !linkedIn?.scheduledAt) return 'Published and ready for LinkedIn sharing.';
+        if (linkedIn?.scheduledAt) return 'LinkedIn share is scheduled.';
+        return 'Published and distributed on LinkedIn.';
+    };
+    const getPrimaryActionLabel = (article: Article) => {
+        const status = getStatus(article);
+        const linkedIn = linkedinSummary[article.id];
+        if (status === 'published' && !linkedIn?.sharedAt && !linkedIn?.scheduledAt) return 'Publish to LinkedIn';
+        if (status === 'review') return 'Review Content';
+        return 'Edit Article';
+    };
 
     const quickFilters: Array<{ value: typeof statusFilter; label: string }> = [
         { value: 'all', label: 'All' },
@@ -358,14 +381,28 @@ export default function ArticlesManager() {
     }, [articles, searchQuery, statusFilter, sortOrder, linkedinSummary]);
 
     const summary = useMemo(() => {
-        const counts = { total: 0, draft: 0, review: 0, scheduled: 0, published: 0, shared: 0 };
+        const counts = {
+            total: 0,
+            draft: 0,
+            review: 0,
+            scheduled: 0,
+            published: 0,
+            readyForLinkedIn: 0,
+            queuedLinkedIn: 0,
+            shared: 0,
+        };
         (articles || []).forEach((article) => {
             counts.total += 1;
             const status = getStatus(article);
+            const linkedIn = linkedinSummary[article.id];
             if (status === 'published') counts.published += 1;
             else if (status === 'scheduled') counts.scheduled += 1;
             else if (status === 'review') counts.review += 1;
             else counts.draft += 1;
+            if (status === 'published' && !linkedIn?.sharedAt && !linkedIn?.scheduledAt) {
+                counts.readyForLinkedIn += 1;
+            }
+            if (linkedIn?.scheduledAt) counts.queuedLinkedIn += 1;
         });
         counts.shared = Object.values(linkedinSummary).filter((item) => !!item.sharedAt).length;
         return counts;
@@ -419,7 +456,7 @@ export default function ArticlesManager() {
                         >
                             Open Studio
                         </Button>
-                        <Button onClick={() => setIsCreating(true)}>
+                        <Button onClick={() => router.push('/admin?workspace=publishing&tab=articles&create=true')}>
                             <Plus size={16} className="mr-2" />
                             New Article
                         </Button>
@@ -446,7 +483,7 @@ export default function ArticlesManager() {
                             </select>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
                         <div className="rounded-xl border bg-white px-4 py-3">
                             <div className="text-xs text-muted-foreground">Total</div>
                             <div className="mt-1 text-2xl font-semibold">{summary.total}</div>
@@ -466,6 +503,14 @@ export default function ArticlesManager() {
                         <div className="rounded-xl border bg-white px-4 py-3">
                             <div className="text-xs text-muted-foreground">Published</div>
                             <div className="mt-1 text-2xl font-semibold">{summary.published}</div>
+                        </div>
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">Ready for LinkedIn</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.readyForLinkedIn}</div>
+                        </div>
+                        <div className="rounded-xl border bg-white px-4 py-3">
+                            <div className="text-xs text-muted-foreground">LinkedIn Queued</div>
+                            <div className="mt-1 text-2xl font-semibold">{summary.queuedLinkedIn}</div>
                         </div>
                         <div className="rounded-xl border bg-white px-4 py-3">
                             <div className="text-xs text-muted-foreground">LinkedIn Shared</div>
@@ -601,10 +646,19 @@ export default function ArticlesManager() {
                         <div className="grid gap-4">
                             {filteredArticles.map((article) => {
                                 const metricsLabel = formatLinkedInMetrics(article.id);
+                                const workflowHint = getWorkflowHint(article);
+                                const primaryLabel = getPrimaryActionLabel(article);
+                                const linkedInState = getLinkedInState(article.id);
+                                const status = getStatus(article);
+                                const title = getPrimaryTitle(article);
+                                const shouldPromoteLinkedIn =
+                                    status === 'published' &&
+                                    !linkedinSummary[article.id]?.sharedAt &&
+                                    !linkedinSummary[article.id]?.scheduledAt;
                                 return (
                                 <div
                                     key={article.id}
-                                    className="flex flex-col gap-4 rounded-xl border p-4 hover:bg-muted/20 transition-colors md:flex-row md:items-center"
+                                    className="flex flex-col gap-4 rounded-xl border p-4 transition-colors hover:bg-muted/20 md:flex-row md:items-start"
                                 >
                             {/* Cover Image Thumbnail */}
                             <div className="w-20 h-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
@@ -626,9 +680,8 @@ export default function ArticlesManager() {
                             {/* Article Info */}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                    <h3 className="font-medium truncate">{article.title_sk || article.title_en || 'Untitled'}</h3>
+                                    <h3 className="font-medium truncate">{title}</h3>
                                     {(() => {
-                                        const status = getStatus(article);
                                         const { label, variant } = statusBadge(status);
                                         return (
                                             <Badge variant={variant}>
@@ -638,16 +691,17 @@ export default function ArticlesManager() {
                                             </Badge>
                                         );
                                     })()}
-                                    <Badge variant={getLinkedInState(article.id).variant}>
+                                    <Badge variant={linkedInState.variant}>
                                         <span className="flex items-center gap-1">
                                             <Share2 size={12} />
-                                            {getLinkedInState(article.id).label}
+                                            {linkedInState.label}
                                         </span>
                                     </Badge>
                                 </div>
                                 <p className="text-sm text-muted-foreground truncate">
                                     /{article.slug}
                                 </p>
+                                <p className="mt-1 text-xs text-foreground/80">{workflowHint}</p>
                                 <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-3">
                                     <span>
                                         {article.scheduled_at ? `Scheduled: ${new Date(article.scheduled_at).toLocaleString()}` : new Date(article.created_at).toLocaleDateString()}
@@ -671,18 +725,18 @@ export default function ArticlesManager() {
                             {/* Actions */}
                             <div className="flex w-full items-center gap-2 md:w-auto md:flex-shrink-0">
                                 <Button
-                                    variant="outline"
+                                    variant={shouldPromoteLinkedIn ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setEditingArticleId(article.id)}
+                                    onClick={() => router.push(`/admin?workspace=publishing&tab=articles&edit=${article.id}`)}
                                     className="flex-1 md:flex-none"
                                 >
                                     <Edit size={14} className="mr-1" />
-                                    Edit
+                                    {primaryLabel}
                                 </Button>
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => router.push(`/admin?workspace=publishing&tab=article-studio&edit=${article.id}&panel=linkedin`)}
+                                    onClick={() => router.push(`/admin?workspace=publishing&tab=articles&edit=${article.id}&panel=linkedin`)}
                                     className="flex-1 md:flex-none"
                                 >
                                     <Share2 size={14} className="mr-1" />
