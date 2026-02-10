@@ -38,6 +38,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatArticleHtml } from '@/lib/articleFormat';
 import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
+import { RefreshCw } from 'lucide-react';
 
 type AILabProps = {
     redirectTab?: string;
@@ -65,7 +66,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [outlineNotes, setOutlineNotes] = useState('');
     const [outlineSources, setOutlineSources] = useState<Array<{ title?: string; url?: string }>>([]);
     const [outlineGenerating, setOutlineGenerating] = useState(false);
-    const [activeTab, setActiveTab] = useState<'sk' | 'en'>('sk');
+    const [activeTab, setActiveTab] = useState<string>('sk');
     const [currentModel, setCurrentModel] = useState<string>('');
     const [modelSupportsGrounding, setModelSupportsGrounding] = useState<boolean>(true);
     const [thinkingBudget, setThinkingBudget] = useState<number>(0);
@@ -1587,46 +1588,58 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                 <CardTitle>Article Preview</CardTitle>
                             </div>
                             {generatedContent && (
-                                <div className="flex bg-muted rounded-md p-1 gap-1">
-                                    <Button
-                                        variant={activeTab === 'sk' ? 'secondary' : 'ghost'}
-                                        size="sm"
-                                        className="h-7 px-3 text-xs"
-                                        onClick={() => setActiveTab('sk')}
-                                        disabled={!generatedContent.title_sk && !generatedContent.content_sk}
-                                    >
-                                        SK
-                                    </Button>
-                                    <Button
-                                        variant={activeTab === 'en' ? 'secondary' : 'ghost'}
-                                        size="sm"
-                                        className="h-7 px-3 text-xs"
-                                        onClick={() => setActiveTab('en')}
-                                        disabled={!generatedContent.title_en && !generatedContent.content_en}
-                                    >
-                                        EN
-                                    </Button>
-                                    {/* Additional languages dynamically shown if they exist */}
-                                    {(generatedContent.title_de || generatedContent.content_de) && (
+                                <div className="flex items-center gap-2">
+                                    <div className="flex bg-muted rounded-md p-1 gap-1">
                                         <Button
-                                            variant={activeTab === 'de' as any ? 'secondary' : 'ghost'}
+                                            variant={activeTab === 'sk' ? 'secondary' : 'ghost'}
                                             size="sm"
                                             className="h-7 px-3 text-xs"
-                                            onClick={() => setActiveTab('de' as any)}
+                                            onClick={() => setActiveTab('sk')}
+                                            disabled={!generatedContent.title_sk && !generatedContent.content_sk}
                                         >
-                                            DE
+                                            SK
                                         </Button>
-                                    )}
-                                    {(generatedContent.title_cn || generatedContent.content_cn) && (
                                         <Button
-                                            variant={activeTab === 'cn' as any ? 'secondary' : 'ghost'}
+                                            variant={activeTab === 'en' ? 'secondary' : 'ghost'}
                                             size="sm"
                                             className="h-7 px-3 text-xs"
-                                            onClick={() => setActiveTab('cn' as any)}
+                                            onClick={() => setActiveTab('en')}
+                                            disabled={!generatedContent.title_en && !generatedContent.content_en}
                                         >
-                                            CN
+                                            EN
                                         </Button>
-                                    )}
+                                        {/* Additional languages dynamically shown if they exist */}
+                                        {(generatedContent.title_de || generatedContent.content_de) && (
+                                            <Button
+                                                variant={activeTab === 'de' as any ? 'secondary' : 'ghost'}
+                                                size="sm"
+                                                className="h-7 px-3 text-xs"
+                                                onClick={() => setActiveTab('de' as any)}
+                                            >
+                                                DE
+                                            </Button>
+                                        )}
+                                        {(generatedContent.title_cn || generatedContent.content_cn) && (
+                                            <Button
+                                                variant={activeTab === 'cn' ? 'secondary' : 'ghost'}
+                                                size="sm"
+                                                className="h-7 px-3 text-xs"
+                                                onClick={() => setActiveTab('cn')}
+                                            >
+                                                CN
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-9 px-3 text-xs gap-2"
+                                        onClick={handleGenerate}
+                                        disabled={generating}
+                                    >
+                                        <RefreshCw className={`h-3.5 w-3.5 ${generating ? 'animate-spin' : ''}`} />
+                                        Regenerate
+                                    </Button>
                                 </div>
                             )}
                         </div>
@@ -1764,7 +1777,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 </Card>
             </div>
 
-        </div>
+        </div >
     );
 };
 

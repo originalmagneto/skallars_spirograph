@@ -161,9 +161,9 @@ const getArticleThinkingBudget = async () => {
 const estimateMaxOutputTokens = (targetWordCount?: number, languageCount?: number) => {
     const words = targetWordCount && targetWordCount > 0 ? targetWordCount : 800;
     const langs = languageCount && languageCount > 0 ? languageCount : 1;
-    const estimated = Math.round(words * langs * 2.2);
-    return Math.min(8192, Math.max(2048, estimated));
-    return Math.min(8192, Math.max(2048, estimated));
+    const estimated = Math.round(words * langs * 2.5); // increased multiplier for formatting overhead
+    // Cap at 32k to be safe for most modern models, but allow growing
+    return Math.min(32768, Math.max(4096, estimated));
 };
 
 type ModelConfig = {
@@ -181,14 +181,13 @@ const getModelConfig = (model: string): ModelConfig => {
     const isFlash = /flash/i.test(model);
     const isThinking = /thinking/i.test(model);
     const isV3 = /gemini[-]?3/i.test(model); // Supports -3.0 or -3
-    const isV2_5 = /gemini[-]?2\.5/i.test(model);
 
-    // Default (Flash 2.0/standard)
+    // Default (Flash 2.0/standard) - Increased baseline for multilang
     let config: ModelConfig = {
         temperature: 0.7,
         topP: 0.95,
         topK: 40,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384, // Increased from 8192 to support longer articles
         supportsThinking: isThinking
     };
 
@@ -196,7 +195,7 @@ const getModelConfig = (model: string): ModelConfig => {
         // High-reasoning models: Lower temp for precision, higher instruction complexity allowed
         config.temperature = 0.4;
         config.systemInstructionAddon = "Deploy your advanced reasoning capabilities to ensure maximum depth, nuance, and logical coherence.";
-        config.maxOutputTokens = 16384; // Enable longer context for stronger models
+        config.maxOutputTokens = 32768; // Enable longer context for stronger models
     }
 
     if (isFlash && !isThinking) {
@@ -206,7 +205,7 @@ const getModelConfig = (model: string): ModelConfig => {
 
     // Specific tuning for known versions
     if (isV3) {
-        config.maxOutputTokens = 32768; // V3 supports massive outputs
+        config.maxOutputTokens = 65536; // V3 supports massive outputs
         config.temperature = 0.3; // V3 is very steerable, lower temp prevents hallucination
     }
 
@@ -592,7 +591,7 @@ export function getAIArticlePrompt(
         researchFindings = ''
     } = options;
     const researchContext = links.length > 0
-        ? `\n\n### RESEARCH SOURCES\nCRITICAL: Analyze and synthesize the following sources to enrich the article. You MUST cite specific facts/figures from these sources where possible.\n${links.join('\n')}`
+        ? `\n\n### RESEARCH SOURCES (MANDATORY)\nThese are PRIMARY DATA SOURCES. You must analyze them. If using Google Grounding, search for these specific URLs or titles to verify their content.\n${links.join('\n')}\n\nDo not ignore these links. Cite them in the text.`
         : '';
     const researchBrief = researchFindings
         ? `\n\n### RESEARCH BRIEF (PRE-COMPILED)\nUse the following research notes and sources. Do NOT invent new sources; cite from these notes.\n${researchFindings}`
@@ -673,6 +672,12 @@ ${toneBlock}
    - **Link Citations**: If you have the URL, allow the citation to be a link if possible, or ensure the reference list connects to it.
    - End the article with a **Sources & References** section using \`<h3>\` + \`<ol>\`.
    - Each source in the reference list must be a clickable \`<a>\` tag.
+7. **SEO DATA (MANDATORY)**:
+   - You MUST generate optimized \`meta_title_*\` and \`meta_description_*\` for ALL target languages.
+   - Do not leave them empty.
+   - \`meta_title\`: Catchy, under 60 chars.
+   - \`meta_description\`: Compelling summary, under 160 chars.
+   - \`tags\`: Generate 5-8 relevant tags.
 
 ### OUTPUT FORMAT
 IMPORTANT: Return ONLY raw JSON. No markdown, no commentary. Even with Google grounding enabled, output JSON only.
@@ -768,7 +773,7 @@ export function getAIResearchPrompt(
     const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
     const toneBlock = getToneGuide(tone, toneInstructions);
     const researchContext = links.length > 0
-        ? `\n\n### RESEARCH SOURCES (PROVIDED)\nThese are PRIMARY sources you MUST analyze:\n${links.join('\n')}\n\n### ADDITIONAL RESEARCH\nSupplement the provided sources with Google Search to find additional authoritative sources, recent updates, and supporting data. Do NOT limit yourself to only the provided links.`
+        ? `\n\n### RESEARCH SOURCES (MANDATORY)\nThese are PRIMARY sources you MUST analyze. Use Google Search to find the content of these specific URLs:\n${links.join('\n')}\n\nDo not ignore these links. Extract key facts, figures, and quotes from them.`
         : '\n\n### RESEARCH DIRECTIVE\nUse Google Search to find authoritative sources, recent data, and expert perspectives on this topic.';
 
     return `You are a research analyst. Collect factual notes to support a future article.
@@ -1081,24 +1086,28 @@ ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs return
             parsedContent.sources = sourceItems;
         };
 
-        if (output.groundingMetadata?.groundingChunks) {
-            const sourceItems = output.groundingMetadata.groundingChunks
-                .map((chunk: any) => {
-                    const uri = chunk.web?.uri;
-                    if (!uri) return null;
-                    return {
-                        url: uri,
-                        title: chunk.web?.title || uri,
-                    };
-                })
-                .filter(Boolean) as Array<{ url: string; title?: string }>;
-            appendSources(sourceItems);
-        } else if (providedSources && providedSources.length > 0) {
-            const sanitizedSources = providedSources
-                .filter((s): s is { url: string; title?: string } => Boolean(s?.url))
-                .map((s) => ({ url: s.url, title: s.title }));
-            appendSources(sanitizedSources);
+        const combinedSources: Array<{ url: string; title?: string }> = [];
+
+        // 1. Add provided sources first (User priority)
+        if (providedSources && providedSources.length > 0) {
+            providedSources.forEach(s => {
+                if (s.url && !combinedSources.some(existing => existing.url === s.url)) {
+                    combinedSources.push({ url: s.url, title: s.title || s.url });
+                }
+            });
         }
+
+        // 2. Add grounding sources (AI discovered)
+        if (output.groundingMetadata?.groundingChunks) {
+            output.groundingMetadata.groundingChunks.forEach((chunk: any) => {
+                const uri = chunk.web?.uri;
+                if (uri && !combinedSources.some(existing => existing.url === uri)) {
+                    combinedSources.push({ url: uri, title: chunk.web?.title || uri });
+                }
+            });
+        }
+
+        appendSources(combinedSources);
 
         // Add usage metadata if available
         if (output.usageMetadata) {
