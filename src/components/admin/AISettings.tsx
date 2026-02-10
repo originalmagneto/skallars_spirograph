@@ -3,9 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
     FloppyDiskIcon,
@@ -42,6 +42,7 @@ const AISettings = () => {
     const [availableImageModels, setAvailableImageModels] = useState<GeminiModel[]>([]);
     const [useCustomImageModel, setUseCustomImageModel] = useState(false);
     const [customImageModel, setCustomImageModel] = useState('');
+    const [settingsView, setSettingsView] = useState<'overview' | 'configuration'>('configuration');
 
     useEffect(() => {
         fetchSettings();
@@ -264,22 +265,32 @@ const AISettings = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            {/* 1. Usage Statistics */}
-            <AIUsageStats />
-
-            {/* 2. Header */}
             <AdminPanelHeader
-                title="AI Configuration"
-                description="Manage global credentials, models, and generation preferences. Article Studio has separate article model controls."
-                actions={(
+                title="AI Workspace"
+                description="Review usage tracking separately from provider and policy configuration."
+                actions={settingsView === 'configuration' ? (
                     <Button onClick={saveSettings} disabled={saving} size="lg" className="shadow-sm">
                         {saving ? <Loading01Icon className="mr-2 animate-spin" /> : <FloppyDiskIcon className="mr-2" />}
                         {saving ? 'Saving...' : 'Save Changes'}
                     </Button>
+                ) : (
+                    <Button variant="outline" onClick={() => setSettingsView('configuration')}>
+                        Open Configuration
+                    </Button>
                 )}
             />
 
-            {/* 3. Main Setting Grid */}
+            <Tabs value={settingsView} onValueChange={(v) => setSettingsView(v as 'overview' | 'configuration')} className="space-y-4">
+                <TabsList className="h-auto flex-wrap gap-1 bg-muted/40 p-1">
+                    <TabsTrigger value="overview" className="text-xs">Usage & Tracking</TabsTrigger>
+                    <TabsTrigger value="configuration" className="text-xs">Provider & Policies</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview" className="mt-0 space-y-4">
+                    <AIUsageStats />
+                </TabsContent>
+
+                <TabsContent value="configuration" className="mt-0 space-y-4">
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
 
                 {/* A. Core API Config */}
@@ -592,13 +603,15 @@ const AISettings = () => {
 
             </div>
 
-            {settings.length === 0 && (
-                <div className="text-center py-8">
-                    <Button variant="outline" onClick={initializeDefaultSettings}>
-                        Initialize Default Keys
-                    </Button>
-                </div>
-            )}
+                    {settings.length === 0 && (
+                        <div className="text-center py-8">
+                            <Button variant="outline" onClick={initializeDefaultSettings}>
+                                Initialize Default Keys
+                            </Button>
+                        </div>
+                    )}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 };

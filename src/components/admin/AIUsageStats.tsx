@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { fetchAISettings } from '@/lib/aiSettings';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -83,7 +84,35 @@ interface QuotaSettings {
     monthlyUsd: number;
 }
 
+interface GenerationSummaryTotals {
+    total: number;
+    succeeded: number;
+    failed: number;
+    aborted: number;
+    started: number;
+    unknown: number;
+}
+
+interface GenerationSummaryDay {
+    day: string;
+    total: number;
+    succeeded: number;
+    failed: number;
+    aborted: number;
+    started: number;
+}
+
+interface GenerationSummary {
+    totals: GenerationSummaryTotals;
+    trend: GenerationSummaryDay[];
+    windowDays: number;
+    canViewGlobal: boolean;
+    rowCount: number;
+    cap: number;
+}
+
 const AIUsageStats = () => {
+    const { session } = useAuth();
     const [logs, setLogs] = useState<UsageLog[]>([]);
     const [userStats, setUserStats] = useState<UserStat[]>([]);
     const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
@@ -97,6 +126,8 @@ const AIUsageStats = () => {
         dailyUsd: 0,
         monthlyUsd: 0
     });
+    const [generationSummary, setGenerationSummary] = useState<GenerationSummary | null>(null);
+    const [generationNote, setGenerationNote] = useState<string | null>(null);
     const [totals, setTotals] = useState<UsageTotals>({
         cost: 0,
         tokens: 0,
@@ -134,6 +165,29 @@ const AIUsageStats = () => {
                 setLogs(fetchedLogs);
                 processStats(fetchedLogs, priceInput, priceOutput);
 
+                if (session?.access_token) {
+                    try {
+                        const res = await fetch('/api/admin/ai-generation-summary', {
+                            headers: { Authorization: `Bearer ${session.access_token}` },
+                        });
+                        const payload = await res.json().catch(() => ({}));
+                        if (res.ok && payload?.totals) {
+                            setGenerationSummary(payload as GenerationSummary);
+                            if ((payload?.rowCount || 0) >= (payload?.cap || 5000)) {
+                                setGenerationNote(`Tracking is capped to the most recent ${payload.cap.toLocaleString()} generation events.`);
+                            } else {
+                                setGenerationNote(null);
+                            }
+                        } else if (payload?.error) {
+                            setGenerationSummary(null);
+                            setGenerationNote(payload.error);
+                        }
+                    } catch {
+                        setGenerationSummary(null);
+                        setGenerationNote('Could not load generation tracking summary.');
+                    }
+                }
+
             } catch (err) {
                 console.error('Failed to load usage stats:', err);
                 // Fallback or empty state could be set here
@@ -142,7 +196,7 @@ const AIUsageStats = () => {
             }
         };
         init();
-    }, []);
+    }, [session?.access_token]);
 
     const processStats = (data: UsageLog[], priceIn: number, priceOut: number) => {
         const userMap = new Map<string, UserStat>();
@@ -248,6 +302,11 @@ const AIUsageStats = () => {
         return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     };
 
+    const maxMonthTokens = monthlyStats.reduce((acc, item) => Math.max(acc, item.totalTokens), 0);
+    const pricingConfigured = prices.input > 0 || prices.output > 0;
+    const trackedRequests = generationSummary?.totals?.total ?? 0;
+    const trackingGap = Math.max(0, (generationSummary?.totals?.succeeded || 0) - totals.requests);
+
     if (loading) return <div className="p-8 text-center text-muted-foreground animate-pulse">Loading analytics...</div>;
 
     return (
@@ -262,6 +321,11 @@ const AIUsageStats = () => {
                         <CardTitle className="text-3xl font-bold tracking-tight text-indigo-950">
                             ${totals.cost.toFixed(4)}
                         </CardTitle>
+                        {!pricingConfigured && (
+                            <p className="text-[11px] text-indigo-700/80">
+                                Token pricing is not configured. Cost estimates may be understated.
+                            </p>
+                        )}
                     </CardHeader>
                     <div className="absolute right-[-20px] top-[-20px] opacity-10 group-hover:opacity-20 transition-opacity">
                         <Coins01Icon size={120} />
@@ -285,11 +349,14 @@ const AIUsageStats = () => {
                 <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-100 shadow-sm relative overflow-hidden group">
                     <CardHeader className="pb-2">
                         <CardDescription className="flex items-center gap-2 font-medium text-blue-600">
-                            <FlashIcon size={16} /> Total Generations
+                            <FlashIcon size={16} /> Tracked Generations
                         </CardDescription>
                         <CardTitle className="text-3xl font-bold tracking-tight text-blue-950">
-                            {totals.requests}
+                            {trackedRequests}
                         </CardTitle>
+                        <p className="text-[11px] text-blue-900/70">
+                            Success: {generationSummary?.totals?.succeeded ?? 0} · Failed: {generationSummary?.totals?.failed ?? 0} · Aborted: {generationSummary?.totals?.aborted ?? 0}
+                        </p>
                     </CardHeader>
                     <div className="absolute right-[-20px] top-[-20px] opacity-10 group-hover:opacity-20 transition-opacity">
                         <FlashIcon size={120} />
@@ -299,17 +366,28 @@ const AIUsageStats = () => {
                 <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-100 shadow-sm relative overflow-hidden group">
                     <CardHeader className="pb-2">
                         <CardDescription className="flex items-center gap-2 font-medium text-amber-600">
-                            <UserIcon size={16} /> Active Users
+                            <UserIcon size={16} /> Usage Entries
                         </CardDescription>
                         <CardTitle className="text-3xl font-bold tracking-tight text-amber-950">
-                            {userStats.length}
+                            {totals.requests}
                         </CardTitle>
+                        {trackingGap > 0 && (
+                            <p className="text-[11px] text-amber-900/70">
+                                {trackingGap.toLocaleString()} successful generations have no token usage entry yet.
+                            </p>
+                        )}
                     </CardHeader>
                     <div className="absolute right-[-20px] top-[-20px] opacity-10 group-hover:opacity-20 transition-opacity">
                         <UserIcon size={120} />
                     </div>
                 </Card>
             </div>
+
+            {generationNote && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                    {generationNote}
+                </div>
+            )}
 
             {/* Bento Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[500px]">
@@ -345,7 +423,7 @@ const AIUsageStats = () => {
                                         <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
                                             <div
                                                 className="h-full bg-indigo-500 rounded-full"
-                                                style={{ width: `${Math.min(100, (stat.totalTokens / (totals.tokens || 1)) * 100 * (monthlyStats.length))}%` }}
+                                                style={{ width: `${Math.min(100, (stat.totalTokens / (maxMonthTokens || 1)) * 100)}%` }}
                                             />
                                         </div>
                                         <div className="flex justify-between text-[10px] text-muted-foreground">
@@ -436,7 +514,11 @@ const AIUsageStats = () => {
                                             </div>
                                             <div className="flex items-center gap-1 text-[9px] font-mono text-slate-400">
                                                 <span className="text-indigo-600 font-semibold">{log.total_tokens.toLocaleString()}</span> tok
-                                                <span className="text-slate-300">(${(((log.input_tokens * prices.input) + (log.output_tokens * prices.output)) / 1_000_000).toFixed(4)})</span>
+                                                <span className="text-slate-300">
+                                                    {pricingConfigured
+                                                        ? `($${(((log.input_tokens * prices.input) + (log.output_tokens * prices.output)) / 1_000_000).toFixed(4)})`
+                                                        : '(pricing off)'}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>

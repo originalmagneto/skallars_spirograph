@@ -45,6 +45,7 @@ import ArticleStudio from "@/components/admin/ArticleStudio";
 import LinkedInSettings from "@/components/admin/LinkedInSettings";
 
 type WorkspaceId = "site" | "publishing";
+type SettingsPanelId = "ai" | "linkedin" | "seo";
 type AccessLevel = "all" | "editor" | "admin";
 type IconComponent = ComponentType<{ size?: number | string; className?: string }>;
 
@@ -76,6 +77,7 @@ export default function AdminPage() {
 
     const paramTab = searchParams.get("tab");
     const paramWorkspace = searchParams.get("workspace") as WorkspaceId | null;
+    const paramSettingsPanel = searchParams.get("settingsPanel") as SettingsPanelId | null;
 
     const workspaceConfig = useMemo<Record<WorkspaceId, WorkspaceConfig>>(
         () => ({
@@ -172,6 +174,7 @@ export default function AdminPage() {
 
     const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceId>(inferWorkspace());
     const [activeTab, setActiveTab] = useState<string>(inferTab(inferWorkspace()));
+    const [activeSettingsPanel, setActiveSettingsPanel] = useState<SettingsPanelId>(paramSettingsPanel || "ai");
 
     useEffect(() => {
         const nextWorkspace = inferWorkspace();
@@ -179,6 +182,14 @@ export default function AdminPage() {
         setActiveWorkspace(nextWorkspace);
         setActiveTab(nextTab);
     }, [paramWorkspace, paramTab, isAdmin, isEditor, tabLookup]);
+
+    useEffect(() => {
+        if (paramSettingsPanel === "ai" || paramSettingsPanel === "linkedin" || paramSettingsPanel === "seo") {
+            setActiveSettingsPanel(paramSettingsPanel);
+            return;
+        }
+        setActiveSettingsPanel("ai");
+    }, [paramSettingsPanel]);
 
     const updateQuery = (nextWorkspace: WorkspaceId, nextTab: string) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -199,6 +210,16 @@ export default function AdminPage() {
         if (nextTab === activeTab) return;
         setActiveTab(nextTab);
         updateQuery(activeWorkspace, nextTab);
+    };
+
+    const handleSettingsPanelChange = (panel: SettingsPanelId) => {
+        if (activeSettingsPanel === panel) return;
+        setActiveSettingsPanel(panel);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("workspace", activeWorkspace);
+        params.set("tab", activeTab);
+        params.set("settingsPanel", panel);
+        router.replace(`/admin?${params.toString()}`);
     };
 
     const activeMeta = tabLookup.get(activeTab);
@@ -245,17 +266,40 @@ export default function AdminPage() {
             case "settings":
                 return (
                     <div className="mx-auto w-full max-w-[1480px]">
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-1 gap-6 2xl:grid-cols-12 items-start">
-                                <div className="space-y-6 2xl:col-span-8">
-                                    <AISettings />
-                                </div>
-                                <div className="space-y-6 2xl:col-span-4">
-                                    <PageSEOSettings />
+                        <div className="space-y-5">
+                            <div className="rounded-2xl border bg-white p-3">
+                                <div className="inline-flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        variant={activeSettingsPanel === "ai" ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handleSettingsPanelChange("ai")}
+                                    >
+                                        AI Usage & Config
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={activeSettingsPanel === "linkedin" ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handleSettingsPanelChange("linkedin")}
+                                    >
+                                        LinkedIn
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={activeSettingsPanel === "seo" ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => handleSettingsPanelChange("seo")}
+                                    >
+                                        SEO
+                                    </Button>
                                 </div>
                             </div>
+
                             <div className="space-y-6">
-                                <LinkedInSettings />
+                                {activeSettingsPanel === "ai" && <AISettings />}
+                                {activeSettingsPanel === "linkedin" && <LinkedInSettings />}
+                                {activeSettingsPanel === "seo" && <PageSEOSettings />}
                             </div>
                         </div>
                     </div>
