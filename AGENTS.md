@@ -250,3 +250,9 @@ High-impact mismatches found and now resolved:
   - Added section depth (gradients, glow accents), refined card treatment, and improved hierarchy/typography for member cards.
 - **Spirograph Layering** (`src/components/Spirograph.tsx`, `src/components/LawFirmHomepage.tsx`):
   - Raised spirograph layer and adjusted section stacking so animation remains visible into the Services transition area.
+
+## Change Log (Feb 10, 2026 - Brand-Aligned CTA Refinement)
+- **Button Styling Realignment** (`src/app/globals.css`):
+  - Replaced gradient-heavy `btn-accent` treatment with a brand-faithful solid indigo CTA style.
+  - Updated button geometry to cleaner rounded-rectangle form and reduced effects for a more serious/elite tone.
+  - Focus ring now uses mint accent for contrast while keeping primary button chroma anchored in indigo.
