@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const h = headers();
+    const h = await headers();
     const ip = (h.get("x-forwarded-for") || "").split(",")[0]?.trim();
     const userAgent = h.get("user-agent") || "";
     const ipHash = ip ? createHash("sha256").update(ip).digest("hex") : null;

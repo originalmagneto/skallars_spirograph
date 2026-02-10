@@ -6,8 +6,8 @@ import { fetchSeoSettings, getBaseUrlFromHeaders } from '@/lib/seoSettings';
 
 export const revalidate = 30; // refresh frequently for mock/demo
 
-function getBaseUrl() {
-  const h = headers();
+async function getBaseUrl() {
+  const h = await headers();
   const protocol = h.get('x-forwarded-proto') ?? 'http';
   const host = h.get('x-forwarded-host') ?? h.get('host');
   return `${protocol}://${host}`;
@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     'seo_blog_og_image',
   ]);
 
-  const baseUrl = getBaseUrlFromHeaders();
+  const baseUrl = await getBaseUrlFromHeaders();
   const title = settings.seo_blog_title || defaults.title;
   const description = settings.seo_blog_description || defaults.description;
   const ogImage = settings.seo_blog_og_image;
@@ -50,7 +50,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 async function getPosts() {
-  const base = getBaseUrl();
+  const base = await getBaseUrl();
   try {
     const res = await fetch(`${base}/api/blog?limit=12`, { next: { revalidate: 30 } });
     if (!res.ok) return MOCK_POSTS as any[];
@@ -112,4 +112,3 @@ export default async function BlogIndexPage() {
     </div>
   );
 }
-

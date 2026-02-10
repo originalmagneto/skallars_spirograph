@@ -8,10 +8,10 @@ const getSupabaseClient = () => {
   return createClient(supabaseUrl, supabaseKey);
 };
 
-export const getBaseUrlFromHeaders = () => {
+export const getBaseUrlFromHeaders = async () => {
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (envUrl) return envUrl;
-  const h = headers();
+  const h = await headers();
   const protocol = h.get('x-forwarded-proto') ?? 'http';
   const host = h.get('x-forwarded-host') ?? h.get('host');
   return `${protocol}://${host}`;

@@ -256,3 +256,60 @@ High-impact mismatches found and now resolved:
   - Replaced gradient-heavy `btn-accent` treatment with a brand-faithful solid indigo CTA style.
   - Updated button geometry to cleaner rounded-rectangle form and reduced effects for a more serious/elite tone.
   - Focus ring now uses mint accent for contrast while keeping primary button chroma anchored in indigo.
+
+## Change Log (Feb 10, 2026 - Node 22 Upgrade Hardening)
+- **Runtime Version Pinning**:
+  - Updated Netlify build runtime pin from Node 20 to Node 22 in `netlify.toml`.
+  - Added package-level engine guard in `package.json` (`"engines": { "node": "22.x" }`).
+  - Added `.nvmrc` with `22` to align local/dev shells with deploy runtime.
+- **Validation**:
+  - Verified local production build passes on Node `v22.12.0`.
+  - Verified `netlify build` passes with Next.js runtime plugin.
+  - Published draft deploy for validation: `698b512a70706057961e733e`.
+  - Published security patch draft deploy (`axios` override): `698b54c75bb41064118616c2`.
+  - Promoted production deploy with Node 22 pinning: `698b52abc24c088a882630da`.
+  - Promoted production deploy with `axios` security override: `698b55041f6cc6699853de6c`.
+  - Confirmed draft responds on core routes (`/`, `/blog`, `/api/blog`).
+  - Confirmed production responds on core routes (`/`, `/blog`, `/api/blog`).
+- **Security Snapshot**:
+  - Applied a non-breaking override to `axios@1.13.5` (transitive via `@tryghost/content-api`) to remove the `axios` advisory without major upgrades.
+  - Remaining advisories after patch are tied to major-track upgrades (`react-simple-maps`/`d3-*`, `next` advisory range).
+- **Scheduler Runtime Verification**:
+  - Confirmed scheduler execution path works via `/api/linkedin/run-scheduled` with scheduler secret (`200`, `processed: 0` when no due queue items).
+  - Direct browser hits to `/.netlify/functions/linkedin-scheduler` return Netlify internal error pages in production context and are not the supported invocation path for scheduled functions.
+
+## Change Log (Feb 10, 2026 - Security Hardening Phase 2)
+- **Dependency Hardening**:
+  - Removed unused `react-simple-maps` and `@types/react-simple-maps` dependencies from `package.json` (eliminates the transitive `d3-*` advisory chain).
+  - Upgraded `next` from `^14.1.0` to `^15.5.12` (patched advisory range) and `@netlify/plugin-nextjs` from `^5.8.1` to `^5.15.8`.
+  - Kept existing `axios` override (`^1.13.5`) in place.
+- **Next 15 Compatibility Updates**:
+  - Updated dynamic route typing for App Router API handlers (`src/app/api/blog/[slug]/route.ts`) to use async `params` context.
+  - Updated App Router page params typing (`src/app/blog/[slug]/page.tsx`) to async `params`.
+  - Migrated `headers()` usage to async request API in:
+    - `src/app/blog/[slug]/page.tsx`
+    - `src/app/blog/page.tsx`
+    - `src/app/layout.tsx` (via async SEO base URL helper usage)
+    - `src/lib/seoSettings.ts`
+    - `src/app/api/analytics/event/route.ts`
+    - `src/app/api/analytics/article-view/route.ts`
+  - Removed deprecated Next config keys (`swcMinify`, `optimizeFonts`) and added `outputFileTracingRoot` in `next.config.js`.
+  - Accepted Next-generated TypeScript route types reference update in `next-env.d.ts`.
+- **Validation Results (Staging)**:
+  - `npm audit --omit=dev`: `0 vulnerabilities`.
+  - `npm run build`: pass on Next `15.5.12`.
+  - `npx netlify build`: pass with Netlify Next runtime `v5.15.8`.
+  - Draft deploy published: `698b57ed1b2aa200955598a6`.
+  - Draft smoke checks pass on:
+    - `/`
+    - `/blog`
+    - `/api/blog?limit=1`
+    - `/api/linkedin/status` (returns expected auth-missing recoverable payload when unauthenticated).
+- **Production Promotion + Smoke Validation**:
+  - Production deploy published: `698b58771b2aa20081559998`.
+  - Production smoke checks pass on:
+    - `/`
+    - `/blog`
+    - `/api/blog?limit=1`
+    - `/api/linkedin/status`
+  - Scheduler execution path validated post-deploy via `/api/linkedin/run-scheduled` with `x-scheduler-secret` (`200`, `processed: 0` when no due jobs).
