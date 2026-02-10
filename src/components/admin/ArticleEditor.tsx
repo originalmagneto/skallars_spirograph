@@ -601,6 +601,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             if (res.ok && Array.isArray(data.logs)) {
                 setLinkedinLogs(data.logs);
                 setLinkedinMetricsNote(data.note || null);
+            } else {
+                const fallbackRes = await fetch(`/api/linkedin/logs?articleId=${articleId}`, {
+                    headers: { Authorization: `Bearer ${session.access_token}` },
+                });
+                const fallbackData = await parseJsonSafe(fallbackRes);
+                if (fallbackRes.ok && Array.isArray(fallbackData.logs)) {
+                    setLinkedinLogs(fallbackData.logs);
+                    setLinkedinMetricsNote('Metrics unavailable; showing share log only.');
+                }
             }
         } catch {
             // ignore

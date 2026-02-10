@@ -107,42 +107,46 @@ export async function GET(req: NextRequest) {
       const account = accountRows?.[0];
 
       if (account?.access_token) {
-        socialMetricsByUrn = await fetchSocialActionMetrics(account.access_token, urns);
+        try {
+          socialMetricsByUrn = await fetchSocialActionMetrics(account.access_token, urns);
 
-        const scopes = Array.isArray(account.scopes)
-          ? account.scopes
-          : typeof account.scopes === 'string'
-          ? account.scopes.split(/[\s,]+/).filter(Boolean)
-          : [];
-        const hasOrgScope =
-          scopes.includes('r_organization_social') || scopes.includes('w_organization_social');
+          const scopes = Array.isArray(account.scopes)
+            ? account.scopes
+            : typeof account.scopes === 'string'
+            ? account.scopes.split(/[\s,]+/).filter(Boolean)
+            : [];
+          const hasOrgScope =
+            scopes.includes('r_organization_social') || scopes.includes('w_organization_social');
 
-        if (hasOrgScope) {
-          const urnsByOrg = new Map<string, string[]>();
-          successRows.forEach((row) => {
-            if (row.share_target !== 'organization') return;
-            const urn = urnByLogId.get(row.id);
-            if (!urn) return;
-            const orgUrn = getOrgUrnFromShareLog(row);
-            if (!orgUrn) return;
-            const current = urnsByOrg.get(orgUrn) || [];
-            current.push(urn);
-            urnsByOrg.set(orgUrn, current);
-          });
-
-          for (const [orgUrn, orgUrns] of urnsByOrg.entries()) {
-            const metrics = await fetchOrganizationShareMetrics(
-              account.access_token,
-              orgUrn,
-              Array.from(new Set(orgUrns))
-            );
-            metrics.forEach((value, urn) => {
-              orgMetricsByUrn.set(urn, value);
+          if (hasOrgScope) {
+            const urnsByOrg = new Map<string, string[]>();
+            successRows.forEach((row) => {
+              if (row.share_target !== 'organization') return;
+              const urn = urnByLogId.get(row.id);
+              if (!urn) return;
+              const orgUrn = getOrgUrnFromShareLog(row);
+              if (!orgUrn) return;
+              const current = urnsByOrg.get(orgUrn) || [];
+              current.push(urn);
+              urnsByOrg.set(orgUrn, current);
             });
+
+            for (const [orgUrn, orgUrns] of urnsByOrg.entries()) {
+              const metrics = await fetchOrganizationShareMetrics(
+                account.access_token,
+                orgUrn,
+                Array.from(new Set(orgUrns))
+              );
+              metrics.forEach((value, urn) => {
+                orgMetricsByUrn.set(urn, value);
+              });
+            }
+          } else {
+            metricsNote =
+              'Organization detail metrics are unavailable because org scopes are missing.';
           }
-        } else {
-          metricsNote =
-            'Organization detail metrics are unavailable because org scopes are missing.';
+        } catch {
+          metricsNote = 'LinkedIn metrics are temporarily unavailable. Share logs are shown without metrics.';
         }
       } else {
         metricsNote = 'LinkedIn account is not connected. Metrics are unavailable.';

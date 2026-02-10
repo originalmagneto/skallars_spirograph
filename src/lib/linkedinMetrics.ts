@@ -168,24 +168,29 @@ export const fetchSocialActionMetrics = async (
   if (deduped.length === 0) return out;
 
   for (const urnChunk of chunk(deduped, 20)) {
-    const idsParam = urnChunk.map((urn) => encodeURIComponent(urn)).join(',');
-    const url = `https://api.linkedin.com/rest/socialActions?ids=List(${idsParam})`;
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'LinkedIn-Version': LINKEDIN_VERSION,
-        'X-Restli-Protocol-Version': '2.0.0',
-        Accept: 'application/json',
-      },
-    });
-    if (!response.ok) {
+    try {
+      const idsParam = urnChunk.map((urn) => encodeURIComponent(urn)).join(',');
+      const url = `https://api.linkedin.com/rest/socialActions?ids=List(${idsParam})`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'LinkedIn-Version': LINKEDIN_VERSION,
+          'X-Restli-Protocol-Version': '2.0.0',
+          Accept: 'application/json',
+        },
+      });
+      if (!response.ok) {
+        continue;
+      }
+      const body = await response.json().catch(() => ({}));
+      const entries = getSocialActionEntries(body);
+      entries.forEach(({ urn, payload }) => {
+        out.set(urn, parseSocialActionMetrics(payload));
+      });
+    } catch {
+      // Keep returning partial results when a single LinkedIn call fails.
       continue;
     }
-    const body = await response.json().catch(() => ({}));
-    const entries = getSocialActionEntries(body);
-    entries.forEach(({ urn, payload }) => {
-      out.set(urn, parseSocialActionMetrics(payload));
-    });
   }
 
   return out;
@@ -235,27 +240,32 @@ export const fetchOrganizationShareMetrics = async (
   if (!orgUrn || deduped.length === 0) return out;
 
   for (const urnChunk of chunk(deduped, 15)) {
-    const url = buildOrgStatsUrl(orgUrn, urnChunk);
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'LinkedIn-Version': LINKEDIN_VERSION,
-        'X-Restli-Protocol-Version': '2.0.0',
-        Accept: 'application/json',
-      },
-    });
-    if (!response.ok) {
+    try {
+      const url = buildOrgStatsUrl(orgUrn, urnChunk);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'LinkedIn-Version': LINKEDIN_VERSION,
+          'X-Restli-Protocol-Version': '2.0.0',
+          Accept: 'application/json',
+        },
+      });
+      if (!response.ok) {
+        continue;
+      }
+      const body = await response.json().catch(() => ({}));
+      if (!Array.isArray(body?.elements)) {
+        continue;
+      }
+      body.elements.forEach((element: any) => {
+        const urn = trimToNull(element?.share) || trimToNull(element?.ugcPost);
+        if (!urn) return;
+        out.set(decodeSafe(urn), parseOrgStatsMetrics(element?.totalShareStatistics || {}));
+      });
+    } catch {
+      // Keep returning partial results when a single LinkedIn call fails.
       continue;
     }
-    const body = await response.json().catch(() => ({}));
-    if (!Array.isArray(body?.elements)) {
-      continue;
-    }
-    body.elements.forEach((element: any) => {
-      const urn = trimToNull(element?.share) || trimToNull(element?.ugcPost);
-      if (!urn) return;
-      out.set(decodeSafe(urn), parseOrgStatsMetrics(element?.totalShareStatistics || {}));
-    });
   }
 
   return out;

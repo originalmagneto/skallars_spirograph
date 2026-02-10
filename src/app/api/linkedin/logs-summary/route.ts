@@ -167,52 +167,56 @@ export async function GET(req: NextRequest) {
       const account = accountRows?.[0];
 
       if (account?.access_token) {
-        const socialMetricsByUrn = await fetchSocialActionMetrics(account.access_token, allUrns);
-        const orgMetricsByUrn = new Map<string, Partial<LinkedInInteractionMetrics>>();
-        const scopes = Array.isArray(account.scopes)
-          ? account.scopes
-          : typeof account.scopes === 'string'
-          ? account.scopes.split(/[\s,]+/).filter(Boolean)
-          : [];
-        const hasOrgScope =
-          scopes.includes('r_organization_social') || scopes.includes('w_organization_social');
+        try {
+          const socialMetricsByUrn = await fetchSocialActionMetrics(account.access_token, allUrns);
+          const orgMetricsByUrn = new Map<string, Partial<LinkedInInteractionMetrics>>();
+          const scopes = Array.isArray(account.scopes)
+            ? account.scopes
+            : typeof account.scopes === 'string'
+            ? account.scopes.split(/[\s,]+/).filter(Boolean)
+            : [];
+          const hasOrgScope =
+            scopes.includes('r_organization_social') || scopes.includes('w_organization_social');
 
-        if (hasOrgScope) {
-          const urnsByOrg = new Map<string, string[]>();
-          latestSharedRowsByArticle.forEach((row, articleId) => {
-            if (row.share_target !== 'organization') return;
-            const urn = urnByArticle.get(articleId);
-            if (!urn) return;
-            const orgUrn = getOrgUrnFromShareLog(row);
-            if (!orgUrn) return;
-            const current = urnsByOrg.get(orgUrn) || [];
-            current.push(urn);
-            urnsByOrg.set(orgUrn, current);
-          });
-
-          for (const [orgUrn, urns] of urnsByOrg.entries()) {
-            const metrics = await fetchOrganizationShareMetrics(
-              account.access_token,
-              orgUrn,
-              Array.from(new Set(urns))
-            );
-            metrics.forEach((value, urn) => {
-              orgMetricsByUrn.set(urn, value);
+          if (hasOrgScope) {
+            const urnsByOrg = new Map<string, string[]>();
+            latestSharedRowsByArticle.forEach((row, articleId) => {
+              if (row.share_target !== 'organization') return;
+              const urn = urnByArticle.get(articleId);
+              if (!urn) return;
+              const orgUrn = getOrgUrnFromShareLog(row);
+              if (!orgUrn) return;
+              const current = urnsByOrg.get(orgUrn) || [];
+              current.push(urn);
+              urnsByOrg.set(orgUrn, current);
             });
-          }
-        }
 
-        urnByArticle.forEach((urn, articleId) => {
-          const summary = latestByArticle.get(articleId);
-          if (!summary) return;
-          const merged = mergeLinkedInMetrics(
-            mergeLinkedInMetrics(emptyLinkedInMetrics(), socialMetricsByUrn.get(urn) || null),
-            orgMetricsByUrn.get(urn) || null
-          );
-          const hasMetrics = Object.values(merged).some((value) => value !== null);
-          summary.metrics = hasMetrics ? merged : null;
-          latestByArticle.set(articleId, summary);
-        });
+            for (const [orgUrn, urns] of urnsByOrg.entries()) {
+              const metrics = await fetchOrganizationShareMetrics(
+                account.access_token,
+                orgUrn,
+                Array.from(new Set(urns))
+              );
+              metrics.forEach((value, urn) => {
+                orgMetricsByUrn.set(urn, value);
+              });
+            }
+          }
+
+          urnByArticle.forEach((urn, articleId) => {
+            const summary = latestByArticle.get(articleId);
+            if (!summary) return;
+            const merged = mergeLinkedInMetrics(
+              mergeLinkedInMetrics(emptyLinkedInMetrics(), socialMetricsByUrn.get(urn) || null),
+              orgMetricsByUrn.get(urn) || null
+            );
+            const hasMetrics = Object.values(merged).some((value) => value !== null);
+            summary.metrics = hasMetrics ? merged : null;
+            latestByArticle.set(articleId, summary);
+          });
+        } catch {
+          // Keep summary state usable even when LinkedIn metrics APIs are degraded.
+        }
       }
     }
 
