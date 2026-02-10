@@ -554,7 +554,7 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/50 via-[#f7f4ff]/35 to-white/55 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
         <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
@@ -625,7 +625,7 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/50 via-[#f7f4ff]/35 to-white/55 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
         <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />

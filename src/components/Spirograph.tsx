@@ -122,7 +122,7 @@ export default function Spirograph() {
     <div
       data-spirograph="tetra"
       ref={containerRef}
-      className="spirograph absolute top-0 left-0 right-0 h-[150vh] -translate-y-[25%] z-0 pointer-events-none"
+      className="spirograph absolute top-0 left-0 right-0 h-[240vh] -translate-y-[18%] z-0 pointer-events-none opacity-85"
       data-spirograph-options='{
         "autoRotateNonAxis": true,
         "objectsCount": 12,
