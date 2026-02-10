@@ -591,7 +591,7 @@ export function getAIArticlePrompt(
         researchFindings = ''
     } = options;
     const researchContext = links.length > 0
-        ? `\n\n### RESEARCH SOURCES (MANDATORY)\nThese are PRIMARY DATA SOURCES. You must analyze them. If using Google Grounding, search for these specific URLs or titles to verify their content.\n${links.join('\n')}\n\nDo not ignore these links. Cite them in the text.`
+        ? `\n\n### RESEARCH SOURCES (PRIMARY & EXPANDED)\n1. PRIMARY: Analyze these specific user-provided URLs first:\n${links.join('\n')}\n2. EXPANDED: Use Google Grounding to find ADDITIONAL authoritative sources to complement the primary data. Do not limit research to only the provided links. Cite both primary and discovered sources.`
         : '';
     const researchBrief = researchFindings
         ? `\n\n### RESEARCH BRIEF (PRE-COMPILED)\nUse the following research notes and sources. Do NOT invent new sources; cite from these notes.\n${researchFindings}`
@@ -773,7 +773,7 @@ export function getAIResearchPrompt(
     const selectedStyle = STYLE_GUIDES[type] || STYLE_GUIDES['Deep Dive'];
     const toneBlock = getToneGuide(tone, toneInstructions);
     const researchContext = links.length > 0
-        ? `\n\n### RESEARCH SOURCES (MANDATORY)\nThese are PRIMARY sources you MUST analyze. Use Google Search to find the content of these specific URLs:\n${links.join('\n')}\n\nDo not ignore these links. Extract key facts, figures, and quotes from them.`
+        ? `\n\n### RESEARCH SOURCES (PRIMARY & EXPANDED)\n1. PRIMARY: Analyze these specific user-provided URLs first:\n${links.join('\n')}\n2. EXPANDED: Use Google Search to find ADDITIONAL authoritative sources, recent data, and expert perspectives to complement the primary sources. Do not limit your research to only the provided links.`
         : '\n\n### RESEARCH DIRECTIVE\nUse Google Search to find authoritative sources, recent data, and expert perspectives on this topic.';
 
     return `You are a research analyst. Collect factual notes to support a future article.
