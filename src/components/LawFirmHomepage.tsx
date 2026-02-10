@@ -554,12 +554,12 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/50 via-[#f7f4ff]/35 to-white/55 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
         <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
         <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 relative z-20">
           <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold mb-4 text-foreground">
               {t.services.title}
@@ -625,12 +625,12 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/50 via-[#f7f4ff]/35 to-white/55 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
         <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
         <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="container mx-auto px-4 relative z-20">
           <div className="flex flex-col gap-8 lg:flex-row">
             <div
               ref={stickyRef}
