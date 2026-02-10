@@ -38,7 +38,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatArticleHtml } from '@/lib/articleFormat';
 import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
-import { RefreshCw } from 'lucide-react';
+import { Building2, RefreshCw, UserRound } from 'lucide-react';
 
 type AILabProps = {
     redirectTab?: string;
@@ -778,7 +778,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         };
     }, []);
 
-    const handleSave = async () => {
+    const handleSave = async (options?: { openLinkedIn?: boolean; linkedinTarget?: 'member' | 'organization' }) => {
         if (!generatedContent || !user) return;
 
         const modelForLog = currentModel || 'gemini-2.0-flash';
@@ -935,7 +935,16 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             toast.success('Article saved as draft!');
             void logSaveEvent('success', { articleId });
             const targetTab = redirectTab || 'articles';
-            const targetUrl = `/admin?workspace=publishing&tab=${targetTab}&edit=${articleId}`;
+            const params = new URLSearchParams({
+                workspace: 'publishing',
+                tab: targetTab,
+                edit: articleId,
+            });
+            if (options?.openLinkedIn) {
+                params.set('panel', 'linkedin');
+                params.set('linkedinTarget', options.linkedinTarget === 'organization' ? 'organization' : 'member');
+            }
+            const targetUrl = `/admin?${params.toString()}`;
             onDraftSaved?.(articleId);
             router.push(targetUrl);
             setTimeout(() => {
@@ -1768,10 +1777,35 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     </CardContent>
                     {generatedContent && (
                         <CardFooter className="pt-4 border-t">
-                            <Button onClick={handleSave} className="w-full" disabled={isSavingDraft}>
-                                <FloppyDiskIcon size={18} className="mr-2" />
-                                {isSavingDraft ? 'Saving draft...' : 'Save as Draft and Edit'}
-                            </Button>
+                            <div className="w-full space-y-2">
+                                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                    <Button onClick={() => handleSave()} className="w-full" disabled={isSavingDraft}>
+                                        <FloppyDiskIcon size={18} className="mr-2" />
+                                        {isSavingDraft ? 'Saving draft...' : 'Save Draft & Edit'}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => handleSave({ openLinkedIn: true, linkedinTarget: 'member' })}
+                                        className="w-full"
+                                        disabled={isSavingDraft}
+                                    >
+                                        <UserRound size={16} className="mr-2" />
+                                        Save & Open LinkedIn (Personal)
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => handleSave({ openLinkedIn: true, linkedinTarget: 'organization' })}
+                                        className="w-full"
+                                        disabled={isSavingDraft}
+                                    >
+                                        <Building2 size={16} className="mr-2" />
+                                        Save & Open LinkedIn (Company)
+                                    </Button>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Company sharing requires LinkedIn organization scopes in your connected account.
+                                </p>
+                            </div>
                         </CardFooter>
                     )}
                 </Card>

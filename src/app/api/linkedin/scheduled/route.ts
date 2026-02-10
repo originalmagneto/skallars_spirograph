@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { isMissingColumnError } from '@/lib/linkedinMetrics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,21 +20,39 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const articleId = searchParams.get('articleId');
 
-    let query = supabase
-      .from('linkedin_share_queue')
-      .select('id, status, share_target, share_mode, visibility, scheduled_at, error_message, created_at')
-      .eq('user_id', userData.user.id)
-      .order('scheduled_at', { ascending: true })
-      .limit(20);
+    const buildQuery = (selectClause: string) => {
+      let query = supabase
+        .from('linkedin_share_queue')
+        .select(selectClause)
+        .eq('user_id', userData.user.id)
+        .order('scheduled_at', { ascending: true })
+        .limit(20);
+      if (articleId) {
+        query = query.eq('article_id', articleId);
+      }
+      return query;
+    };
 
-    if (articleId) {
-      query = query.eq('article_id', articleId);
+    let { data, error } = await buildQuery(
+      'id, status, share_target, share_mode, visibility, scheduled_at, error_message, created_at'
+    );
+    let hasShareMode = true;
+    if (error && isMissingColumnError(error, 'share_mode')) {
+      hasShareMode = false;
+      const fallback = await buildQuery(
+        'id, status, share_target, visibility, scheduled_at, error_message, created_at'
+      );
+      data = fallback.data;
+      error = fallback.error;
     }
-
-    const { data, error } = await query;
     if (error) throw error;
 
-    return NextResponse.json({ scheduled: data || [] });
+    return NextResponse.json({
+      scheduled: (data || []).map((row: any) => ({
+        ...row,
+        share_mode: hasShareMode ? row.share_mode || null : null,
+      })),
+    });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Failed to load scheduled shares.' }, { status: 500 });
   }

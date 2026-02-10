@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { isMissingColumnError } from '@/lib/linkedinMetrics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -87,6 +88,17 @@ const registerLinkedInImage = async (
   }
 
   return asset as string;
+};
+
+const insertShareLog = async (supabase: ReturnType<typeof getSupabaseAdmin>, payload: Record<string, any>) => {
+  const withShareMode = await supabase.from('linkedin_share_logs').insert(payload);
+  if (withShareMode.error && isMissingColumnError(withShareMode.error, 'share_mode')) {
+    const { share_mode: _shareMode, ...fallbackPayload } = payload;
+    const fallback = await supabase.from('linkedin_share_logs').insert(fallbackPayload);
+    if (fallback.error) throw fallback.error;
+    return;
+  }
+  if (withShareMode.error) throw withShareMode.error;
 };
 
 export async function POST(req: NextRequest) {
@@ -287,10 +299,11 @@ export async function POST(req: NextRequest) {
 
     const responseBody = await response.json().catch(() => ({}));
     if (!response.ok) {
-      await supabase.from('linkedin_share_logs').insert({
+      await insertShareLog(supabase, {
         user_id: userId,
         article_id: articleId,
         share_target: shareTarget,
+        share_mode: shareMode,
         visibility,
         status: 'error',
         provider_response: responseBody,
@@ -305,10 +318,11 @@ export async function POST(req: NextRequest) {
     const shareId = responseBody?.id as string | undefined;
     const shareUrl = shareId ? `https://www.linkedin.com/feed/update/${shareId}` : null;
 
-    await supabase.from('linkedin_share_logs').insert({
+    await insertShareLog(supabase, {
       user_id: userId,
       article_id: articleId,
       share_target: shareTarget,
+      share_mode: shareMode,
       visibility,
       status: 'success',
       share_url: shareUrl,
@@ -318,7 +332,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, response: responseBody });
   } catch (error: any) {
     if (userId) {
-      await supabase.from('linkedin_share_logs').insert({
+      await insertShareLog(supabase, {
         user_id: userId,
         article_id: articleId,
         status: 'error',

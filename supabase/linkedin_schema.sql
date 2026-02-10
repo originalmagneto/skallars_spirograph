@@ -31,6 +31,7 @@ create table if not exists public.linkedin_share_logs (
   user_id uuid not null references auth.users(id) on delete cascade,
   article_id uuid,
   share_target text,
+  share_mode text not null default 'article',
   visibility text,
   status text not null,
   share_url text,

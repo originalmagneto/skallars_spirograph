@@ -87,6 +87,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const panelParam = searchParams.get('panel');
     const linkedinParam = searchParams.get('linkedin');
     const linkedinReason = searchParams.get('reason');
+    const linkedinTargetParam = searchParams.get('linkedinTarget');
 
     const factChecklistDefaults: Array<{ key: string; label: string }> = [
         { key: 'facts_verified', label: 'Facts and figures verified against sources' },
@@ -198,12 +199,24 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         id: string;
         status: string;
         share_target: string | null;
+        share_mode?: string | null;
         visibility: string | null;
         share_url: string | null;
         error_message: string | null;
         created_at: string;
+        urn?: string | null;
+        metrics?: {
+            likeCount: number | null;
+            commentCount: number | null;
+            shareCount: number | null;
+            impressionCount: number | null;
+            clickCount: number | null;
+            engagement: number | null;
+            uniqueImpressionsCount: number | null;
+        } | null;
     }>>([]);
     const [linkedinLogsLoading, setLinkedinLogsLoading] = useState(false);
+    const [linkedinMetricsNote, setLinkedinMetricsNote] = useState<string | null>(null);
     const [linkedinScheduleAt, setLinkedinScheduleAt] = useState('');
     const [linkedinScheduled, setLinkedinScheduled] = useState<Array<{
         id: string;
@@ -256,6 +269,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         } catch {
             return {};
         }
+    };
+    const emitLinkedInActivityUpdate = () => {
+        if (typeof window === 'undefined') return;
+        window.dispatchEvent(new CustomEvent('linkedin:activity-updated', {
+            detail: { articleId: articleId || null },
+        }));
     };
     const previewContentHtml = useMemo(() => {
         // Inline content resolution to avoid temporal dead zone (getCurrentContent is defined later)
@@ -522,6 +541,12 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     }, [linkedinParam, linkedinReason]);
 
     useEffect(() => {
+        if (!linkedinTargetParam) return;
+        if (linkedinTargetParam !== 'member' && linkedinTargetParam !== 'organization') return;
+        setLinkedinTarget(linkedinTargetParam);
+    }, [linkedinTargetParam]);
+
+    useEffect(() => {
         if (linkedinTarget === 'organization' && !hasOrgScope) {
             setLinkedinTarget('member');
         }
@@ -567,13 +592,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const loadLinkedInLogs = async () => {
         if (!session?.access_token || !articleId || isNew) return;
         setLinkedinLogsLoading(true);
+        setLinkedinMetricsNote(null);
         try {
-            const res = await fetch(`/api/linkedin/logs?articleId=${articleId}`, {
+            const res = await fetch(`/api/linkedin/logs?articleId=${articleId}&includeMetrics=1`, {
                 headers: { Authorization: `Bearer ${session.access_token}` },
             });
             const data = await parseJsonSafe(res);
             if (res.ok && Array.isArray(data.logs)) {
                 setLinkedinLogs(data.logs);
+                setLinkedinMetricsNote(data.note || null);
             }
         } catch {
             // ignore
@@ -607,6 +634,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     useEffect(() => {
         loadLinkedInScheduled();
     }, [session?.access_token, articleId, isNew]);
+
+    useEffect(() => {
+        if (!session?.access_token || !articleId || isNew || !linkedinStatus?.connected) return;
+        const interval = window.setInterval(() => {
+            loadLinkedInLogs();
+            loadLinkedInScheduled();
+        }, 60_000);
+        return () => window.clearInterval(interval);
+    }, [session?.access_token, articleId, isNew, linkedinStatus?.connected]);
 
     useEffect(() => {
         if (articleLoading) return;
@@ -1072,6 +1108,8 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             }
             toast.success('Shared on LinkedIn!');
             loadLinkedInLogs();
+            loadLinkedInScheduled();
+            emitLinkedInActivityUpdate();
         } catch (error: any) {
             toast.error(error?.message || 'LinkedIn share failed.');
         } finally {
@@ -1135,6 +1173,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.success('LinkedIn share scheduled.');
             setLinkedinScheduleAt('');
             loadLinkedInScheduled();
+            emitLinkedInActivityUpdate();
         } catch (error: any) {
             toast.error(error?.message || 'Failed to schedule LinkedIn share.');
         }
@@ -1152,6 +1191,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
             toast.success('Checked scheduled shares.');
             loadLinkedInLogs();
             loadLinkedInScheduled();
+            emitLinkedInActivityUpdate();
         } catch (error: any) {
             toast.error(error?.message || 'Failed to run scheduled shares.');
         }
@@ -1187,6 +1227,18 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const effectiveLinkedInShareMode = resolveEffectiveLinkedInShareMode();
     const effectiveLinkedInImageUrl = resolveEffectiveLinkedInImageUrl();
     const effectiveLinkedInOrganizationUrn = resolveLinkedInOrgUrn();
+    const formatCompactMetric = (value: number | null | undefined) => {
+        if (typeof value !== 'number' || Number.isNaN(value)) return null;
+        return new Intl.NumberFormat(undefined, {
+            notation: value >= 1000 ? 'compact' : 'standard',
+            maximumFractionDigits: value >= 1000 ? 1 : 0,
+        }).format(value);
+    };
+    const formatPercentMetric = (value: number | null | undefined) => {
+        if (typeof value !== 'number' || Number.isNaN(value)) return null;
+        if (value <= 1) return `${(value * 100).toFixed(1)}%`;
+        return `${value.toFixed(1)}%`;
+    };
 
     const parseTagsInput = (value: string) => {
         return value
@@ -2020,6 +2072,9 @@ Rules:
                                         <div className="flex items-center justify-between">
                                             <Label className="text-xs text-muted-foreground">Recent Shares</Label>
                                         </div>
+                                        {linkedinMetricsNote && (
+                                            <p className="text-[11px] text-muted-foreground">{linkedinMetricsNote}</p>
+                                        )}
                                         {linkedinLogs.length === 0 ? (
                                             <div className="text-xs text-muted-foreground">No shares logged yet.</div>
                                         ) : (
@@ -2036,13 +2091,36 @@ Rules:
                                                             <span className="text-muted-foreground">
                                                                 {new Date(log.created_at).toLocaleString()}
                                                             </span>
+                                                            {(() => {
+                                                                if (!log.metrics) return null;
+                                                                const likes = formatCompactMetric(log.metrics.likeCount);
+                                                                const comments = formatCompactMetric(log.metrics.commentCount);
+                                                                const shares = formatCompactMetric(log.metrics.shareCount);
+                                                                const impressions = formatCompactMetric(log.metrics.impressionCount);
+                                                                const clicks = formatCompactMetric(log.metrics.clickCount);
+                                                                const engagement = formatPercentMetric(log.metrics.engagement);
+                                                                const parts = [
+                                                                    likes ? `${likes} likes` : null,
+                                                                    comments ? `${comments} comments` : null,
+                                                                    shares ? `${shares} shares` : null,
+                                                                    impressions ? `${impressions} impressions` : null,
+                                                                    clicks ? `${clicks} clicks` : null,
+                                                                    engagement ? `engagement ${engagement}` : null,
+                                                                ].filter(Boolean) as string[];
+                                                                if (parts.length === 0) return null;
+                                                                return (
+                                                                    <span className="text-[11px] text-muted-foreground">
+                                                                        {parts.join(' · ')}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                             {log.error_message && (
                                                                 <span className="text-destructive">{log.error_message}</span>
                                                             )}
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1">
                                                             <span className="text-muted-foreground">
-                                                                {log.share_target || 'member'} · {log.visibility || 'PUBLIC'}
+                                                                {log.share_target || 'member'} · {log.visibility || 'PUBLIC'} · {log.share_mode === 'image' ? 'image' : 'link'}
                                                             </span>
                                                             {log.share_url && (
                                                                 <a

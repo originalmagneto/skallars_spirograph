@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { isMissingColumnError } from '@/lib/linkedinMetrics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -84,6 +85,17 @@ const registerLinkedInImage = async (
   return asset as string;
 };
 
+const insertShareLog = async (supabase: ReturnType<typeof getSupabaseAdmin>, payload: Record<string, any>) => {
+  const withShareMode = await supabase.from('linkedin_share_logs').insert(payload);
+  if (withShareMode.error && isMissingColumnError(withShareMode.error, 'share_mode')) {
+    const { share_mode: _shareMode, ...fallbackPayload } = payload;
+    const fallback = await supabase.from('linkedin_share_logs').insert(fallbackPayload);
+    if (fallback.error) throw fallback.error;
+    return;
+  }
+  if (withShareMode.error) throw withShareMode.error;
+};
+
 export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const schedulerSecret = process.env.LINKEDIN_SCHEDULER_SECRET;
@@ -114,7 +126,7 @@ export async function POST(req: NextRequest) {
       .lte('scheduled_at', nowIso)
       .in('status', ['scheduled', 'retry'])
       .order('scheduled_at', { ascending: true })
-      .limit(10);
+      .limit(25);
 
     if (userId) {
       query = query.eq('user_id', userId);
@@ -126,13 +138,15 @@ export async function POST(req: NextRequest) {
     const results: Array<{ id: string; status: string; message?: string }> = [];
 
     for (const item of queueItems || []) {
-      const { error: lockError } = await supabase
+      const { data: lockedRows, error: lockError } = await supabase
         .from('linkedin_share_queue')
         .update({ status: 'processing', updated_at: new Date().toISOString() })
         .eq('id', item.id)
-        .eq('status', item.status);
+        .eq('status', item.status)
+        .select('id')
+        .limit(1);
 
-      if (lockError) {
+      if (lockError || !lockedRows || lockedRows.length === 0) {
         results.push({ id: item.id, status: 'skipped', message: 'Failed to lock item.' });
         continue;
       }
@@ -320,10 +334,11 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', item.id);
-        await supabase.from('linkedin_share_logs').insert({
+        await insertShareLog(supabase, {
           user_id: item.user_id,
           article_id: item.article_id,
           share_target: shareTarget,
+          share_mode: shareMode,
           visibility: item.visibility || 'PUBLIC',
           status: 'error',
           provider_response: responseBody,
@@ -346,10 +361,11 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', item.id);
 
-      await supabase.from('linkedin_share_logs').insert({
+      await insertShareLog(supabase, {
         user_id: item.user_id,
         article_id: item.article_id,
         share_target: shareTarget,
+        share_mode: shareMode,
         visibility: item.visibility || 'PUBLIC',
         status: 'success',
         share_url: shareUrl,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { isMissingColumnError } from '@/lib/linkedinMetrics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,15 +29,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid session.' }, { status: 401 });
     }
 
-    const payload = await req.json();
-    const articleId = payload?.articleId || null;
-    const scheduledAt = payload?.scheduledAt;
-    const message = payload?.message || null;
-    const shareTarget = payload?.shareTarget === 'organization' ? 'organization' : 'member';
-    let organizationUrn = toOrgUrn(payload?.organizationUrn) || null;
-    const visibility = payload?.visibility || 'PUBLIC';
-    const shareMode = payload?.shareMode === 'image' ? 'image' : 'article';
-    const imageUrl = payload?.imageUrl || null;
+    const requestPayload = await req.json();
+    const articleId = requestPayload?.articleId || null;
+    const scheduledAt = requestPayload?.scheduledAt;
+    const message = requestPayload?.message || null;
+    const shareTarget = requestPayload?.shareTarget === 'organization' ? 'organization' : 'member';
+    let organizationUrn = toOrgUrn(requestPayload?.organizationUrn) || null;
+    const visibility = requestPayload?.visibility || 'PUBLIC';
+    const shareMode = requestPayload?.shareMode === 'image' ? 'image' : 'article';
+    const imageUrl = requestPayload?.imageUrl || null;
 
     if (!scheduledAt) {
       return NextResponse.json({ error: 'Missing scheduledAt.' }, { status: 400 });
@@ -101,22 +102,35 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { data, error } = await supabase
+    const payload = {
+      user_id: userData.user.id,
+      article_id: articleId,
+      share_target: shareTarget,
+      share_mode: shareMode,
+      organization_urn: organizationUrn,
+      image_url: imageUrl,
+      visibility,
+      message,
+      scheduled_at: scheduledDate.toISOString(),
+      status: 'scheduled',
+    };
+
+    let { data, error } = await supabase
       .from('linkedin_share_queue')
-      .insert({
-        user_id: userData.user.id,
-        article_id: articleId,
-        share_target: shareTarget,
-        share_mode: shareMode,
-        organization_urn: organizationUrn,
-        image_url: imageUrl,
-        visibility,
-        message,
-        scheduled_at: scheduledDate.toISOString(),
-        status: 'scheduled',
-      })
+      .insert(payload)
       .select('*')
       .single();
+
+    if (error && isMissingColumnError(error, 'share_mode')) {
+      const { share_mode: _shareMode, ...fallbackPayload } = payload;
+      const fallback = await supabase
+        .from('linkedin_share_queue')
+        .insert(fallbackPayload)
+        .select('*')
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
 
     if (error) throw error;
 

@@ -136,6 +136,7 @@ Storage buckets referenced:
 ## LinkedIn SQL
 - Initial tables: `supabase/linkedin_schema.sql`, `supabase/linkedin_share_queue.sql`
 - Upgrade (adds image share columns): `supabase/linkedin_share_queue_upgrade.sql`
+- Upgrade (adds `share_mode` + indexes for logs): `supabase/linkedin_share_logs_upgrade.sql`
 
 ## Core Supabase SQL
 - Base tables: `supabase/articles.sql`, `supabase/tags.sql`, `supabase/article_tags.sql`, `supabase/site_content.sql`, `supabase/settings.sql`, `supabase/ai_usage_logs.sql`, `supabase/clients.sql`, `supabase/team_members.sql`, `supabase/map_cities.sql`
@@ -167,3 +168,19 @@ High-impact mismatches found and now resolved:
   - Created `repair_relationship_v3.sql` to handle massive RLS policy dependencies during schema updates.
 - **Build Fixes**:
   - Fixed Netlify build failure in `AISettings.tsx` by removing invalid `variant` prop from HugeIcons.
+
+## Change Log (Feb 10, 2026)
+- **LinkedIn Generation -> Share Flow**:
+  - Added post-generation actions in `AILab.tsx` to save draft and open LinkedIn share panel directly.
+  - Added preselection support for LinkedIn target in `ArticleEditor.tsx` via `linkedinTarget` query param.
+- **LinkedIn Scheduling Reliability**:
+  - Hardened Netlify scheduler URL resolution in `netlify/functions/linkedin-scheduler.ts` (supports `NEXT_PUBLIC_SITE_URL`, `URL`, `DEPLOY_PRIME_URL`, `DEPLOY_URL`, `SITE_URL`) with timeout handling.
+  - Improved queue lock handling in `src/app/api/linkedin/run-scheduled/route.ts` to avoid double-processing race cases.
+- **LinkedIn Share Tracking + Metrics**:
+  - Persisted `share_mode` in LinkedIn share logs from both direct share and scheduled execution routes.
+  - Added schema fallback handling when `share_mode` is not present yet.
+  - Added engagement enrichment (likes/comments/shares + org impressions/clicks where available) in:
+    - `src/app/api/linkedin/logs-summary/route.ts`
+    - `src/app/api/linkedin/logs/route.ts`
+  - Updated `ArticlesManager.tsx` to show LinkedIn interaction snippets in list rows and added explicit LinkedIn sync action.
+  - Updated `ArticleEditor.tsx` to display per-share LinkedIn metrics in advanced logs and keep LinkedIn activity synchronized.

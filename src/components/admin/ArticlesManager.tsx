@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -81,9 +81,19 @@ export default function ArticlesManager() {
                 scheduledAt: string | null;
                 scheduledStatus: string | null;
                 scheduledShareTarget: 'member' | 'organization' | null;
+                metrics: {
+                    likeCount: number | null;
+                    commentCount: number | null;
+                    shareCount: number | null;
+                    impressionCount: number | null;
+                    clickCount: number | null;
+                    engagement: number | null;
+                    uniqueImpressionsCount: number | null;
+                } | null;
             }
         >
     >({});
+    const [linkedinSummaryLoading, setLinkedinSummaryLoading] = useState(false);
     const [layout, setLayout] = useState<Record<ArticlesLayoutKey, BentoSize>>(ARTICLES_LAYOUT_DEFAULTS);
 
     useEffect(() => {
@@ -138,30 +148,38 @@ export default function ArticlesManager() {
         },
     });
 
-    useEffect(() => {
-        if (!session?.access_token) {
-            setLinkedinSummary({});
-            return;
-        }
-        if (!articles || articles.length === 0) {
-            setLinkedinSummary({});
-            return;
-        }
-        const ids = articles.map((article) => article.id).filter(Boolean);
-        if (ids.length === 0) {
-            setLinkedinSummary({});
-            return;
-        }
-        const controller = new AbortController();
-        const loadSummary = async () => {
+    const refreshLinkedInSummary = useCallback(
+        async (opts?: { signal?: AbortSignal; silent?: boolean }) => {
+            if (!session?.access_token) {
+                setLinkedinSummary({});
+                return;
+            }
+            if (!articles || articles.length === 0) {
+                setLinkedinSummary({});
+                return;
+            }
+            const ids = articles.map((article) => article.id).filter(Boolean);
+            if (ids.length === 0) {
+                setLinkedinSummary({});
+                return;
+            }
+
+            const silent = opts?.silent ?? true;
+            if (!silent) setLinkedinSummaryLoading(true);
             try {
-                const res = await fetch(`/api/linkedin/logs-summary?ids=${encodeURIComponent(ids.join(','))}`, {
-                    headers: { Authorization: `Bearer ${session.access_token}` },
-                    signal: controller.signal,
-                });
-                const data = await res.json();
-                if (!res.ok || !Array.isArray(data.summaries)) {
-                    return;
+                const chunkSize = 80;
+                const summaryRows: any[] = [];
+                for (let i = 0; i < ids.length; i += chunkSize) {
+                    const chunkIds = ids.slice(i, i + chunkSize);
+                    const res = await fetch(`/api/linkedin/logs-summary?ids=${encodeURIComponent(chunkIds.join(','))}`, {
+                        headers: { Authorization: `Bearer ${session.access_token}` },
+                        signal: opts?.signal,
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !Array.isArray(data.summaries)) {
+                        continue;
+                    }
+                    summaryRows.push(...data.summaries);
                 }
                 const next: Record<
                     string,
@@ -173,9 +191,18 @@ export default function ArticlesManager() {
                         scheduledAt: string | null;
                         scheduledStatus: string | null;
                         scheduledShareTarget: 'member' | 'organization' | null;
+                        metrics: {
+                            likeCount: number | null;
+                            commentCount: number | null;
+                            shareCount: number | null;
+                            impressionCount: number | null;
+                            clickCount: number | null;
+                            engagement: number | null;
+                            uniqueImpressionsCount: number | null;
+                        } | null;
                     }
                 > = {};
-                data.summaries.forEach((item: any) => {
+                summaryRows.forEach((item: any) => {
                     if (!item?.article_id) return;
                     next[item.article_id] = {
                         sharedAt: item.last_shared_at || null,
@@ -190,16 +217,49 @@ export default function ArticlesManager() {
                                 : item.scheduled_share_target === 'member'
                                 ? 'member'
                                 : null,
+                        metrics: item.metrics
+                            ? {
+                                likeCount: typeof item.metrics.likeCount === 'number' ? item.metrics.likeCount : null,
+                                commentCount: typeof item.metrics.commentCount === 'number' ? item.metrics.commentCount : null,
+                                shareCount: typeof item.metrics.shareCount === 'number' ? item.metrics.shareCount : null,
+                                impressionCount: typeof item.metrics.impressionCount === 'number' ? item.metrics.impressionCount : null,
+                                clickCount: typeof item.metrics.clickCount === 'number' ? item.metrics.clickCount : null,
+                                engagement: typeof item.metrics.engagement === 'number' ? item.metrics.engagement : null,
+                                uniqueImpressionsCount: typeof item.metrics.uniqueImpressionsCount === 'number' ? item.metrics.uniqueImpressionsCount : null,
+                            }
+                            : null,
                     };
                 });
                 setLinkedinSummary(next);
             } catch {
                 // ignore
+            } finally {
+                if (!silent) setLinkedinSummaryLoading(false);
             }
-        };
-        loadSummary();
+        },
+        [session?.access_token, articles]
+    );
+
+    useEffect(() => {
+        const controller = new AbortController();
+        refreshLinkedInSummary({ signal: controller.signal, silent: true });
         return () => controller.abort();
-    }, [session?.access_token, articles]);
+    }, [refreshLinkedInSummary]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const onLinkedInActivity = () => {
+            refreshLinkedInSummary({ silent: true });
+        };
+        window.addEventListener('linkedin:activity-updated', onLinkedInActivity as EventListener);
+        const interval = window.setInterval(() => {
+            refreshLinkedInSummary({ silent: true });
+        }, 60_000);
+        return () => {
+            window.removeEventListener('linkedin:activity-updated', onLinkedInActivity as EventListener);
+            window.clearInterval(interval);
+        };
+    }, [refreshLinkedInSummary]);
 
     // Delete mutation
     const deleteMutation = useMutation({
@@ -238,6 +298,24 @@ export default function ArticlesManager() {
             return { label: `Shared (${target})`, variant: 'secondary' as const };
         }
         return { label: 'Not shared', variant: 'outline' as const };
+    };
+
+    const formatCompactNumber = (value: number | null) => {
+        if (value === null || Number.isNaN(value)) return null;
+        return Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+    };
+
+    const formatLinkedInMetrics = (articleId: string) => {
+        const metrics = linkedinSummary[articleId]?.metrics;
+        if (!metrics) return null;
+        const parts: string[] = [];
+        const likes = formatCompactNumber(metrics.likeCount);
+        const comments = formatCompactNumber(metrics.commentCount);
+        const impressions = formatCompactNumber(metrics.impressionCount);
+        if (likes !== null) parts.push(`${likes} likes`);
+        if (comments !== null) parts.push(`${comments} comments`);
+        if (impressions !== null) parts.push(`${impressions} impressions`);
+        return parts.length > 0 ? parts.join(' · ') : null;
     };
 
     const quickFilters: Array<{ value: typeof statusFilter; label: string }> = [
@@ -454,7 +532,17 @@ export default function ArticlesManager() {
                                 <option value="oldest">Oldest first</option>
                             </select>
                             <div className="flex items-center justify-end text-xs text-muted-foreground lg:justify-start">
-                                {filteredArticles.length} / {summary.total}
+                                <span>{filteredArticles.length} / {summary.total}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="ml-2 h-7 px-2 text-[11px]"
+                                    onClick={() => refreshLinkedInSummary({ silent: false })}
+                                    disabled={linkedinSummaryLoading}
+                                >
+                                    {linkedinSummaryLoading ? 'Syncing LinkedIn…' : 'Sync LinkedIn'}
+                                </Button>
                             </div>
                         </div>
 
@@ -511,7 +599,9 @@ export default function ArticlesManager() {
                         </div>
                     ) : (
                         <div className="grid gap-4">
-                            {filteredArticles.map((article) => (
+                            {filteredArticles.map((article) => {
+                                const metricsLabel = formatLinkedInMetrics(article.id);
+                                return (
                                 <div
                                     key={article.id}
                                     className="flex flex-col gap-4 rounded-xl border p-4 hover:bg-muted/20 transition-colors md:flex-row md:items-center"
@@ -566,6 +656,9 @@ export default function ArticlesManager() {
                                         <span>
                                             LinkedIn: {new Date(linkedinSummary[article.id].sharedAt as string).toLocaleDateString()}
                                         </span>
+                                    )}
+                                    {metricsLabel && (
+                                        <span>{metricsLabel}</span>
                                     )}
                                     {linkedinSummary[article.id]?.scheduledAt && (
                                         <span>
@@ -623,7 +716,8 @@ export default function ArticlesManager() {
                                 )}
                             </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </AdminSectionCard>

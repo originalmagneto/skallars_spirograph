@@ -1,6 +1,6 @@
 # ROADMAP (Reset Pass) - Admin UX, CMS Dedupe, AI Control
 
-Last updated: Feb 6, 2026
+Last updated: Feb 10, 2026
 
 ## 0) Why This Reset
 
@@ -203,6 +203,16 @@ Progress notes (current pass):
   - accepts extractable LinkedIn company URL/id formats
 - LinkedIn Settings now normalizes and saves org input to canonical URN format, so users can paste either URN or numeric id.
 - Scheduled runner now applies the same org normalization and env/default fallback chain as direct share flow.
+- AILab now offers post-generation shortcuts:
+  - `Save Draft & Edit`
+  - `Save & Open LinkedIn (Personal)`
+  - `Save & Open LinkedIn (Company)`
+- Article Editor now supports `linkedinTarget` query preselection, so generation flow can open directly into personal/company sharing context.
+- Article list LinkedIn summary now includes interaction signals (likes/comments and org impressions when available), with manual sync and periodic refresh.
+- Article editor advanced LinkedIn logs now show enriched metrics per share (likes/comments/shares + org detail metrics where scopes allow).
+- LinkedIn log APIs now degrade gracefully when `linkedin_share_logs.share_mode` is missing, preventing silent summary failures on partially migrated databases.
+- Scheduled runner lock handling now verifies row lock acquisition before processing, reducing race-condition double sends.
+- Netlify scheduler now resolves site URL from multiple env sources and enforces request timeout to improve scheduled run reliability.
 
 ---
 
