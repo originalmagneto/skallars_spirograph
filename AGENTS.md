@@ -233,3 +233,20 @@ High-impact mismatches found and now resolved:
 - **LinkedIn API Version Maintenance** (`src/lib/linkedinMetrics.ts`, `src/app/api/linkedin/organizations/route.ts`):
   - Replaced hardcoded older LinkedIn API version headers with `LINKEDIN_API_VERSION` override support and default `202601`.
   - This prevents silent metric loss tied to sunsetted version headers.
+
+## Change Log (Feb 10, 2026 - Homepage UX Polish Pass)
+- **Hero CTA Affordance** (`src/app/globals.css`, `src/components/LawFirmHomepage.tsx`):
+  - Added concrete `btn-accent` styling so CTA actions render as real buttons (not text-only links).
+  - Hero CTA keeps semantic button behavior and now has stronger visual affordance.
+- **News Carousel Friction Reduction** (`src/components/BlogCarousel.tsx`, `src/app/globals.css`):
+  - Hidden horizontal scrollbar while preserving swipe/arrow scrolling.
+  - Slowed autoplay baseline and delayed post-manual-scroll resume for calmer pacing.
+- **Map Hover Label Scale Fix** (`src/components/GlobalNetworkSection.tsx`):
+  - Rebalanced city hover label scaling relative to zoom level to prevent oversized tooltip text.
+- **Services Section Visual Refresh** (`src/components/LawFirmHomepage.tsx`):
+  - Added prominent service image stage with active service title.
+  - Service cards now preview image context on hover/focus and drive image switching directly.
+- **Team Section Design Refresh** (`src/components/LawFirmHomepage.tsx`):
+  - Added section depth (gradients, glow accents), refined card treatment, and improved hierarchy/typography for member cards.
+- **Spirograph Layering** (`src/components/Spirograph.tsx`, `src/components/LawFirmHomepage.tsx`):
+  - Raised spirograph layer and adjusted section stacking so animation remains visible into the Services transition area.

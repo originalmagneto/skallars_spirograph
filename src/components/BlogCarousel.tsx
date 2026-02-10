@@ -60,7 +60,7 @@ export default function BlogCarousel() {
     return Math.max(naturalStep, settings.scroll_step || naturalStep);
   };
 
-  const resolveAutoplayInterval = () => Math.max(3000, settings.autoplay_interval_ms || 6000);
+  const resolveAutoplayInterval = () => Math.max(8000, settings.autoplay_interval_ms || 8000);
 
   const tickCarousel = () => {
     if (!scrollRef.current) return;
@@ -86,7 +86,7 @@ export default function BlogCarousel() {
     clearResume();
   };
 
-  const scheduleAutoplayResume = (delayMs = 3200) => {
+  const scheduleAutoplayResume = (delayMs = 5000) => {
     clearResume();
     resumeRef.current = setTimeout(() => {
       startAutoplay();
@@ -199,7 +199,7 @@ export default function BlogCarousel() {
 
       <div
         ref={scrollRef}
-        className="flex gap-6 overflow-x-auto px-1 pb-2 snap-x snap-mandatory scrollbar-thin"
+        className="no-scrollbar flex gap-6 overflow-x-auto px-1 pb-2 snap-x snap-mandatory"
       >
         {posts.map((post) => (
           <article

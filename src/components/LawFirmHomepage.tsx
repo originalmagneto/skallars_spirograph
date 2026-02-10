@@ -415,6 +415,12 @@ export default function LawFirmHomepage() {
   const servicesToRender = servicesFromDb.length > 0
     ? servicesFromDb
     : fallbackServices.map((item) => ({ ...item, icon: null }));
+  const selectServiceImage = (index: number) => {
+    const next = Math.max(0, index) % Math.max(1, images.length);
+    setCurrentImageIndex(next);
+  };
+  const activeServiceTitle =
+    servicesToRender[currentImageIndex % Math.max(1, servicesToRender.length)]?.title || t.services.title;
 
   const defaultOrder = ['hero', 'services', 'countries', 'team', 'clients', 'news', 'contact', 'footer'];
   const orderedKeys = sectionOrder.length > 0 ? sectionOrder : defaultOrder;
@@ -441,21 +447,24 @@ export default function LawFirmHomepage() {
     'gap-8',
   ].join(' ');
   const teamTemplate = sectionTemplates.team;
+  const teamSectionClass = teamTemplate === 'compact'
+    ? 'bg-gradient-to-b from-[#f6f3ff]/90 via-white to-[#f8fdfb]'
+    : 'bg-gradient-to-b from-[#f2edff] via-white to-[#eefaf5]';
   const teamHeadingClass = teamTemplate === 'compact'
-    ? 'text-4xl md:text-5xl font-extrabold mb-8 text-center text-foreground tracking-tight'
-    : 'text-5xl font-extrabold mb-12 text-center text-foreground tracking-tight';
+    ? 'text-4xl md:text-5xl font-extrabold mb-4 text-center text-foreground tracking-tight'
+    : 'text-5xl font-extrabold mb-4 text-center text-foreground tracking-tight';
   const teamCardClass = teamTemplate === 'compact'
-    ? 'bg-white p-4 rounded-lg shadow-md flex flex-col transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1 group'
-    : 'bg-white p-6 rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out hover:shadow-2xl hover:-translate-y-2 hover:scale-105 group';
+    ? 'group relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 p-5 shadow-[0_18px_44px_-30px_rgba(28,15,49,0.7)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_52px_-28px_rgba(33,0,89,0.48)]'
+    : 'group relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_26px_60px_-34px_rgba(28,15,49,0.72)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:border-primary/25 hover:shadow-[0_30px_65px_-30px_rgba(33,0,89,0.5)]';
   const teamImageClass = teamTemplate === 'compact'
-    ? 'w-40 h-40 mx-auto mb-4 relative'
-    : 'w-64 h-64 mx-auto mb-6 relative';
+    ? 'w-44 h-44 mx-auto mb-5 relative'
+    : 'w-60 h-60 mx-auto mb-6 relative';
 
   const mainSections: Record<string, JSX.Element> = {
     hero: (
       <section
         id="home"
-        className={`min-h-screen flex items-center justify-center relative overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`min-h-screen flex items-center justify-center relative z-20 overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="hero"
       >
         <Spirograph />
@@ -545,12 +554,13 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
         <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
+        <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
         <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl mx-auto text-center">
+          <div className="mx-auto max-w-3xl text-center">
             <h2 className="text-4xl font-bold mb-4 text-foreground">
               {t.services.title}
             </h2>
@@ -558,29 +568,56 @@ export default function LawFirmHomepage() {
               {t.services.subtitle}
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
-            {servicesToRender.map((service, index) => (
-              <div
-                key={index}
-                ref={(el) => {
-                  serviceRefs.current[index] = el;
-                }}
-                data-index={index}
-                className="bg-white p-6 rounded-xl shadow-sm hover:shadow-xl transition-shadow border border-transparent hover:border-secondary/20"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  {service.icon ? (
-                    <span className="text-xl text-accent">{service.icon}</span>
-                  ) : (
-                    <Check className="text-accent" />
-                  )}
-                  <h3 className="text-lg font-semibold text-foreground">
-                    {service.title}
-                  </h3>
-                </div>
-                <p className="text-muted-foreground text-sm">{service.description}</p>
+          <div className="mt-10 grid grid-cols-1 gap-7 xl:grid-cols-[0.92fr,1.08fr]">
+            <div className="relative h-72 overflow-hidden rounded-3xl border border-primary/15 shadow-[0_30px_60px_-35px_rgba(33,0,89,0.55)]">
+              {images.map((src, index) => (
+                <img
+                  key={`${src}-${index}`}
+                  src={src}
+                  alt={`Legal service image ${index + 1}`}
+                  className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${index === currentImageIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
+                />
+              ))}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#110c19]/80 via-[#110c19]/35 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-2">{t.services.title}</p>
+                <p className="text-lg font-semibold leading-tight">{activeServiceTitle}</p>
               </div>
-            ))}
+            </div>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              {servicesToRender.map((service, index) => (
+                <div
+                  key={index}
+                  ref={(el) => {
+                    serviceRefs.current[index] = el;
+                  }}
+                  data-index={index}
+                  onMouseEnter={() => selectServiceImage(index)}
+                  onFocus={() => selectServiceImage(index)}
+                  className="group relative overflow-hidden rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-[0_16px_40px_-28px_rgba(33,0,89,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_24px_44px_-26px_rgba(33,0,89,0.5)]"
+                >
+                  <div
+                    className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-20"
+                    style={{
+                      backgroundImage: `url(${images[index % Math.max(1, images.length)]})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }}
+                  />
+                  <div className="relative z-10 flex items-center gap-3 mb-3">
+                    {service.icon ? (
+                      <span className="text-xl text-accent">{service.icon}</span>
+                    ) : (
+                      <Check className="text-accent" />
+                    )}
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {service.title}
+                    </h3>
+                  </div>
+                  <p className="relative z-10 text-sm text-muted-foreground">{service.description}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -588,12 +625,13 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
         <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
+        <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
         <div className="container mx-auto px-4 relative z-10">
-          <div className="flex flex-col lg:flex-row">
+          <div className="flex flex-col gap-8 lg:flex-row">
             <div
               ref={stickyRef}
               className="lg:w-1/3 pr-8 lg:sticky lg:top-24 lg:self-start"
@@ -605,16 +643,20 @@ export default function LawFirmHomepage() {
               <p className="text-xl text-muted-foreground mb-6">
                 {t.services.subtitle}
               </p>
-              <div className="relative h-64 rounded-lg overflow-hidden ring-1 ring-border shadow-md">
+              <div className="relative h-72 overflow-hidden rounded-3xl border border-primary/15 shadow-[0_30px_60px_-35px_rgba(33,0,89,0.55)]">
                 {images.map((src, index) => (
                   <img
-                    key={src}
+                    key={`${src}-${index}`}
                     src={src}
                     alt={`Legal service image ${index + 1}`}
-                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${index === currentImageIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
                   />
                 ))}
-                <div className="absolute inset-0 bg-primary/10 mix-blend-multiply" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#110c19]/80 via-[#110c19]/35 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                  <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-2">{t.services.title}</p>
+                  <p className="text-lg font-semibold leading-tight">{activeServiceTitle}</p>
+                </div>
               </div>
             </div>
             <div className="lg:w-2/3 mt-8 lg:mt-0">
@@ -626,14 +668,24 @@ export default function LawFirmHomepage() {
                       serviceRefs.current[index] = el;
                     }}
                     data-index={index}
-                    className="flex items-start space-x-4 bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow border border-transparent hover:border-secondary/20"
+                    onMouseEnter={() => selectServiceImage(index)}
+                    onFocus={() => selectServiceImage(index)}
+                    className="group relative overflow-hidden rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-[0_18px_42px_-30px_rgba(33,0,89,0.48)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_28px_52px_-28px_rgba(33,0,89,0.52)]"
                   >
+                    <div
+                      className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-20"
+                      style={{
+                        backgroundImage: `url(${images[index % Math.max(1, images.length)]})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }}
+                    />
                     {service.icon ? (
-                      <span className="text-xl text-accent flex-shrink-0 mt-0.5">{service.icon}</span>
+                      <span className="relative z-10 mt-0.5 flex-shrink-0 text-xl text-accent">{service.icon}</span>
                     ) : (
-                      <Check className="text-accent flex-shrink-0 mt-1" />
+                      <Check className="relative z-10 mt-1 flex-shrink-0 text-accent" />
                     )}
-                    <div>
+                    <div className="relative z-10">
                       <h3 className="text-xl font-semibold mb-2 text-foreground">
                         {service.title}
                       </h3>
@@ -651,8 +703,14 @@ export default function LawFirmHomepage() {
       <GlobalNetworkSection id="countries" />
     ),
     team: (
-      <section id="team" className={`py-24 bg-transparent reveal ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`} data-admin-section="team">
-        <div className="container mx-auto px-4">
+      <section
+        id="team"
+        className={`relative overflow-hidden py-24 reveal ${teamSectionClass} ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        data-admin-section="team"
+      >
+        <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[28rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 right-[-8rem] h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
+        <div className="container mx-auto px-4 relative z-10">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -662,18 +720,24 @@ export default function LawFirmHomepage() {
           >
             {t.team.title}
           </motion.h2>
+          {t.team.subtitle && (
+            <p className="mx-auto mb-12 max-w-2xl text-center text-base text-muted-foreground">
+              {t.team.subtitle}
+            </p>
+          )}
           <div className={teamGridClass}>
             {team.map((member) => (
               <div
                 key={member.id}
                 className={teamCardClass}
               >
+                <div className="pointer-events-none absolute -right-16 -top-16 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-0" />
                 <div className={teamImageClass}>
-                  <div className="w-full h-full rounded-lg overflow-hidden border-4 border-white shadow-md">
+                  <div className="h-full w-full overflow-hidden rounded-2xl border-2 border-white/80 shadow-md">
                     <img
                       src={member.photo_url || "/placeholder-avatar.jpg"}
                       alt={member.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       style={{
                         objectPosition: `${'photo_position_x' in member ? member.photo_position_x : 50}% ${'photo_position_y' in member ? member.photo_position_y : 50}%`
                       }}
@@ -691,20 +755,20 @@ export default function LawFirmHomepage() {
                   )}
                 </div>
 
-                <div className="text-center">
+                <div className="relative z-10 text-center">
                   {teamSettings.show_icon && member.icon && (
                     <div className="text-2xl mb-2" aria-hidden="true">
                       {member.icon}
                     </div>
                   )}
-                  <h4 className="text-xl font-semibold mb-1 text-foreground group-hover:text-accent transition-colors">
+                  <h4 className="text-xl font-semibold mb-1 text-foreground group-hover:text-primary transition-colors">
                     {member.name}
                   </h4>
-                  <p className="text-muted-foreground mb-4 font-medium text-sm">
+                  <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     {language === 'sk' ? member.role_sk : member.role_en}
                   </p>
                   {teamSettings.show_bio && (language === 'sk' ? member.bio_sk : member.bio_en) && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
                       {language === 'sk' ? member.bio_sk : member.bio_en}
                     </p>
                   )}

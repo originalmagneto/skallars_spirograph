@@ -138,8 +138,9 @@ const CountryLabel = ({ lat, lng, name, scale }: { lat: number; lng: number; nam
 const PulsingDot = ({ x, y, isMain, isSecondary, delay = 0, name, scale = 1 }: { x: number; y: number; isMain: boolean; isSecondary?: boolean; delay?: number; name: string; scale?: number }) => {
     const [isHovered, setIsHovered] = useState(false);
     const baseRadius = (isMain ? 6 : isSecondary ? 5 : 4) * scale;
-    const labelScale = Math.max(0.6, Math.min(1.2, scale * 1.5));
-    const fontSize = 10 * labelScale;
+    // Keep hover labels visually balanced across zoom levels.
+    const labelScale = Math.max(0.1, Math.min(1, scale));
+    const fontSize = 11 * labelScale;
     const labelPadding = { x: 8 * labelScale, y: 5 * labelScale };
     const labelOffset = baseRadius * 3 + 4 * labelScale;
 
