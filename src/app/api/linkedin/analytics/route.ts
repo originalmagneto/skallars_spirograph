@@ -1,65 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import {
+  emptyLinkedInMetrics,
+  fetchOrganizationShareMetrics,
+  fetchSocialActionMetrics,
+  getOrgUrnFromShareLog,
+  getUrnFromShareLog,
+  mergeLinkedInMetrics,
+  toOrgUrn,
+} from '@/lib/linkedinMetrics';
+import type { LinkedInInteractionMetrics } from '@/lib/linkedinMetrics';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const toOrgUrn = (value?: string | null) => {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (trimmed.startsWith('urn:li:organization:')) return trimmed;
-  if (/^\d+$/.test(trimmed)) return `urn:li:organization:${trimmed}`;
-  const match = trimmed.match(/organization:(\d+)|company\/(\d+)/i);
-  const extracted = match?.[1] || match?.[2];
-  if (extracted) return `urn:li:organization:${extracted}`;
-  return null;
-};
-
-type ShareStats = {
-  impressionCount?: number;
-  likeCount?: number;
-  commentCount?: number;
-  shareCount?: number;
-  clickCount?: number;
-  engagement?: number;
-  uniqueImpressionsCount?: number;
-};
-
-const getUrnFromLog = (log: any) => {
-  const responseId = log?.provider_response?.id;
-  if (typeof responseId === 'string' && responseId.startsWith('urn:li:')) {
-    return responseId;
-  }
-  const shareUrl: string | undefined = log?.share_url;
-  if (shareUrl) {
-    const parts = shareUrl.split('/');
-    const candidate = parts[parts.length - 1];
-    if (candidate && candidate.startsWith('urn:li:')) {
-      return candidate;
-    }
-  }
-  return null;
-};
-
-const buildOrgStatsUrl = (orgUrn: string, shareUrns: string[], ugcUrns: string[]) => {
-  const base = 'https://api.linkedin.com/rest/organizationalEntityShareStatistics';
-  const params: string[] = [
-    'q=organizationalEntity',
-    `organizationalEntity=${encodeURIComponent(orgUrn)}`,
-  ];
-
-  if (shareUrns.length > 0) {
-    const encoded = shareUrns.map((urn) => encodeURIComponent(urn)).join(',');
-    params.push(`shares=List(${encoded})`);
-  }
-
-  ugcUrns.forEach((urn, idx) => {
-    params.push(`ugcPosts[${idx}]=${encodeURIComponent(urn)}`);
-  });
-
-  return `${base}?${params.join('&')}`;
-};
 
 export async function GET(req: NextRequest) {
   try {
@@ -124,51 +77,66 @@ export async function GET(req: NextRequest) {
       .eq('user_id', userData.user.id)
       .eq('status', 'success')
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(50);
 
     const analytics: Array<{
       log_id: string;
       urn: string | null;
-      metrics: ShareStats | null;
+      metrics: LinkedInInteractionMetrics | null;
       source: 'organization' | 'member' | 'unknown';
     }> = [];
 
-    const orgShareUrns: string[] = [];
-    const orgUgcUrns: string[] = [];
-    const logUrnMap = new Map<string, string | null>();
+    const scopes = Array.isArray(account?.scopes)
+      ? account.scopes
+      : typeof account?.scopes === 'string'
+      ? account.scopes.split(/[\s,]+/).filter(Boolean)
+      : [];
+    const hasOrgScope = scopes.includes('r_organization_social') || scopes.includes('w_organization_social');
+    const hasMemberSocialRead = scopes.includes('r_member_social');
+    const hasMemberAnalytics = scopes.includes('r_member_postAnalytics');
 
-    (logs || []).forEach((log) => {
-      const urn = getUrnFromLog(log);
+    const logUrnMap = new Map<string, string | null>();
+    (logs || []).forEach((log: any) => {
+      const urn = getUrnFromShareLog(log);
       logUrnMap.set(log.id, urn);
-      if (log.share_target === 'organization' && urn) {
-        if (urn.includes('ugcPost')) {
-          orgUgcUrns.push(urn);
-        } else {
-          orgShareUrns.push(urn);
-        }
-      }
     });
 
-    const metricsByUrn = new Map<string, ShareStats>();
+    const urns = Array.from(
+      new Set(Array.from(logUrnMap.values()).filter((urn): urn is string => Boolean(urn)))
+    );
 
-    if (defaultOrgUrn && (orgShareUrns.length > 0 || orgUgcUrns.length > 0)) {
-      const url = buildOrgStatsUrl(defaultOrgUrn, orgShareUrns, orgUgcUrns);
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${account.access_token}`,
-          'X-Restli-Protocol-Version': '2.0.0',
-          'LinkedIn-Version': '202401',
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+    let socialMetricsByUrn = new Map<string, Partial<LinkedInInteractionMetrics>>();
+    try {
+      socialMetricsByUrn = await fetchSocialActionMetrics(account.access_token, urns);
+    } catch {
+      // keep partial analytics output if social actions API is degraded
+    }
+
+    const orgMetricsByUrn = new Map<string, Partial<LinkedInInteractionMetrics>>();
+    if (hasOrgScope) {
+      const urnsByOrg = new Map<string, string[]>();
+      (logs || []).forEach((log: any) => {
+        if (log.share_target !== 'organization') return;
+        const urn = logUrnMap.get(log.id);
+        if (!urn) return;
+        const orgUrn = getOrgUrnFromShareLog(log) || defaultOrgUrn || null;
+        if (!orgUrn) return;
+        const current = urnsByOrg.get(orgUrn) || [];
+        current.push(urn);
+        urnsByOrg.set(orgUrn, current);
       });
-      const body = await response.json().catch(() => ({}));
-      if (response.ok && Array.isArray(body?.elements)) {
-        body.elements.forEach((element: any) => {
-          const urn = element?.share || element?.ugcPost;
-          if (!urn) return;
-          metricsByUrn.set(urn, element?.totalShareStatistics || {});
-        });
+
+      for (const [orgUrn, orgUrns] of urnsByOrg.entries()) {
+        try {
+          const metrics = await fetchOrganizationShareMetrics(
+            account.access_token,
+            orgUrn,
+            Array.from(new Set(orgUrns))
+          );
+          metrics.forEach((value, urn) => orgMetricsByUrn.set(urn, value));
+        } catch {
+          // keep partial analytics output if org stats API is degraded
+        }
       }
     }
 
@@ -179,16 +147,38 @@ export async function GET(req: NextRequest) {
         : log.share_target === 'member'
         ? 'member'
         : 'unknown';
-      const metrics = urn ? metricsByUrn.get(urn) || null : null;
-      analytics.push({ log_id: log.id, urn, metrics, source });
+      const socialMetrics = urn ? socialMetricsByUrn.get(urn) : null;
+      const orgMetrics = urn ? orgMetricsByUrn.get(urn) : null;
+      const mergedMetrics = mergeLinkedInMetrics(
+        mergeLinkedInMetrics(emptyLinkedInMetrics(), socialMetrics || null),
+        orgMetrics || null
+      );
+      const hasMetrics = Object.values(mergedMetrics).some((value) => value !== null);
+      analytics.push({
+        log_id: log.id,
+        urn,
+        metrics: hasMetrics ? mergedMetrics : null,
+        source,
+      });
     });
 
-    const scopes = Array.isArray(account?.scopes)
-      ? account.scopes
-      : typeof account?.scopes === 'string'
-      ? account.scopes.split(/[\s,]+/).filter(Boolean)
-      : [];
-    const hasMemberAnalytics = scopes.includes('r_member_postAnalytics');
+    const notes: string[] = [];
+    const memberShareCount = (logs || []).filter((log: any) => log.share_target === 'member').length;
+    const orgShareCount = (logs || []).filter((log: any) => log.share_target === 'organization').length;
+    const metricsRows = analytics.filter((item) => item.metrics !== null).length;
+
+    if (memberShareCount > 0 && !hasMemberSocialRead) {
+      notes.push('Member post engagement can be incomplete without r_member_social.');
+    }
+    if (orgShareCount > 0 && !hasOrgScope) {
+      notes.push('Organization detail metrics require organization scopes.');
+    }
+    if (urns.length > 0 && metricsRows === 0) {
+      notes.push('LinkedIn metrics can appear with short delay after publishing. Try syncing again in a few minutes.');
+    }
+    if (!hasMemberAnalytics) {
+      notes.push('Member post analytics endpoint requires r_member_postAnalytics.');
+    }
 
     return NextResponse.json({
       analytics,
@@ -196,11 +186,7 @@ export async function GET(req: NextRequest) {
       memberAnalyticsEnabled: hasMemberAnalytics,
       error: null,
       recoverable: false,
-      note: !defaultOrgUrn
-        ? 'Set a default organization URN to enable company analytics.'
-        : !hasMemberAnalytics
-        ? 'Member post analytics require r_member_postAnalytics; organization stats use organizationalEntityShareStatistics.'
-        : null,
+      note: notes.length > 0 ? notes.join(' ') : null,
     });
   } catch (error: any) {
     return NextResponse.json({

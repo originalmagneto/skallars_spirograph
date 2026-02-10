@@ -26,12 +26,72 @@ export default function BlogCarousel() {
     limit_count: 6,
     show_view_all: true,
     autoplay: true,
-    autoplay_interval_ms: 50,
+    autoplay_interval_ms: 6000,
     scroll_step: 1,
   });
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const autoplayRef = useRef<NodeJS.Timeout | null>(null);
+  const resumeRef = useRef<NodeJS.Timeout | null>(null);
   const { t } = useLanguage();
+
+  const clearAutoplay = () => {
+    if (autoplayRef.current) {
+      clearInterval(autoplayRef.current);
+      autoplayRef.current = null;
+    }
+  };
+
+  const clearResume = () => {
+    if (resumeRef.current) {
+      clearTimeout(resumeRef.current);
+      resumeRef.current = null;
+    }
+  };
+
+  const resolveScrollStep = () => {
+    const el = scrollRef.current;
+    if (!el) return 320;
+    const firstCard = el.querySelector('article');
+    const cardWidth = firstCard instanceof HTMLElement ? firstCard.offsetWidth : 300;
+    const gap = Number.parseFloat(window.getComputedStyle(el).gap || '24') || 24;
+    const naturalStep = cardWidth + gap;
+    // Backward compatible: if old small values are saved, use natural card step.
+    if ((settings.scroll_step || 0) <= 40) return naturalStep;
+    return Math.max(naturalStep, settings.scroll_step || naturalStep);
+  };
+
+  const resolveAutoplayInterval = () => Math.max(3000, settings.autoplay_interval_ms || 6000);
+
+  const tickCarousel = () => {
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+    const step = resolveScrollStep();
+    const next = el.scrollLeft + step;
+    const end = el.scrollWidth - el.clientWidth;
+    if (next >= end - 2) {
+      el.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
+    el.scrollTo({ left: next, behavior: 'smooth' });
+  };
+
+  const startAutoplay = () => {
+    if (!settings.autoplay) return;
+    clearAutoplay();
+    autoplayRef.current = setInterval(tickCarousel, resolveAutoplayInterval());
+  };
+
+  const stopAutoplay = () => {
+    clearAutoplay();
+    clearResume();
+  };
+
+  const scheduleAutoplayResume = (delayMs = 3200) => {
+    clearResume();
+    resumeRef.current = setTimeout(() => {
+      startAutoplay();
+    }, delayMs);
+  };
 
   useEffect(() => {
     async function load() {
@@ -47,7 +107,7 @@ export default function BlogCarousel() {
               limit_count: data.settings.limit_count ?? 6,
               show_view_all: data.settings.show_view_all ?? true,
               autoplay: data.settings.autoplay ?? true,
-              autoplay_interval_ms: data.settings.autoplay_interval_ms ?? 50,
+              autoplay_interval_ms: data.settings.autoplay_interval_ms ?? 6000,
               scroll_step: data.settings.scroll_step ?? 1,
             });
           }
@@ -66,55 +126,30 @@ export default function BlogCarousel() {
   useEffect(() => {
     if (!scrollRef.current || posts.length === 0) return;
     if (!settings.autoplay) return;
-    
-    const start = () => {
-      autoplayRef.current && clearInterval(autoplayRef.current);
-      autoplayRef.current = setInterval(() => {
-        if (!scrollRef.current) return;
-        const el = scrollRef.current;
-        const next = el.scrollLeft + Math.max(1, settings.scroll_step || 1);
-        const end = el.scrollWidth - el.clientWidth;
-        if (next >= end) {
-          el.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          el.scrollTo({ left: next, behavior: 'smooth' });
-        }
-      }, Math.max(10, settings.autoplay_interval_ms || 50));
-    };
-    
-    const stop = () => {
-      if (autoplayRef.current) {
-        clearInterval(autoplayRef.current);
-        autoplayRef.current = null;
-      }
-    };
-    
+
     // Start autoplay after a short delay
-    const timer = setTimeout(start, 1000);
-    
+    const timer = setTimeout(startAutoplay, 1000);
+
     const el = scrollRef.current;
-    el.addEventListener('mouseenter', stop);
-    el.addEventListener('mouseleave', start);
-    
+    el.addEventListener('mouseenter', stopAutoplay);
+    el.addEventListener('mouseleave', startAutoplay);
+
     return () => {
       clearTimeout(timer);
-      el.removeEventListener('mouseenter', stop);
-      el.removeEventListener('mouseleave', start);
-      stop();
+      el.removeEventListener('mouseenter', stopAutoplay);
+      el.removeEventListener('mouseleave', startAutoplay);
+      stopAutoplay();
     };
   }, [posts.length, settings.autoplay, settings.autoplay_interval_ms, settings.scroll_step]);
 
-  const scrollBy = (delta: number) => {
+  const scrollBy = (direction: -1 | 1) => {
     if (scrollRef.current) {
       // Pause autoplay when manually scrolling
-      if (autoplayRef.current) {
-        clearInterval(autoplayRef.current);
-        autoplayRef.current = null;
-      }
+      stopAutoplay();
       
       const el = scrollRef.current;
       const currentScroll = el.scrollLeft;
-      const newScroll = currentScroll + delta;
+      const newScroll = currentScroll + direction * resolveScrollStep();
       
       // Ensure we don't scroll beyond bounds
       const maxScroll = el.scrollWidth - el.clientWidth;
@@ -123,25 +158,7 @@ export default function BlogCarousel() {
       el.scrollTo({ left: targetScroll, behavior: 'smooth' });
       
       // Resume autoplay after manual scroll
-      setTimeout(() => {
-        if (!autoplayRef.current) {
-          const start = () => {
-            if (!settings.autoplay) return;
-            autoplayRef.current = setInterval(() => {
-              if (!scrollRef.current) return;
-              const el = scrollRef.current;
-              const next = el.scrollLeft + Math.max(1, settings.scroll_step || 1);
-              const end = el.scrollWidth - el.clientWidth;
-              if (next >= end) {
-                el.scrollTo({ left: 0, behavior: 'smooth' });
-              } else {
-                el.scrollTo({ left: next, behavior: 'smooth' });
-              }
-            }, Math.max(10, settings.autoplay_interval_ms || 50));
-          };
-          start();
-        }
-      }, 3000); // Resume after 3 seconds
+      scheduleAutoplayResume();
     }
   };
 
@@ -165,7 +182,7 @@ export default function BlogCarousel() {
         <button
           aria-label="Scroll left"
           className="rounded-full bg-white/90 hover:bg-white shadow-lg p-3 transition-all duration-200 hover:scale-110 text-gray-700 hover:text-gray-900 text-xl font-bold"
-          onClick={() => scrollBy(-320)}
+          onClick={() => scrollBy(-1)}
         >
           ‹
         </button>
@@ -174,7 +191,7 @@ export default function BlogCarousel() {
         <button
           aria-label="Scroll right"
           className="rounded-full bg-white/90 hover:bg-white shadow-lg p-3 transition-all duration-200 hover:scale-110 text-gray-700 hover:text-gray-900 text-xl font-bold"
-          onClick={() => scrollBy(320)}
+          onClick={() => scrollBy(1)}
         >
           ›
         </button>

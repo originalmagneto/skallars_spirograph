@@ -10,7 +10,7 @@ export type LinkedInInteractionMetrics = {
   uniqueImpressionsCount: MaybeNumber;
 };
 
-const LINKEDIN_VERSION = '202501';
+const LINKEDIN_VERSION = process.env.LINKEDIN_API_VERSION || '202601';
 
 const toNumberOrNull = (value: unknown): MaybeNumber => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;

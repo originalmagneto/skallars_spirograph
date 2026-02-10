@@ -47,7 +47,7 @@ type LinkedInAnalyticsStats = {
     shareCount?: number;
     clickCount?: number;
     engagement?: number;
-    uniqueImpressionsCounts?: number;
+    uniqueImpressionsCount?: number;
 };
 
 type LinkedInAnalyticsEntry = {
@@ -343,20 +343,6 @@ export default function LinkedInSettings() {
     const loadAnalytics = async () => {
         if (!session?.access_token) return;
         if (!connected) return;
-        if (!hasOrgScope) {
-            setAnalytics([]);
-            setAnalyticsOrgUrn(null);
-            setMemberAnalyticsEnabled(false);
-            setAnalyticsNote("Organization analytics are unavailable because org scopes are missing.");
-            return;
-        }
-        if (!hasDefaultOrganization) {
-            setAnalytics([]);
-            setAnalyticsOrgUrn(null);
-            setMemberAnalyticsEnabled(false);
-            setAnalyticsNote("Set a default organization URN to enable company analytics.");
-            return;
-        }
         setAnalyticsLoading(true);
         try {
             const res = await fetch("/api/linkedin/analytics", {
@@ -696,7 +682,7 @@ export default function LinkedInSettings() {
                                             variant="outline"
                                             size="sm"
                                             onClick={loadAnalytics}
-                                            disabled={!connected || analyticsLoading || !hasOrgScope || !hasDefaultOrganization}
+                                            disabled={!connected || analyticsLoading}
                                         >
                                             {analyticsLoading ? "Syncing…" : "Sync metrics"}
                                         </Button>

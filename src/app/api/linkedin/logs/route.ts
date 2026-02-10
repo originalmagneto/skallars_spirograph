@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
     const urns = Array.from(new Set(urnByLogId.values()));
     let socialMetricsByUrn = new Map<string, Partial<LinkedInInteractionMetrics>>();
     let orgMetricsByUrn = new Map<string, Partial<LinkedInInteractionMetrics>>();
-    let metricsNote: string | null = null;
+    const metricsNotes: string[] = [];
 
     if (urns.length > 0) {
       const { data: accountRows } = await supabase
@@ -147,6 +147,8 @@ export async function GET(req: NextRequest) {
             : [];
           const hasOrgScope =
             scopes.includes('r_organization_social') || scopes.includes('w_organization_social');
+          const hasMemberSocialRead = scopes.includes('r_member_social');
+          const memberShareCount = successRows.filter((row) => row.share_target === 'member').length;
 
           if (hasOrgScope) {
             const urnsByOrg = new Map<string, string[]>();
@@ -172,14 +174,16 @@ export async function GET(req: NextRequest) {
               });
             }
           } else {
-            metricsNote =
-              'Organization detail metrics are unavailable because org scopes are missing.';
+            metricsNotes.push('Organization detail metrics are unavailable because org scopes are missing.');
+          }
+          if (memberShareCount > 0 && !hasMemberSocialRead) {
+            metricsNotes.push('Member post engagement can be incomplete without r_member_social.');
           }
         } catch {
-          metricsNote = 'LinkedIn metrics are temporarily unavailable. Share logs are shown without metrics.';
+          metricsNotes.push('LinkedIn metrics are temporarily unavailable. Share logs are shown without metrics.');
         }
       } else {
-        metricsNote = 'LinkedIn account is not connected. Metrics are unavailable.';
+        metricsNotes.push('LinkedIn account is not connected. Metrics are unavailable.');
       }
     }
 
@@ -208,7 +212,11 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ logs, note: metricsNote });
+    if (urns.length > 0 && logs.filter((item) => item.metrics !== null).length === 0) {
+      metricsNotes.push('LinkedIn metrics can appear with short delay after publishing. Try refreshing in a few minutes.');
+    }
+
+    return NextResponse.json({ logs, note: metricsNotes.length > 0 ? metricsNotes.join(' ') : null });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Failed to load LinkedIn logs.' }, { status: 500 });
   }

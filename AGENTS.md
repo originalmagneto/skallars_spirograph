@@ -38,6 +38,8 @@ Skallars Spirograph is a Next.js 14 (App Router) site for a law office with a Su
 - `LINKEDIN_REDIRECT_URI` (server-only; must match LinkedIn app settings)
 - `LINKEDIN_SCHEDULER_SECRET` (server-only; required for cron to run scheduled shares)
 - `LINKEDIN_ENABLE_ORG_SCOPES` (server-only; set to `true` to request org scopes)
+- `LINKEDIN_ENABLE_MEMBER_READ_SCOPE` (server-only; set to `true` to request `r_member_social` for member engagement reads)
+- `LINKEDIN_API_VERSION` (server-only; optional override for LinkedIn REST `LinkedIn-Version` header, defaults to `202601`)
 
 ## Supabase Data Model (as used in code)
 Tables referenced in app code:
@@ -205,3 +207,29 @@ High-impact mismatches found and now resolved:
   - Auto-opens LinkedIn Power mode + advanced accordion when editor is opened with `panel=linkedin`.
   - Added visible LinkedIn snapshot cards (shares, queued items, latest impressions, URL readiness) so key status is visible without digging through advanced tools.
   - Updated advanced share log heading to include current article context (`Recent Shares for …`).
+
+## Change Log (Feb 10, 2026 - Homepage CTA + News Carousel)
+- **Hero CTA** (`src/components/LawFirmHomepage.tsx`):
+  - Replaced hero contact link text action with an explicit button action (`type="button"`) that smoothly scrolls to the Contact section.
+  - Applied in both hero templates (`classic` and `split`) to keep behavior consistent.
+- **News Carousel Autoplay** (`src/components/BlogCarousel.tsx`):
+  - Changed autoplay behavior from pixel-tick scrolling to card-step shifting so the carousel advances article-by-article.
+  - Added slow autoplay defaults (`6000ms`) with runtime safety clamp (`>=3000ms`).
+  - Preserved hover pause and manual arrow controls; manual navigation now resumes autoplay after a short delay.
+- **News Admin Controls Alignment** (`src/components/admin/NewsSettingsManager.tsx`):
+  - Updated defaults and input ranges for slower readable autoplay (`1000-20000ms`, default `6000ms`).
+  - Updated labels/help text to reflect article-step carousel behavior and optional pixel override.
+
+## Change Log (Feb 10, 2026 - Usage Daily + LinkedIn Metrics Reliability)
+- **AI Usage Trends** (`src/components/admin/AIUsageStats.tsx`):
+  - Added a daily token/cost breakdown panel for the last 14 days.
+  - Kept monthly breakdown and moved both into scrollable side-by-side trend columns.
+  - Updated trend copy to explicitly communicate daily + monthly visibility.
+- **LinkedIn Analytics Coverage** (`src/app/api/linkedin/analytics/route.ts`, `src/app/api/linkedin/logs/route.ts`):
+  - Added merged metrics retrieval for both member and organization posts via `socialActions` + organization share statistics.
+  - Added clearer analytics notes for missing scopes (`r_member_social`, org scopes) and short post-publish metric propagation delays.
+  - Increased advanced analytics log scan window in settings from 20 to 50 successful shares.
+  - Removed UI gating in `src/components/admin/LinkedInSettings.tsx` so metric sync can run for personal posts even when org scopes/default org are not configured.
+- **LinkedIn API Version Maintenance** (`src/lib/linkedinMetrics.ts`, `src/app/api/linkedin/organizations/route.ts`):
+  - Replaced hardcoded older LinkedIn API version headers with `LINKEDIN_API_VERSION` override support and default `202601`.
+  - This prevents silent metric loss tied to sunsetted version headers.

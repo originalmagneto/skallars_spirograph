@@ -53,6 +53,14 @@ interface MonthlyStat {
     totalCost: number;
 }
 
+interface DailyStat {
+    day: string;
+    displayDay: string;
+    totalRequests: number;
+    totalTokens: number;
+    totalCost: number;
+}
+
 interface ModelStat {
     model: string;
     totalRequests: number;
@@ -116,6 +124,7 @@ const AIUsageStats = () => {
     const [logs, setLogs] = useState<UsageLog[]>([]);
     const [userStats, setUserStats] = useState<UserStat[]>([]);
     const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[]>([]);
+    const [dailyStats, setDailyStats] = useState<DailyStat[]>([]);
     const [modelStats, setModelStats] = useState<ModelStat[]>([]);
     const [actionStats, setActionStats] = useState<ActionStat[]>([]);
     const [loading, setLoading] = useState(true);
@@ -201,6 +210,7 @@ const AIUsageStats = () => {
     const processStats = (data: UsageLog[], priceIn: number, priceOut: number) => {
         const userMap = new Map<string, UserStat>();
         const monthMap = new Map<string, MonthlyStat>();
+        const dayMap = new Map<string, DailyStat>();
         const modelMap = new Map<string, ModelStat>();
         const actionMap = new Map<string, ActionStat>();
         let grandTotalCost = 0;
@@ -279,7 +289,44 @@ const AIUsageStats = () => {
             monthStat.totalTokens += log.total_tokens;
             monthStat.totalCost += cost;
             monthMap.set(monthKey, monthStat);
+
+            const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+                date.getDate()
+            ).padStart(2, '0')}`;
+            const dayName = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const dayStat = dayMap.get(dayKey) || {
+                day: dayKey,
+                displayDay: dayName,
+                totalRequests: 0,
+                totalTokens: 0,
+                totalCost: 0,
+            };
+            dayStat.totalRequests++;
+            dayStat.totalTokens += log.total_tokens;
+            dayStat.totalCost += cost;
+            dayMap.set(dayKey, dayStat);
         });
+
+        const rollingDailyStats: DailyStat[] = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        for (let offset = 13; offset >= 0; offset -= 1) {
+            const day = new Date(today);
+            day.setDate(today.getDate() - offset);
+            const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(
+                day.getDate()
+            ).padStart(2, '0')}`;
+            const stat = dayMap.get(key);
+            rollingDailyStats.push(
+                stat || {
+                    day: key,
+                    displayDay: day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                    totalRequests: 0,
+                    totalTokens: 0,
+                    totalCost: 0,
+                }
+            );
+        }
 
         setTotals({
             cost: grandTotalCost,
@@ -292,6 +339,7 @@ const AIUsageStats = () => {
         });
         setUserStats(Array.from(userMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
         setMonthlyStats(Array.from(monthMap.values()).sort((a, b) => b.month.localeCompare(a.month)));
+        setDailyStats(rollingDailyStats);
         setModelStats(Array.from(modelMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
         setActionStats(Array.from(actionMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
     };
@@ -303,6 +351,7 @@ const AIUsageStats = () => {
     };
 
     const maxMonthTokens = monthlyStats.reduce((acc, item) => Math.max(acc, item.totalTokens), 0);
+    const maxDailyTokens = dailyStats.reduce((acc, item) => Math.max(acc, item.totalTokens), 0);
     const pricingConfigured = prices.input > 0 || prices.output > 0;
     const trackedRequests = generationSummary?.totals?.total ?? 0;
     const trackingGap = Math.max(0, (generationSummary?.totals?.succeeded || 0) - totals.requests);
@@ -401,40 +450,71 @@ const AIUsageStats = () => {
                                     <AnalyticsUpIcon size={20} className="text-primary" />
                                     Usage Trends
                                 </CardTitle>
-                                <CardDescription>Monthly token consumption and costs.</CardDescription>
+                                <CardDescription>Daily and monthly token consumption with estimated cost.</CardDescription>
                             </div>
                             <div className="hidden md:flex items-center gap-2">
-                                <Badge variant="outline" className="font-mono text-[10px] uppercase">Last 12 Months</Badge>
+                                <Badge variant="outline" className="font-mono text-[10px] uppercase">Last 14 Days + 12 Months</Badge>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-6">
-                            {monthlyStats.length > 0 ? (
-                                monthlyStats.map(stat => (
-                                    <div key={stat.month} className="space-y-2">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <div className="font-medium flex items-center gap-2">
-                                                <Calendar01Icon size={14} className="text-muted-foreground" />
-                                                {stat.displayMonth}
+                        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                            <div className="space-y-3">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Daily Breakdown (Last 14 Days)</div>
+                                <div className="max-h-[320px] space-y-3 overflow-y-auto pr-1">
+                                    {dailyStats.map(stat => (
+                                        <div key={stat.day} className="space-y-1.5">
+                                            <div className="flex items-center justify-between text-xs">
+                                                <div className="font-medium flex items-center gap-2">
+                                                    <Calendar01Icon size={12} className="text-muted-foreground" />
+                                                    {stat.displayDay}
+                                                </div>
+                                                <div className="font-mono text-muted-foreground">${stat.totalCost.toFixed(3)}</div>
                                             </div>
-                                            <div className="font-mono text-muted-foreground">${stat.totalCost.toFixed(3)}</div>
+                                            <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
+                                                <div
+                                                    className="h-full bg-violet-500 rounded-full"
+                                                    style={{ width: `${Math.min(100, (stat.totalTokens / (maxDailyTokens || 1)) * 100)}%` }}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                                                <span>{stat.totalRequests} reqs</span>
+                                                <span className="font-mono">{stat.totalTokens.toLocaleString()} tokens</span>
+                                            </div>
                                         </div>
-                                        <div className="h-3 w-full bg-muted rounded-full overflow-hidden flex">
-                                            <div
-                                                className="h-full bg-indigo-500 rounded-full"
-                                                style={{ width: `${Math.min(100, (stat.totalTokens / (maxMonthTokens || 1)) * 100)}%` }}
-                                            />
-                                        </div>
-                                        <div className="flex justify-between text-[10px] text-muted-foreground">
-                                            <span>{stat.totalRequests} reqs</span>
-                                            <span className="font-mono">{stat.totalTokens.toLocaleString()} tokens</span>
-                                        </div>
-                                    </div>
-                                ))
-                            ) : (
-                                <div className="text-center py-10 text-muted-foreground text-sm">No monthly data available yet.</div>
-                            )}
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Monthly Breakdown (Last 12 Months)</div>
+                                <div className="max-h-[320px] space-y-3 overflow-y-auto pr-1">
+                                    {monthlyStats.length > 0 ? (
+                                        monthlyStats.map(stat => (
+                                            <div key={stat.month} className="space-y-1.5">
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <div className="font-medium flex items-center gap-2">
+                                                        <Calendar01Icon size={12} className="text-muted-foreground" />
+                                                        {stat.displayMonth}
+                                                    </div>
+                                                    <div className="font-mono text-muted-foreground">${stat.totalCost.toFixed(3)}</div>
+                                                </div>
+                                                <div className="h-2.5 w-full bg-muted rounded-full overflow-hidden flex">
+                                                    <div
+                                                        className="h-full bg-indigo-500 rounded-full"
+                                                        style={{ width: `${Math.min(100, (stat.totalTokens / (maxMonthTokens || 1)) * 100)}%` }}
+                                                    />
+                                                </div>
+                                                <div className="flex justify-between text-[10px] text-muted-foreground">
+                                                    <span>{stat.totalRequests} reqs</span>
+                                                    <span className="font-mono">{stat.totalTokens.toLocaleString()} tokens</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-10 text-muted-foreground text-sm">No monthly data available yet.</div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

@@ -25,7 +25,7 @@ const defaultSettings: NewsSettingsRow = {
   limit_count: 9,
   show_view_all: true,
   autoplay: true,
-  autoplay_interval_ms: 50,
+  autoplay_interval_ms: 6000,
   scroll_step: 1,
 };
 
@@ -135,15 +135,18 @@ export default function NewsSettingsManager() {
               />
             </div>
             <div className="rounded-md border bg-white p-3">
-              <Label className="text-xs">Scroll Step (px per tick)</Label>
+              <Label className="text-xs">Scroll Step Override (px)</Label>
               <Input
                 type="number"
                 min={1}
-                max={10}
+                max={1200}
                 value={form.scroll_step}
                 onChange={(e) => setForm({ ...form, scroll_step: parseInt(e.target.value) || 1 })}
                 className="mt-1"
               />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Leave small values (1-40) to auto-shift one article at a time.
+              </p>
             </div>
           </div>
         </AdminSectionCard>
@@ -170,12 +173,15 @@ export default function NewsSettingsManager() {
             <Label className="text-xs">Autoplay Interval (ms)</Label>
             <Input
               type="number"
-              min={10}
-              max={500}
+              min={1000}
+              max={20000}
               value={form.autoplay_interval_ms}
-              onChange={(e) => setForm({ ...form, autoplay_interval_ms: parseInt(e.target.value) || 50 })}
+              onChange={(e) => setForm({ ...form, autoplay_interval_ms: parseInt(e.target.value) || 6000 })}
               className="mt-1"
             />
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Recommended: 4000-8000 ms for a slow, readable carousel.
+            </p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex items-center gap-2 rounded-md border bg-white p-3">

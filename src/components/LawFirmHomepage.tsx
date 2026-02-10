@@ -487,9 +487,13 @@ export default function LawFirmHomepage() {
                 className="rounded-2xl border border-white/40 bg-white/85 backdrop-blur-md p-8 shadow-xl space-y-4"
               >
                 <p className="text-lg text-muted-foreground">{t.hero.description}</p>
-                <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('contact')}
+                  className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent"
+                >
                   {t.hero.cta}
-                </a>
+                </button>
               </motion.div>
             </div>
           ) : (
@@ -524,9 +528,13 @@ export default function LawFirmHomepage() {
                 transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
                 className="mt-8"
               >
-                <a href="/#contact" className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('contact')}
+                  className="inline-flex items-center px-6 py-3 rounded-full text-sm font-semibold btn-accent"
+                >
                   {t.hero.cta}
-                </a>
+                </button>
               </motion.div>
             </>
           )}

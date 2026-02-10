@@ -14,11 +14,17 @@ export const LINKEDIN_ORG_SCOPES = [
   'r_organization_admin',
 ];
 
+export const LINKEDIN_MEMBER_READ_SCOPES = [
+  'r_member_social',
+];
+
 export const getLinkedInScopes = () => {
   const enableOrgScopes = process.env.LINKEDIN_ENABLE_ORG_SCOPES === 'true';
+  const enableMemberReadScope = process.env.LINKEDIN_ENABLE_MEMBER_READ_SCOPE === 'true';
+  const memberReadScopes = enableMemberReadScope ? LINKEDIN_MEMBER_READ_SCOPES : [];
   return (enableOrgScopes
-    ? [...LINKEDIN_BASE_SCOPES, ...LINKEDIN_ORG_SCOPES]
-    : LINKEDIN_BASE_SCOPES
+    ? [...LINKEDIN_BASE_SCOPES, ...memberReadScopes, ...LINKEDIN_ORG_SCOPES]
+    : [...LINKEDIN_BASE_SCOPES, ...memberReadScopes]
   ).join(' ');
 };
 
