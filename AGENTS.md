@@ -313,3 +313,13 @@ High-impact mismatches found and now resolved:
     - `/api/blog?limit=1`
     - `/api/linkedin/status`
   - Scheduler execution path validated post-deploy via `/api/linkedin/run-scheduled` with `x-scheduler-secret` (`200`, `processed: 0` when no due jobs).
+
+## Change Log (Feb 10, 2026 - Brand Guideline UI Pass: Services + Team)
+- **Services Section** (`src/components/LawFirmHomepage.tsx`):
+  - Removed section-level gradient and pattern overlays; section background is now transparent so the hero spirograph can remain visible underneath while rotating.
+  - Kept content above the spirograph using higher section/content z-index without adding opaque section backgrounds.
+  - Restyled headings/cards with brand-faithful palette from guidelines (`#210059`, `#5d00ff`, light lavender neutrals) and reduced decorative effects.
+- **Team Section** (`src/components/LawFirmHomepage.tsx`):
+  - Replaced gradient-heavy section treatment with clean solid brand-light backgrounds (`#f4f3ff` / `#f0f0ff`) and subtle indigo divider lines.
+  - Simplified cards to white surfaces with indigo borders/shadows and top accent rules, avoiding diffuse glow gradients.
+  - Updated typography and card accents to align with brand indigo hierarchy and cleaner enterprise tone.

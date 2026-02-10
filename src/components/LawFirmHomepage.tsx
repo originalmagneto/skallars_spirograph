@@ -448,14 +448,14 @@ export default function LawFirmHomepage() {
   ].join(' ');
   const teamTemplate = sectionTemplates.team;
   const teamSectionClass = teamTemplate === 'compact'
-    ? 'bg-gradient-to-b from-[#f6f3ff]/90 via-white to-[#f8fdfb]'
-    : 'bg-gradient-to-b from-[#f2edff] via-white to-[#eefaf5]';
+    ? 'bg-[#f4f3ff]'
+    : 'bg-[#f0f0ff]';
   const teamHeadingClass = teamTemplate === 'compact'
-    ? 'text-4xl md:text-5xl font-extrabold mb-4 text-center text-foreground tracking-tight'
-    : 'text-5xl font-extrabold mb-4 text-center text-foreground tracking-tight';
+    ? 'text-4xl md:text-5xl font-extrabold mb-4 text-center text-[#210059] tracking-tight'
+    : 'text-5xl font-extrabold mb-4 text-center text-[#210059] tracking-tight';
   const teamCardClass = teamTemplate === 'compact'
-    ? 'group relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 p-5 shadow-[0_18px_44px_-30px_rgba(28,15,49,0.7)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_24px_52px_-28px_rgba(33,0,89,0.48)]'
-    : 'group relative overflow-hidden rounded-3xl border border-white/70 bg-white/90 p-6 shadow-[0_26px_60px_-34px_rgba(28,15,49,0.72)] backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:border-primary/25 hover:shadow-[0_30px_65px_-30px_rgba(33,0,89,0.5)]';
+    ? 'group relative overflow-hidden rounded-2xl border border-[#210059]/12 bg-white p-5 shadow-[0_16px_38px_-30px_rgba(33,0,89,0.6)] transition-all duration-300 hover:-translate-y-1 hover:border-[#5d00ff]/35 hover:shadow-[0_24px_50px_-30px_rgba(33,0,89,0.66)]'
+    : 'group relative overflow-hidden rounded-3xl border border-[#210059]/14 bg-white p-6 shadow-[0_22px_54px_-34px_rgba(33,0,89,0.62)] transition-all duration-300 hover:-translate-y-2 hover:border-[#5d00ff]/35 hover:shadow-[0_32px_62px_-34px_rgba(33,0,89,0.7)]';
   const teamImageClass = teamTemplate === 'compact'
     ? 'w-44 h-44 mx-auto mb-5 relative'
     : 'w-60 h-60 mx-auto mb-6 relative';
@@ -554,22 +554,20 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-20 overflow-visible py-24 bg-transparent ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
-        <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
-        <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-        <div className="container mx-auto px-4 relative z-20">
+        <div className="container mx-auto px-4 relative z-30">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="text-4xl font-bold mb-4 text-foreground">
+            <h2 className="text-4xl font-bold mb-4 text-[#210059]">
               {t.services.title}
             </h2>
-            <p className="text-xl text-muted-foreground">
+            <p className="text-xl text-[#210059]/70">
               {t.services.subtitle}
             </p>
           </div>
           <div className="mt-10 grid grid-cols-1 gap-7 xl:grid-cols-[0.92fr,1.08fr]">
-            <div className="relative h-72 overflow-hidden rounded-3xl border border-primary/15 shadow-[0_30px_60px_-35px_rgba(33,0,89,0.55)]">
+            <div className="relative h-72 overflow-hidden rounded-3xl border border-[#210059]/20 shadow-[0_28px_58px_-38px_rgba(33,0,89,0.68)]">
               {images.map((src, index) => (
                 <img
                   key={`${src}-${index}`}
@@ -578,7 +576,7 @@ export default function LawFirmHomepage() {
                   className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${index === currentImageIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
                 />
               ))}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#110c19]/80 via-[#110c19]/35 to-transparent" />
+              <div className="absolute inset-0 bg-[#110c19]/58" />
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-2">{t.services.title}</p>
                 <p className="text-lg font-semibold leading-tight">{activeServiceTitle}</p>
@@ -594,10 +592,10 @@ export default function LawFirmHomepage() {
                   data-index={index}
                   onMouseEnter={() => selectServiceImage(index)}
                   onFocus={() => selectServiceImage(index)}
-                  className="group relative overflow-hidden rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-[0_16px_40px_-28px_rgba(33,0,89,0.45)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_24px_44px_-26px_rgba(33,0,89,0.5)]"
+                  className="group relative overflow-hidden rounded-2xl border border-[#210059]/14 bg-white/88 p-6 shadow-[0_14px_34px_-26px_rgba(33,0,89,0.54)] backdrop-blur-[2px] transition-all duration-300 hover:-translate-y-1 hover:border-[#5d00ff]/35 hover:shadow-[0_22px_46px_-28px_rgba(33,0,89,0.66)]"
                 >
                   <div
-                    className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-20"
+                    className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-12"
                     style={{
                       backgroundImage: `url(${images[index % Math.max(1, images.length)]})`,
                       backgroundSize: 'cover',
@@ -606,9 +604,9 @@ export default function LawFirmHomepage() {
                   />
                   <div className="relative z-10 flex items-center gap-3 mb-3">
                     {service.icon ? (
-                      <span className="text-xl text-accent">{service.icon}</span>
+                      <span className="text-xl text-[#5d00ff]">{service.icon}</span>
                     ) : (
-                      <Check className="text-accent" />
+                      <Check className="text-[#5d00ff]" />
                     )}
                     <h3 className="text-lg font-semibold text-foreground">
                       {service.title}
@@ -625,25 +623,23 @@ export default function LawFirmHomepage() {
       <section
         id="services"
         ref={servicesRef}
-        className={`relative z-10 overflow-hidden py-24 bg-gradient-to-b from-white/95 via-[#f7f4ff] to-white ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`relative z-20 overflow-visible py-24 bg-transparent ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="services"
       >
-        <div className="absolute inset-0 bg-pattern opacity-[0.03] mix-blend-multiply pointer-events-none" />
-        <div className="pointer-events-none absolute -top-32 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-        <div className="container mx-auto px-4 relative z-20">
+        <div className="container mx-auto px-4 relative z-30">
           <div className="flex flex-col gap-8 lg:flex-row">
             <div
               ref={stickyRef}
               className="lg:w-1/3 pr-8 lg:sticky lg:top-24 lg:self-start"
               style={{ height: "fit-content" }}
             >
-              <h2 className="text-4xl font-bold mb-6 text-foreground">
+              <h2 className="text-4xl font-bold mb-6 text-[#210059]">
                 {t.services.title}
               </h2>
-              <p className="text-xl text-muted-foreground mb-6">
+              <p className="text-xl text-[#210059]/70 mb-6">
                 {t.services.subtitle}
               </p>
-              <div className="relative h-72 overflow-hidden rounded-3xl border border-primary/15 shadow-[0_30px_60px_-35px_rgba(33,0,89,0.55)]">
+              <div className="relative h-72 overflow-hidden rounded-3xl border border-[#210059]/20 shadow-[0_28px_58px_-38px_rgba(33,0,89,0.68)]">
                 {images.map((src, index) => (
                   <img
                     key={`${src}-${index}`}
@@ -652,7 +648,7 @@ export default function LawFirmHomepage() {
                     className={`absolute inset-0 h-full w-full object-cover transition-all duration-700 ${index === currentImageIndex ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
                   />
                 ))}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#110c19]/80 via-[#110c19]/35 to-transparent" />
+                <div className="absolute inset-0 bg-[#110c19]/58" />
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                   <p className="text-xs uppercase tracking-[0.22em] text-white/70 mb-2">{t.services.title}</p>
                   <p className="text-lg font-semibold leading-tight">{activeServiceTitle}</p>
@@ -670,10 +666,10 @@ export default function LawFirmHomepage() {
                     data-index={index}
                     onMouseEnter={() => selectServiceImage(index)}
                     onFocus={() => selectServiceImage(index)}
-                    className="group relative overflow-hidden rounded-2xl border border-primary/10 bg-white/90 p-6 shadow-[0_18px_42px_-30px_rgba(33,0,89,0.48)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[0_28px_52px_-28px_rgba(33,0,89,0.52)]"
+                    className="group relative overflow-hidden rounded-2xl border border-[#210059]/14 bg-white/88 p-6 shadow-[0_16px_40px_-30px_rgba(33,0,89,0.58)] backdrop-blur-[2px] transition-all duration-300 hover:-translate-y-1 hover:border-[#5d00ff]/35 hover:shadow-[0_24px_50px_-30px_rgba(33,0,89,0.7)]"
                   >
                     <div
-                      className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-20"
+                      className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-12"
                       style={{
                         backgroundImage: `url(${images[index % Math.max(1, images.length)]})`,
                         backgroundSize: 'cover',
@@ -681,9 +677,9 @@ export default function LawFirmHomepage() {
                       }}
                     />
                     {service.icon ? (
-                      <span className="relative z-10 mt-0.5 flex-shrink-0 text-xl text-accent">{service.icon}</span>
+                      <span className="relative z-10 mt-0.5 flex-shrink-0 text-xl text-[#5d00ff]">{service.icon}</span>
                     ) : (
-                      <Check className="relative z-10 mt-1 flex-shrink-0 text-accent" />
+                      <Check className="relative z-10 mt-1 flex-shrink-0 text-[#5d00ff]" />
                     )}
                     <div className="relative z-10">
                       <h3 className="text-xl font-semibold mb-2 text-foreground">
@@ -708,8 +704,8 @@ export default function LawFirmHomepage() {
         className={`relative overflow-hidden py-24 reveal ${teamSectionClass} ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="team"
       >
-        <div className="pointer-events-none absolute -top-24 left-1/2 h-64 w-[28rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 right-[-8rem] h-80 w-80 rounded-full bg-accent/20 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[#210059]/16" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[#210059]/10" />
         <div className="container mx-auto px-4 relative z-10">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -721,7 +717,7 @@ export default function LawFirmHomepage() {
             {t.team.title}
           </motion.h2>
           {t.team.subtitle && (
-            <p className="mx-auto mb-12 max-w-2xl text-center text-base text-muted-foreground">
+            <p className="mx-auto mb-12 max-w-2xl text-center text-base text-[#210059]/70">
               {t.team.subtitle}
             </p>
           )}
@@ -731,9 +727,9 @@ export default function LawFirmHomepage() {
                 key={member.id}
                 className={teamCardClass}
               >
-                <div className="pointer-events-none absolute -right-16 -top-16 h-28 w-28 rounded-full bg-primary/10 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-0" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-[#210059]" />
                 <div className={teamImageClass}>
-                  <div className="h-full w-full overflow-hidden rounded-2xl border-2 border-white/80 shadow-md">
+                  <div className="h-full w-full overflow-hidden rounded-2xl border border-[#210059]/14 shadow-md">
                     <img
                       src={member.photo_url || "/placeholder-avatar.jpg"}
                       alt={member.name}
@@ -761,14 +757,14 @@ export default function LawFirmHomepage() {
                       {member.icon}
                     </div>
                   )}
-                  <h4 className="text-xl font-semibold mb-1 text-foreground group-hover:text-primary transition-colors">
+                  <h4 className="text-xl font-semibold mb-1 text-[#210059] transition-colors group-hover:text-[#3c00a3]">
                     {member.name}
                   </h4>
-                  <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <p className="mb-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#210059]/65">
                     {language === 'sk' ? member.role_sk : member.role_en}
                   </p>
                   {teamSettings.show_bio && (language === 'sk' ? member.bio_sk : member.bio_en) && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                    <p className="text-sm text-[#210059]/72 leading-relaxed">
                       {language === 'sk' ? member.bio_sk : member.bio_en}
                     </p>
                   )}
