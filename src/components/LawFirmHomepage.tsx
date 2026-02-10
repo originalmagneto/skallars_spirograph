@@ -464,7 +464,7 @@ export default function LawFirmHomepage() {
     hero: (
       <section
         id="home"
-        className={`min-h-screen flex items-center justify-center relative z-20 overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
+        className={`min-h-screen flex items-center justify-center relative overflow-visible pt-24 ${showSectionHighlights ? 'ring-2 ring-primary/60 ring-offset-2' : ''}`}
         data-admin-section="hero"
       >
         <Spirograph />
