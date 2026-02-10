@@ -251,12 +251,28 @@ const extractJsonText = (content: string) => {
     const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/);
     let cleanContent = jsonMatch ? jsonMatch[1] : content;
 
-    const firstOpen = cleanContent.indexOf('{');
-    const lastClose = cleanContent.lastIndexOf('}');
-    if (firstOpen !== -1 && lastClose !== -1) {
-        cleanContent = cleanContent.substring(firstOpen, lastClose + 1);
-    }
-    return cleanContent;
+    const findJsonCandidate = (text: string): string => {
+        const firstOpen = text.indexOf('{');
+        const lastClose = text.lastIndexOf('}');
+        if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+            const candidate = text.substring(firstOpen, lastClose + 1);
+            try {
+                JSON.parse(candidate);
+                return candidate;
+            } catch {
+                // If this block is invalid, maybe we captured garbage before the real JSON.
+                // Try finding the next '{' inside the current range.
+                const nextOpen = text.indexOf('{', firstOpen + 1);
+                if (nextOpen !== -1 && nextOpen < lastClose) {
+                    return findJsonCandidate(text.substring(nextOpen));
+                }
+            }
+            return candidate; // Fallback to the widest capture if recursive search fails
+        }
+        return text;
+    };
+
+    return findJsonCandidate(cleanContent);
 };
 
 const tryParseJson = (content: string) => {
@@ -680,7 +696,7 @@ ${toneBlock}
    - \`tags\`: Generate 5-8 relevant tags.
 
 ### OUTPUT FORMAT
-IMPORTANT: Return ONLY raw JSON. No markdown, no commentary. Even with Google grounding enabled, output JSON only.
+CRITICAL: Return ONLY valid raw JSON. Do NOT use markdown code blocks. Do NOT include any introductory text, thinking process, or tool logs.
 {
   "slug": "url-friendly-slug-from-title",
 ${jsonFields},
@@ -745,7 +761,7 @@ ${toneBlock}
 4. Do NOT write the full article—only the outline.
 
 ### OUTPUT FORMAT
-Return ONLY raw JSON. No markdown, no commentary. Even with grounding enabled, output JSON only.
+CRITICAL: Return ONLY valid raw JSON. Do NOT use markdown code blocks. Do NOT include any introductory text, thinking process, or tool logs.
 {
   "outline": [
     "H2: Section Title",
@@ -793,7 +809,7 @@ ${selectedStyle}
 ${toneBlock}
 
 ### OUTPUT FORMAT
-Return ONLY raw JSON. No markdown or commentary.
+CRITICAL: Return ONLY valid raw JSON. Do NOT use markdown code blocks. Do NOT include any introductory text, thinking process, or tool logs.
 {
   "summary": "2-4 sentence summary of the key findings",
   "key_points": ["bullet 1", "bullet 2", "bullet 3"],
