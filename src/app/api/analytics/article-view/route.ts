@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Article not found" }, { status: 404 });
     }
 
-    const h = headers();
+    const h = await headers();
     const ip = (h.get("x-forwarded-for") || "").split(",")[0]?.trim();
     const userAgent = h.get("user-agent") || "";
     const ipHash = ip ? createHash("sha256").update(ip).digest("hex") : null;

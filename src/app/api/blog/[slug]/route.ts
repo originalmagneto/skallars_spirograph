@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGhost } from '@/lib/ghost';
 import { MOCK_POSTS } from '@/lib/mockPosts';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-type Params = { params: { slug: string } };
+type RouteContext = { params: Promise<{ slug: string }> };
 
-export async function GET(req: NextRequest, { params }: Params) {
-  const { slug } = params;
+export async function GET(_req: NextRequest, context: RouteContext) {
+  const { slug } = await context.params;
 
   // Initialize Supabase client
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;

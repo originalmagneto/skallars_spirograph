@@ -5,12 +5,12 @@ import { headers } from 'next/headers';
 import { MOCK_POSTS } from '@/lib/mockPosts';
 import ArticleViewer from '@/components/ArticleViewer';
 
-type Params = { params: { slug: string } };
+type Params = { params: Promise<{ slug: string }> };
 
 export const revalidate = 30;
 
-function getBaseUrl() {
-  const h = headers();
+async function getBaseUrl() {
+  const h = await headers();
   const protocol = h.get('x-forwarded-proto') ?? 'http';
   const host = h.get('x-forwarded-host') ?? h.get('host');
   return `${protocol}://${host}`;
@@ -28,7 +28,7 @@ const getFirstField = (post: any, key: string) => {
 };
 
 async function getPost(slug: string) {
-  const base = getBaseUrl();
+  const base = await getBaseUrl();
   try {
     const res = await fetch(`${base}/api/blog/${slug}`, { next: { revalidate: 30 } });
     if (!res.ok) return MOCK_POSTS.find((p) => p.slug === slug) || null;
@@ -40,11 +40,11 @@ async function getPost(slug: string) {
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { slug } = params;
+  const { slug } = await params;
   const post = await getPost(slug);
   if (!post) return {};
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const title =
     getFirstField(post, 'meta_title') ||
     getFirstField(post, 'title') ||
@@ -92,11 +92,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function BlogPostPage({ params }: Params) {
-  const { slug } = params;
+  const { slug } = await params;
   const post = await getPost(slug);
   if (!post) return notFound();
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = await getBaseUrl();
   const canonical = `${baseUrl}/blog/${post.slug || slug}`;
   const title =
     getFirstField(post, 'meta_title') ||

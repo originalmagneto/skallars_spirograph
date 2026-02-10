@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
     "seo_home_og_image",
   ]);
 
-  const baseUrl = getBaseUrlFromHeaders();
+  const baseUrl = await getBaseUrlFromHeaders();
   const title = settings.seo_home_title || defaults.title;
   const description = settings.seo_home_description || defaults.description;
   const ogImage = settings.seo_home_og_image;
