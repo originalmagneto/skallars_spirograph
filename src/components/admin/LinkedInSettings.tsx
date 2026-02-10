@@ -30,6 +30,8 @@ type LinkedInOrg = { urn: string; name: string };
 
 type LinkedInLog = {
     id: string;
+    article_id?: string | null;
+    article_title?: string | null;
     status: string;
     share_target: string | null;
     visibility: string | null;
@@ -608,7 +610,17 @@ export default function LinkedInSettings() {
                         Primary flow: connect LinkedIn, load organizations, save default URN.
                     </span>
                 </AdminActionBar>
+            </AdminSectionCard>
 
+            <AdminSectionCard className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <div className="text-sm font-semibold">LinkedIn Metrics & Activity</div>
+                        <p className="text-xs text-muted-foreground">
+                            Share logs, article-level context, and engagement metrics.
+                        </p>
+                    </div>
+                </div>
                 <div className="rounded-lg border bg-white p-2">
                     {settingsMode === "simple" ? (
                         <div className="px-3 py-2 text-xs text-muted-foreground">
@@ -655,65 +667,80 @@ export default function LinkedInSettings() {
                                         </Button>
                                     </div>
                                 </div>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Target</TableHead>
-                                            <TableHead>Created</TableHead>
-                                            <TableHead>Impr.</TableHead>
-                                            <TableHead>Reactions</TableHead>
-                                            <TableHead>Comments</TableHead>
-                                            <TableHead>Shares</TableHead>
-                                            <TableHead>Clicks</TableHead>
-                                            <TableHead>Post</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {logs.length === 0 && (
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell colSpan={9} className="text-muted-foreground">
-                                                    No LinkedIn shares yet.
-                                                </TableCell>
+                                                <TableHead>Article</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Target</TableHead>
+                                                <TableHead>Created</TableHead>
+                                                <TableHead>Impr.</TableHead>
+                                                <TableHead>Reactions</TableHead>
+                                                <TableHead>Comments</TableHead>
+                                                <TableHead>Shares</TableHead>
+                                                <TableHead>Clicks</TableHead>
+                                                <TableHead>Post</TableHead>
                                             </TableRow>
-                                        )}
-                                        {logs.map((log) => {
-                                            const entry = analyticsByLogId.get(log.id);
-                                            const metrics = entry?.metrics || null;
-                                            return (
-                                                <TableRow key={log.id}>
-                                                    <TableCell>
-                                                        <Badge variant={log.status === "success" ? "secondary" : "destructive"}>
-                                                            {log.status}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>{log.share_target || "member"}</TableCell>
-                                                    <TableCell>{formatDate(log.created_at)}</TableCell>
-                                                    <TableCell>{metrics?.impressionCount ?? "—"}</TableCell>
-                                                    <TableCell>{metrics?.likeCount ?? "—"}</TableCell>
-                                                    <TableCell>{metrics?.commentCount ?? "—"}</TableCell>
-                                                    <TableCell>{metrics?.shareCount ?? "—"}</TableCell>
-                                                    <TableCell>{metrics?.clickCount ?? "—"}</TableCell>
-                                                    <TableCell>
-                                                        {log.share_url ? (
-                                                            <a
-                                                                href={log.share_url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="inline-flex items-center gap-1 text-primary hover:underline"
-                                                            >
-                                                                View
-                                                                <ExternalLink className="h-3 w-3" />
-                                                            </a>
-                                                        ) : (
-                                                            <span className="text-muted-foreground">—</span>
-                                                        )}
+                                        </TableHeader>
+                                        <TableBody>
+                                            {logs.length === 0 && (
+                                                <TableRow>
+                                                    <TableCell colSpan={10} className="text-muted-foreground">
+                                                        No LinkedIn shares yet.
                                                     </TableCell>
                                                 </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                            )}
+                                            {logs.map((log) => {
+                                                const entry = analyticsByLogId.get(log.id);
+                                                const metrics = entry?.metrics || null;
+                                                return (
+                                                    <TableRow key={log.id}>
+                                                        <TableCell>
+                                                            {log.article_id ? (
+                                                                <a
+                                                                    href={`/admin?workspace=publishing&tab=article-studio&edit=${log.article_id}`}
+                                                                    className="text-primary hover:underline"
+                                                                >
+                                                                    {log.article_title || `Article ${log.article_id.slice(0, 8)}…`}
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-muted-foreground">—</span>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant={log.status === "success" ? "secondary" : "destructive"}>
+                                                                {log.status}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell>{log.share_target || "member"}</TableCell>
+                                                        <TableCell>{formatDate(log.created_at)}</TableCell>
+                                                        <TableCell>{metrics?.impressionCount ?? "—"}</TableCell>
+                                                        <TableCell>{metrics?.likeCount ?? "—"}</TableCell>
+                                                        <TableCell>{metrics?.commentCount ?? "—"}</TableCell>
+                                                        <TableCell>{metrics?.shareCount ?? "—"}</TableCell>
+                                                        <TableCell>{metrics?.clickCount ?? "—"}</TableCell>
+                                                        <TableCell>
+                                                            {log.share_url ? (
+                                                                <a
+                                                                    href={log.share_url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                                                                >
+                                                                    View
+                                                                    <ExternalLink className="h-3 w-3" />
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-muted-foreground">—</span>
+                                                            )}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </AccordionContent>
                         </AccordionItem>
 
@@ -730,35 +757,37 @@ export default function LinkedInSettings() {
                                         {scheduledLoading ? "Refreshing…" : "Refresh schedule"}
                                     </Button>
                                 </div>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Target</TableHead>
-                                            <TableHead>Scheduled</TableHead>
-                                            <TableHead>Visibility</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {scheduled.length === 0 && (
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-muted-foreground">
-                                                    No scheduled LinkedIn shares.
-                                                </TableCell>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Target</TableHead>
+                                                <TableHead>Scheduled</TableHead>
+                                                <TableHead>Visibility</TableHead>
                                             </TableRow>
-                                        )}
-                                        {scheduled.map((item) => (
-                                            <TableRow key={item.id}>
-                                                <TableCell>
-                                                    <Badge variant="outline">{item.status}</Badge>
-                                                </TableCell>
-                                                <TableCell>{item.share_target || "member"}</TableCell>
-                                                <TableCell>{formatDate(item.scheduled_at)}</TableCell>
-                                                <TableCell>{item.visibility || "PUBLIC"}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {scheduled.length === 0 && (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="text-muted-foreground">
+                                                        No scheduled LinkedIn shares.
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                            {scheduled.map((item) => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell>
+                                                        <Badge variant="outline">{item.status}</Badge>
+                                                    </TableCell>
+                                                    <TableCell>{item.share_target || "member"}</TableCell>
+                                                    <TableCell>{formatDate(item.scheduled_at)}</TableCell>
+                                                    <TableCell>{item.visibility || "PUBLIC"}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>

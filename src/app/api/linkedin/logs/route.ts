@@ -14,6 +14,13 @@ import type { LinkedInInteractionMetrics } from '@/lib/linkedinMetrics';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const getArticleTitle = (article: any): string | null =>
+  article?.title_sk ||
+  article?.title_en ||
+  article?.title_de ||
+  article?.title_cn ||
+  null;
+
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
@@ -44,14 +51,14 @@ export async function GET(req: NextRequest) {
     };
 
     let logsSelect =
-      'id, status, share_target, visibility, share_url, error_message, created_at, provider_response, share_mode';
+      'id, article_id, status, share_target, visibility, share_url, error_message, created_at, provider_response, share_mode';
     let { data, error } = await buildQuery(logsSelect);
     let hasShareMode = true;
 
     if (error && isMissingColumnError(error, 'share_mode')) {
       hasShareMode = false;
       logsSelect =
-        'id, status, share_target, visibility, share_url, error_message, created_at, provider_response';
+        'id, article_id, status, share_target, visibility, share_url, error_message, created_at, provider_response';
       const fallback = await buildQuery(logsSelect);
       data = fallback.data;
       error = fallback.error;
@@ -61,6 +68,7 @@ export async function GET(req: NextRequest) {
 
     const rows = (data || []) as unknown as Array<{
       id: string;
+      article_id?: string | null;
       status: string;
       share_target: string | null;
       share_mode?: string | null;
@@ -71,10 +79,32 @@ export async function GET(req: NextRequest) {
       provider_response?: any;
     }>;
 
+    const articleIds = Array.from(
+      new Set(
+        rows
+          .map((row) => row.article_id || null)
+          .filter(Boolean)
+      )
+    ) as string[];
+    const articleTitleById = new Map<string, string>();
+    if (articleIds.length > 0) {
+      const { data: articles } = await supabase
+        .from('articles')
+        .select('id, title_sk, title_en, title_de, title_cn')
+        .in('id', articleIds);
+      (articles || []).forEach((article: any) => {
+        const title = getArticleTitle(article);
+        if (!article?.id || !title) return;
+        articleTitleById.set(article.id, title);
+      });
+    }
+
     if (!includeMetrics) {
       return NextResponse.json({
         logs: rows.map((row) => ({
           id: row.id,
+          article_id: row.article_id || null,
+          article_title: row.article_id ? articleTitleById.get(row.article_id) || null : null,
           status: row.status,
           share_target: row.share_target,
           share_mode: hasShareMode ? row.share_mode || null : null,
@@ -164,6 +194,8 @@ export async function GET(req: NextRequest) {
       const hasMetrics = Object.values(metrics).some((value) => value !== null);
       return {
         id: row.id,
+        article_id: row.article_id || null,
+        article_title: row.article_id ? articleTitleById.get(row.article_id) || null : null,
         status: row.status,
         share_target: row.share_target,
         share_mode: hasShareMode ? row.share_mode || null : null,
