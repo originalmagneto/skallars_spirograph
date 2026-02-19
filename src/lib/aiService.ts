@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { AI_PROMPT_DEFAULTS } from "@/lib/aiSettings";
 
 export interface GeneratedArticle {
     slug?: string;  // URL-friendly identifier
@@ -1167,9 +1168,9 @@ export async function generateAIArticle(
     let { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
     const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
     const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
-    const articleDefaultInstructions = (await getSetting('gemini_article_prompt_default_instructions') || '').trim();
-    const slovakNativeInstructions = (await getSetting('gemini_article_prompt_slovak_native_instructions') || '').trim();
-    const translationDefaultInstructions = (await getSetting('gemini_translation_prompt_default_instructions') || '').trim();
+    const articleDefaultInstructions = (await getSetting('gemini_article_prompt_default_instructions') || AI_PROMPT_DEFAULTS.articleDefaultInstructions).trim();
+    const slovakNativeInstructions = (await getSetting('gemini_article_prompt_slovak_native_instructions') || AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions).trim();
+    const translationDefaultInstructions = (await getSetting('gemini_translation_prompt_default_instructions') || AI_PROMPT_DEFAULTS.translationDefaultInstructions).trim();
 
     // Reliability mode: for multi-language generation, produce one primary language first
     // and translate it into remaining languages in separate structured calls.

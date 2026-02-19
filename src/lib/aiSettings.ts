@@ -32,6 +32,23 @@ const DEFAULTS = {
     geminiModel: "gemini-2.0-flash",
     geminiImageModel: "imagen-3.0-generate-001",
     imageEngine: "gemini" as const,
+    geminiArticlePromptDefaultInstructions: [
+        "Write with senior legal-advisory clarity for Central European business clients.",
+        "Prioritize concrete implications, obligations, risks, and practical next steps.",
+        "Avoid filler and generic AI phrasing.",
+        "Use concise paragraphs and precise wording."
+    ].join(" "),
+    geminiArticlePromptSlovakNativeInstructions: [
+        "Píš prirodzenou, súčasnou slovenčinou používanej v právnej a biznis komunikácii na Slovensku.",
+        "Vyhni sa doslovným kalkom z angličtiny a neprirodzeným prekladovým väzbám.",
+        "Uprednostni idiomatické formulácie, prirodzený slovosled a terminológiu zaužívanú v slovenskej právnej praxi.",
+        "Tonálne: odborné, vecné, dôveryhodné; bez marketingového pátosu."
+    ].join(" "),
+    geminiTranslationPromptDefaultInstructions: [
+        "Translate for native readability and legal precision, not literal sentence mapping.",
+        "Preserve meaning, legal nuance, HTML structure, links, and citations.",
+        "Prefer target-language idioms and professional register used by local legal practitioners."
+    ].join(" "),
 };
 
 const toNumber = (value?: string | null) => {
@@ -55,9 +72,9 @@ export const fetchAISettings = async (): Promise<AISettingsSnapshot> => {
         geminiImageModel: map.gemini_image_model || DEFAULTS.geminiImageModel,
         geminiArticleModel: map.gemini_article_model || null,
         geminiArticleThinkingBudget: toNumber(map.gemini_article_thinking_budget),
-        geminiArticlePromptDefaultInstructions: map.gemini_article_prompt_default_instructions || null,
-        geminiArticlePromptSlovakNativeInstructions: map.gemini_article_prompt_slovak_native_instructions || null,
-        geminiTranslationPromptDefaultInstructions: map.gemini_translation_prompt_default_instructions || null,
+        geminiArticlePromptDefaultInstructions: map.gemini_article_prompt_default_instructions || DEFAULTS.geminiArticlePromptDefaultInstructions,
+        geminiArticlePromptSlovakNativeInstructions: map.gemini_article_prompt_slovak_native_instructions || DEFAULTS.geminiArticlePromptSlovakNativeInstructions,
+        geminiTranslationPromptDefaultInstructions: map.gemini_translation_prompt_default_instructions || DEFAULTS.geminiTranslationPromptDefaultInstructions,
         imageEngine,
         priceInputPerM: toNumber(map.gemini_price_input_per_million),
         priceOutputPerM: toNumber(map.gemini_price_output_per_million),
@@ -68,6 +85,12 @@ export const fetchAISettings = async (): Promise<AISettingsSnapshot> => {
         geminiQuotaMonthlyUsd: toNumber(map.gemini_quota_monthly_usd),
         geminiRequestCooldownSeconds: toNumber(map.gemini_request_cooldown_seconds),
     };
+};
+
+export const AI_PROMPT_DEFAULTS = {
+    articleDefaultInstructions: DEFAULTS.geminiArticlePromptDefaultInstructions,
+    articleSlovakNativeInstructions: DEFAULTS.geminiArticlePromptSlovakNativeInstructions,
+    translationDefaultInstructions: DEFAULTS.geminiTranslationPromptDefaultInstructions,
 };
 
 export const resolveImageKey = (settings: AISettingsSnapshot) => {

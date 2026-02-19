@@ -24,6 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import AIUsageStats from './AIUsageStats';
 import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
+import { AI_PROMPT_DEFAULTS } from '@/lib/aiSettings';
 
 interface GeminiModel {
     name: string;
@@ -31,6 +32,46 @@ interface GeminiModel {
     description: string;
     supportedGenerationMethods: string[];
 }
+
+const PROMPT_DEFAULT_SETTINGS: Array<{ key: string; value: string; description: string }> = [
+    {
+        key: 'gemini_article_prompt_default_instructions',
+        value: AI_PROMPT_DEFAULTS.articleDefaultInstructions,
+        description: 'Default article prompt instructions appended to all article generations'
+    },
+    {
+        key: 'gemini_article_prompt_slovak_native_instructions',
+        value: AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions,
+        description: 'Slovak-native writing constraints for article generation and translation'
+    },
+    {
+        key: 'gemini_translation_prompt_default_instructions',
+        value: AI_PROMPT_DEFAULTS.translationDefaultInstructions,
+        description: 'Default translation prompt instructions for multilingual article translation calls'
+    }
+];
+
+const applyPromptDefaults = (rows: any[] = []) => {
+    const next = [...rows];
+    for (const defaultSetting of PROMPT_DEFAULT_SETTINGS) {
+        const index = next.findIndex((setting) => setting.key === defaultSetting.key);
+        if (index === -1) {
+            next.push(defaultSetting);
+            continue;
+        }
+
+        const existing = next[index];
+        const existingValue = typeof existing?.value === 'string' ? existing.value.trim() : '';
+        if (!existingValue) {
+            next[index] = {
+                ...existing,
+                value: defaultSetting.value,
+                description: existing?.description || defaultSetting.description
+            };
+        }
+    }
+    return next;
+};
 
 const AISettings = () => {
     const [settings, setSettings] = useState<any[]>([]);
@@ -57,15 +98,16 @@ const AISettings = () => {
                 .order('key');
 
             if (error) throw error;
-            setSettings(data || []);
-            const storedImageModel = data?.find(s => s.key === 'gemini_image_model')?.value;
+            const normalizedSettings = applyPromptDefaults(data || []);
+            setSettings(normalizedSettings);
+            const storedImageModel = normalizedSettings.find(s => s.key === 'gemini_image_model')?.value;
             if (storedImageModel) {
                 setCustomImageModel(storedImageModel);
             }
 
             // If we have an API key, try to verify it
-            const apiKey = data?.find(s => s.key === 'gemini_api_key')?.value;
-            const imageApiKey = data?.find(s => s.key === 'gemini_image_api_key')?.value;
+            const apiKey = normalizedSettings.find(s => s.key === 'gemini_api_key')?.value;
+            const imageApiKey = normalizedSettings.find(s => s.key === 'gemini_image_api_key')?.value;
             if (apiKey || imageApiKey) {
                 verifyApiKeys(apiKey, imageApiKey, false);
             }
@@ -232,9 +274,9 @@ const AISettings = () => {
             { key: 'gemini_image_api_key', value: '', description: 'Optional: API Key for Gemini Image generation' },
             { key: 'gemini_model', value: '', description: 'Selected Gemini model for text generation' },
             { key: 'gemini_request_budget_usd', value: '', description: 'Optional: per-request USD budget cap in Article Studio' },
-            { key: 'gemini_article_prompt_default_instructions', value: '', description: 'Optional: default article prompt instructions appended to all article generations' },
-            { key: 'gemini_article_prompt_slovak_native_instructions', value: '', description: 'Optional: Slovak-native writing constraints for article generation and translation' },
-            { key: 'gemini_translation_prompt_default_instructions', value: '', description: 'Optional: default translation prompt instructions for multilingual article translation calls' },
+            { key: 'gemini_article_prompt_default_instructions', value: AI_PROMPT_DEFAULTS.articleDefaultInstructions, description: 'Default article prompt instructions appended to all article generations' },
+            { key: 'gemini_article_prompt_slovak_native_instructions', value: AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions, description: 'Slovak-native writing constraints for article generation and translation' },
+            { key: 'gemini_translation_prompt_default_instructions', value: AI_PROMPT_DEFAULTS.translationDefaultInstructions, description: 'Default translation prompt instructions for multilingual article translation calls' },
             { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
             { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
             { key: 'gemini_price_input_per_million', value: '', description: 'Optional: price per 1M input tokens (USD)' },
@@ -255,9 +297,9 @@ const AISettings = () => {
     const selectedModel = settings.find(s => s.key === 'gemini_model')?.value || '';
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
     const requestBudgetUsd = settings.find(s => s.key === 'gemini_request_budget_usd')?.value || '';
-    const articlePromptDefaults = settings.find(s => s.key === 'gemini_article_prompt_default_instructions')?.value || '';
-    const articlePromptSlovakNative = settings.find(s => s.key === 'gemini_article_prompt_slovak_native_instructions')?.value || '';
-    const translationPromptDefaults = settings.find(s => s.key === 'gemini_translation_prompt_default_instructions')?.value || '';
+    const articlePromptDefaults = settings.find(s => s.key === 'gemini_article_prompt_default_instructions')?.value || AI_PROMPT_DEFAULTS.articleDefaultInstructions;
+    const articlePromptSlovakNative = settings.find(s => s.key === 'gemini_article_prompt_slovak_native_instructions')?.value || AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions;
+    const translationPromptDefaults = settings.find(s => s.key === 'gemini_translation_prompt_default_instructions')?.value || AI_PROMPT_DEFAULTS.translationDefaultInstructions;
     const priceInput = settings.find(s => s.key === 'gemini_price_input_per_million')?.value || '';
     const priceOutput = settings.find(s => s.key === 'gemini_price_output_per_million')?.value || '';
     const quotaDailyTokens = settings.find(s => s.key === 'gemini_quota_daily_tokens')?.value || '';

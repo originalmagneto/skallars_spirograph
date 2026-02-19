@@ -31,6 +31,8 @@ npm run start
 ## Core AI Files
 - Article + AI logic:
   - `src/lib/aiService.ts`
+- AI prompt defaults + settings snapshot fallback:
+  - `src/lib/aiSettings.ts`
 - Admin generation UI:
   - `src/components/admin/AILab.tsx`
 - AI settings UI:

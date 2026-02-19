@@ -123,6 +123,32 @@ Implementation reference:
 - Apply them at runtime in generation + translation prompt builders.
 - Mirror them in prompt-preview UI so operators see effective prompt text before generation.
 
+### Production Default Prompt Text (Current App)
+These defaults are now used as runtime fallback and in AI Settings initialization.
+
+`gemini_article_prompt_default_instructions`:
+```text
+Write with senior legal-advisory clarity for Central European business clients.
+Prioritize concrete implications, obligations, risks, and practical next steps.
+Avoid filler and generic AI phrasing.
+Use concise paragraphs and precise wording.
+```
+
+`gemini_article_prompt_slovak_native_instructions`:
+```text
+Píš prirodzenou, súčasnou slovenčinou používanej v právnej a biznis komunikácii na Slovensku.
+Vyhni sa doslovným kalkom z angličtiny a neprirodzeným prekladovým väzbám.
+Uprednostni idiomatické formulácie, prirodzený slovosled a terminológiu zaužívanú v slovenskej právnej praxi.
+Tonálne: odborné, vecné, dôveryhodné; bez marketingového pátosu.
+```
+
+`gemini_translation_prompt_default_instructions`:
+```text
+Translate for native readability and legal precision, not literal sentence mapping.
+Preserve meaning, legal nuance, HTML structure, links, and citations.
+Prefer target-language idioms and professional register used by local legal practitioners.
+```
+
 ## Token Budgeting Rules (Recommended)
 1. Hard-cap generation attempts per click.
 2. Prefer deterministic transforms (parse/repair/fill) over new generation calls.

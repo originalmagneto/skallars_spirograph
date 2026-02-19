@@ -360,6 +360,7 @@ High-impact mismatches found and now resolved:
     - `gemini_article_prompt_default_instructions`
     - `gemini_article_prompt_slovak_native_instructions`
     - `gemini_translation_prompt_default_instructions`
+  - Added production default values for all three keys and runtime fallback wiring so generation uses them even when settings rows are missing.
   - Runtime wiring applies these defaults to:
     - primary article generation prompt
     - multilingual translation prompt pipeline
