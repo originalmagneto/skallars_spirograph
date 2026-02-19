@@ -17,7 +17,27 @@ const toOrgUrn = (value?: string | null) => {
   return null;
 };
 
-const getSiteUrl = () => process.env.NEXT_PUBLIC_SITE_URL || '';
+const normalizeSiteUrl = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const parsed = new URL(withProtocol);
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+};
+
+const resolveSiteUrl = (origin?: string | null) =>
+  normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL) ||
+  normalizeSiteUrl(process.env.URL) ||
+  normalizeSiteUrl(process.env.DEPLOY_PRIME_URL) ||
+  normalizeSiteUrl(process.env.DEPLOY_URL) ||
+  normalizeSiteUrl(process.env.SITE_URL) ||
+  normalizeSiteUrl(origin || null) ||
+  '';
 
 const registerLinkedInImage = async (
   accessToken: string,
@@ -99,6 +119,7 @@ const insertShareLog = async (supabase: ReturnType<typeof getSupabaseAdmin>, pay
 export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   const schedulerSecret = process.env.LINKEDIN_SCHEDULER_SECRET;
+  const siteUrl = resolveSiteUrl(req.nextUrl?.origin || null);
   try {
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -186,7 +207,7 @@ export async function POST(req: NextRequest) {
         : [];
       const hasOrgScope = scopes.includes('w_organization_social') || scopes.includes('r_organization_social');
 
-      let linkUrl = getSiteUrl();
+      let linkUrl = siteUrl;
       let title: string | null = null;
       let excerpt: string | null = null;
 
@@ -196,8 +217,8 @@ export async function POST(req: NextRequest) {
           .select('slug, title_sk, title_en, title_de, title_cn, excerpt_sk, excerpt_en, excerpt_de, excerpt_cn')
           .eq('id', item.article_id)
           .maybeSingle();
-        if (article?.slug) {
-          linkUrl = `${getSiteUrl()}/blog/${article.slug}`;
+        if (article?.slug && siteUrl) {
+          linkUrl = `${siteUrl}/blog/${article.slug}`;
         }
         title =
           article?.title_sk ||

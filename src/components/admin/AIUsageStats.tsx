@@ -338,7 +338,7 @@ const AIUsageStats = () => {
             monthCost,
         });
         setUserStats(Array.from(userMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
-        setMonthlyStats(Array.from(monthMap.values()).sort((a, b) => b.month.localeCompare(a.month)));
+        setMonthlyStats(Array.from(monthMap.values()).sort((a, b) => b.month.localeCompare(a.month)).slice(0, 12));
         setDailyStats(rollingDailyStats);
         setModelStats(Array.from(modelMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));
         setActionStats(Array.from(actionMap.values()).sort((a, b) => b.totalTokens - a.totalTokens));

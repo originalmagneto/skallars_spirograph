@@ -346,6 +346,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const estimateRequestTokens = () => {
         const validLinks = links.filter((l) => l.trim() !== '');
         const promptValue = showPromptEditor ? customPrompt : prompt;
+        const languageCount = Math.max(1, targetLanguages.length || 1);
+        const additionalLanguages = Math.max(0, languageCount - 1);
         const promptChars = [
             promptValue,
             toneInstructions,
@@ -354,8 +356,31 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             targetLanguages.join(','),
             ...validLinks
         ].join(' ').length;
-        const promptTokens = Math.ceil(promptChars / 3.8) + (researchMode === 'deep' ? 1400 : 350);
-        const outputTokens = Math.ceil(targetWordCount * 1.8) + (useOutlineWorkflow ? 250 : 0) + Math.max(0, thinkingBudget || 0);
+        const primaryPromptTokens = Math.ceil(promptChars / 3.8);
+        const primaryPromptOverhead = researchMode === 'deep' ? 1400 : (researchMode === 'grounding' ? 550 : 350);
+        const primaryOutputTokens = Math.ceil(targetWordCount * 1.8) + (useOutlineWorkflow ? 250 : 0) + Math.max(0, thinkingBudget || 0);
+
+        // In multilingual reliability mode we generate one primary language and run
+        // one translation call per additional language.
+        const translationInputTokensPerLanguage = Math.ceil(primaryOutputTokens * 0.6 + 240);
+        const translationOutputTokensPerLanguage = Math.ceil(primaryOutputTokens * 0.9);
+
+        let promptTokens =
+            primaryPromptTokens +
+            primaryPromptOverhead +
+            additionalLanguages * translationInputTokensPerLanguage;
+        let outputTokens =
+            primaryOutputTokens +
+            additionalLanguages * translationOutputTokensPerLanguage;
+
+        // Deep mode runs a dedicated research pre-pass before article generation.
+        if (researchMode === 'deep') {
+            const researchPromptTokens = Math.ceil((promptChars + validLinks.join(' ').length) / 3.8) + 800;
+            const researchOutputTokens = Math.max(450, Math.ceil(targetWordCount * 0.5));
+            promptTokens += researchPromptTokens;
+            outputTokens += researchOutputTokens;
+        }
+
         return {
             promptTokens,
             outputTokens,

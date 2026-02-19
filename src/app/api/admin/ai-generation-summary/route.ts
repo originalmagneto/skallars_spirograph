@@ -21,6 +21,14 @@ const toDayKey = (value: string) => {
   return date.toISOString().slice(0, 10);
 };
 
+const normalizeStatus = (value: unknown): GenerationStatus => {
+  if (value === 'started') return 'started';
+  if (value === 'succeeded') return 'succeeded';
+  if (value === 'failed') return 'failed';
+  if (value === 'aborted') return 'aborted';
+  return 'unknown';
+};
+
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
@@ -43,7 +51,8 @@ export async function GET(req: NextRequest) {
 
     let query = supabase
       .from('ai_generation_logs')
-      .select('status, created_at')
+      .select('request_id, status, created_at')
+      .eq('action', 'generate_article')
       .order('created_at', { ascending: false })
       .limit(5000);
     if (!canViewGlobal) {
@@ -52,6 +61,16 @@ export async function GET(req: NextRequest) {
 
     const { data: rows, error } = await query;
     if (error) throw error;
+
+    const byRequest = new Map<string, { created_at: string; status: GenerationStatus }>();
+    (rows || []).forEach((row: any, index: number) => {
+      const requestId = row?.request_id || `legacy-${row?.created_at || 'unknown'}-${index}`;
+      if (byRequest.has(requestId)) return;
+      byRequest.set(requestId, {
+        created_at: row?.created_at || '',
+        status: normalizeStatus(row?.status),
+      });
+    });
 
     const totals = {
       total: 0,
@@ -64,8 +83,8 @@ export async function GET(req: NextRequest) {
 
     const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
     const dayMap = new Map<string, DaySummary>();
-    (rows || []).forEach((row: any) => {
-      const status = (row?.status || 'unknown') as GenerationStatus;
+    Array.from(byRequest.values()).forEach((row) => {
+      const status = row.status;
       totals.total += 1;
       if (status === 'succeeded') totals.succeeded += 1;
       else if (status === 'failed') totals.failed += 1;
@@ -73,9 +92,9 @@ export async function GET(req: NextRequest) {
       else if (status === 'started') totals.started += 1;
       else totals.unknown += 1;
 
-      const createdAt = new Date(row?.created_at || '').getTime();
+      const createdAt = new Date(row.created_at || '').getTime();
       if (Number.isNaN(createdAt) || createdAt < cutoff) return;
-      const day = toDayKey(row?.created_at || '');
+      const day = toDayKey(row.created_at || '');
       if (!day) return;
       const existing =
         dayMap.get(day) ||
@@ -103,10 +122,10 @@ export async function GET(req: NextRequest) {
       windowDays: 14,
       canViewGlobal,
       rowCount: rows?.length || 0,
+      requestCount: byRequest.size,
       cap: 5000,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Failed to load generation summary.' }, { status: 500 });
   }
 }
-

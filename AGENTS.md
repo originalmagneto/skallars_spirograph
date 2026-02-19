@@ -377,3 +377,14 @@ High-impact mismatches found and now resolved:
   - Required settings keys and env vars.
   - Supabase SQL bootstrap order.
   - API surface summary and migration checklist.
+
+## Change Log (Feb 19, 2026 - Settings Stats + LinkedIn Reliability Audit)
+- Added targeted implementation/validation guide:
+  - `docs/settings-stats-linkedin-implementation.md`
+- Correctness fixes shipped:
+  - Preflight token/cost estimation now scales for multilingual generation + translation overhead in `src/components/admin/AILab.tsx`.
+  - Generation summary API now counts deduped generation requests (filters `action=generate_article`, groups by `request_id`) in `src/app/api/admin/ai-generation-summary/route.ts`.
+  - Monthly usage panel now enforces last-12-month window in `src/components/admin/AIUsageStats.tsx`.
+  - LinkedIn share and scheduled runner now resolve site URL with robust env fallback chain in:
+    - `src/app/api/linkedin/share/route.ts`
+    - `src/app/api/linkedin/run-scheduled/route.ts`

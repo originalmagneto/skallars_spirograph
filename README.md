@@ -27,6 +27,8 @@ npm run start
   - `docs/ai-content-pipeline-playbook.md`
 - Gemini article reliability deep-dive:
   - `docs/gemini-article-generation-playbook.md`
+- Settings stats + LinkedIn implementation and validation guide:
+  - `docs/settings-stats-linkedin-implementation.md`
 - Product plan:
   - `ROADMAP.md`
 
