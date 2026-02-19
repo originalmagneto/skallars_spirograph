@@ -334,7 +334,8 @@ ${rawContent}`;
             responseMimeType: "application/json",
             response_mime_type: "application/json",
             temperature: 0,
-            maxOutputTokens: 8192
+            // Repair payloads can be very large for multilingual Deep Dive outputs.
+            maxOutputTokens: 16384
         }
     };
 
@@ -959,24 +960,13 @@ export async function generateAIArticle(
         cn: 'Chinese (CN)',
     };
 
-    const injectCitations = (text: string, candidate: any) => {
-        const supports = candidate?.groundingMetadata?.groundingSupports;
-        const chunks = candidate?.groundingMetadata?.groundingChunks;
-        if (!supports || !chunks || !text) return text;
-        const sortedSupports = [...supports].sort((a: any, b: any) => (b.segment?.endIndex ?? 0) - (a.segment?.endIndex ?? 0));
-        let output = text;
-        for (const support of sortedSupports) {
-            const endIndex = support.segment?.endIndex;
-            if (endIndex === undefined || !support.groundingChunkIndices?.length) continue;
-            const links = support.groundingChunkIndices.map((i: number) => {
-                const uri = chunks[i]?.web?.uri;
-                return uri ? `[${i + 1}](${uri})` : null;
-            }).filter(Boolean);
-            if (links.length > 0) {
-                output = output.slice(0, endIndex) + " " + links.join(" ") + output.slice(endIndex);
-            }
-        }
-        return output;
+    const extractCandidateText = (candidate: any) => {
+        const parts = candidate?.content?.parts;
+        if (!Array.isArray(parts)) return '';
+        return parts
+            .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
+            .join('')
+            .trim();
     };
 
     const requestModelOutput = async (promptText: string, groundingEnabled = useGrounding) => {
@@ -1016,11 +1006,7 @@ export async function generateAIArticle(
 
         const result = await response.json();
         const candidate = result?.candidates?.[0];
-        let modelText = candidate?.content?.parts?.[0]?.text;
-
-        if (groundingEnabled && candidate?.groundingMetadata && modelText) {
-            modelText = injectCitations(modelText, candidate);
-        }
+        const modelText = extractCandidateText(candidate);
 
         if (!modelText) throw new Error(formatGeminiError(result));
         return {
@@ -1031,10 +1017,50 @@ export async function generateAIArticle(
     };
 
     try {
+        const collectedGroundingChunks: any[] = [];
+        const collectGroundingChunks = (metadata: any) => {
+            const chunks = metadata?.groundingChunks;
+            if (!Array.isArray(chunks)) return;
+            chunks.forEach((chunk: any) => {
+                const uri = chunk?.web?.uri;
+                if (!uri) return;
+                if (!collectedGroundingChunks.some((existing) => existing?.web?.uri === uri)) {
+                    collectedGroundingChunks.push(chunk);
+                }
+            });
+        };
+
+        const parseOrRepair = async (raw: string) => {
+            let parsed = tryParseJson(raw);
+            if (!parsed) {
+                parsed = await repairJsonWithGemini(raw, selectedModel, apiKey, signal);
+            }
+            return parsed;
+        };
+
         let output = await requestModelOutput(finalPrompt);
-        let parsedContent = tryParseJson(output.content);
-        if (!parsedContent) {
-            parsedContent = await repairJsonWithGemini(output.content, selectedModel, apiKey, signal);
+        collectGroundingChunks(output.groundingMetadata);
+        let parsedContent: any;
+        try {
+            parsedContent = await parseOrRepair(output.content);
+        } catch (parseError) {
+            if (!useGrounding) throw parseError;
+            const groundedSources = collectedGroundingChunks
+                .map((chunk: any) => chunk?.web?.uri)
+                .filter(Boolean)
+                .slice(0, 12) as string[];
+            const fallbackPrompt = `${finalPrompt}
+
+### JSON RECOVERY MODE
+The previous grounded response was not valid JSON. Regenerate with strict JSON only.
+- Return complete HTML article fields for all requested languages.
+- Keep source-backed claims where relevant.
+- Output raw JSON only.
+
+### Grounded URLs (for context)
+${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs returned.'}`;
+            output = await requestModelOutput(fallbackPrompt, false);
+            parsedContent = await parseOrRepair(output.content);
         }
 
         if (!hasCompleteMultilingualContent(parsedContent, targetLanguages) && links.length > 0) {
@@ -1046,13 +1072,14 @@ Your previous output was incomplete. You must return full HTML article bodies fo
 - Do not return title-only or excerpt-only output.
 - Return valid raw JSON only.`;
             output = await requestModelOutput(retryPrompt);
-            parsedContent = tryParseJson(output.content) || await repairJsonWithGemini(output.content, selectedModel, apiKey, signal);
+            collectGroundingChunks(output.groundingMetadata);
+            parsedContent = await parseOrRepair(output.content);
         }
 
         // If grounding flow still produced partial JSON, fall back to a schema-constrained pass
         // while preserving discovered source context from the grounded response.
         if (!hasCompleteMultilingualContent(parsedContent, targetLanguages) && useGrounding) {
-            const groundedSources = (output.groundingMetadata?.groundingChunks || [])
+            const groundedSources = collectedGroundingChunks
                 .map((chunk: any) => chunk?.web?.uri)
                 .filter(Boolean)
                 .slice(0, 12) as string[];
@@ -1067,7 +1094,7 @@ Grounded generation returned incomplete content. Regenerate with strict JSON com
 ### Grounded URLs (for context)
 ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs returned.'}`;
             output = await requestModelOutput(fallbackPrompt, false);
-            parsedContent = tryParseJson(output.content) || await repairJsonWithGemini(output.content, selectedModel, apiKey, signal);
+            parsedContent = await parseOrRepair(output.content);
         }
 
         if (!hasCompleteMultilingualContent(parsedContent, targetLanguages)) {
@@ -1114,14 +1141,12 @@ ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs return
         }
 
         // 2. Add grounding sources (AI discovered)
-        if (output.groundingMetadata?.groundingChunks) {
-            output.groundingMetadata.groundingChunks.forEach((chunk: any) => {
-                const uri = chunk.web?.uri;
-                if (uri && !combinedSources.some(existing => existing.url === uri)) {
-                    combinedSources.push({ url: uri, title: chunk.web?.title || uri });
-                }
-            });
-        }
+        collectedGroundingChunks.forEach((chunk: any) => {
+            const uri = chunk.web?.uri;
+            if (uri && !combinedSources.some(existing => existing.url === uri)) {
+                combinedSources.push({ url: uri, title: chunk.web?.title || uri });
+            }
+        });
 
         appendSources(combinedSources);
 
@@ -1136,7 +1161,7 @@ ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs return
 
         return parsedContent;
     } catch (e) {
-        console.error("Failed to parse Gemini response as JSON");
+        console.error("Failed to parse Gemini response as JSON", e);
         if (e instanceof Error && e.message) {
             throw e;
         }
