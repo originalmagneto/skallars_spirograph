@@ -48,6 +48,20 @@ export interface ResearchPack {
     };
 }
 
+export type RecoverableArticleGenerationError = Error & {
+    code?: 'ARTICLE_OUTPUT_RECOVERABLE';
+    rawOutput?: string;
+    model?: string;
+    targetLanguages?: string[];
+    groundedSources?: Array<{ title?: string; url?: string }>;
+};
+
+export const hasRecoverableArticleOutput = (error: unknown): error is RecoverableArticleGenerationError => {
+    if (!error || typeof error !== 'object') return false;
+    const rawOutput = (error as RecoverableArticleGenerationError).rawOutput;
+    return typeof rawOutput === 'string' && rawOutput.trim().length > 0;
+};
+
 const SETTINGS_CACHE_TTL_MS = 30_000;
 let settingsCache: Record<string, string> | null = null;
 let settingsCacheTs = 0;
@@ -284,6 +298,15 @@ const tryParseJson = (content: string) => {
     }
 };
 
+const extractTextFromCandidate = (candidate: any) => {
+    const parts = candidate?.content?.parts;
+    if (!Array.isArray(parts)) return '';
+    return parts
+        .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
+        .join('')
+        .trim();
+};
+
 /**
  * Convert common markdown syntax to HTML.
  * Handles **bold**, *italic*, __bold__, _italic_.
@@ -413,6 +436,72 @@ const addHeadingAnchors = (html: string) => {
         const anchor = `<a href="#${slug}" class="ghost-anchor-link anchor-link ml-2 text-primary opacity-0 group-hover:opacity-100">#</a>`;
         return `<h${level}${cleanedAttrs ? ' ' + cleanedAttrs : ''}${idAttr}${classAttr}>${inner}${anchor}</h${level}>`;
     });
+};
+
+const toUrlSlug = (value: string) => {
+    return value
+        .toLowerCase()
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/[^\p{L}\p{N}\s-]/gu, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+};
+
+const normalizeSourceList = (sources: Array<{ title?: string; url?: string }> = []) => {
+    const deduped: Array<{ title?: string; url?: string }> = [];
+    sources.forEach((source) => {
+        const url = source?.url?.trim();
+        if (!url) return;
+        if (deduped.some((item) => item.url === url)) return;
+        deduped.push({ url, title: source?.title?.trim() || url });
+    });
+    return deduped;
+};
+
+const finalizeRecoveredArticle = (
+    payload: any,
+    targetLanguages: string[],
+    extraSources: Array<{ title?: string; url?: string }> = []
+): GeneratedArticle => {
+    const result: GeneratedArticle = { ...(payload || {}) };
+
+    targetLanguages.forEach((lang) => {
+        const contentField = `content_${lang}` as keyof GeneratedArticle;
+        const currentValue = (result as any)[contentField];
+        if (typeof currentValue === 'string' && currentValue.trim()) {
+            (result as any)[contentField] = addHeadingAnchors(normalizeArticleHtml(convertMarkdownToHtml(currentValue)));
+        }
+    });
+
+    if (typeof (result as any).tags === 'string') {
+        result.tags = String((result as any).tags)
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean);
+    } else if (!Array.isArray(result.tags)) {
+        result.tags = [];
+    }
+
+    const mergedSources = normalizeSourceList([
+        ...(Array.isArray(result.sources) ? result.sources : []),
+        ...extraSources
+    ]);
+    if (mergedSources.length > 0) {
+        result.sources = mergedSources;
+    }
+
+    if (!result.slug) {
+        const fallbackTitle = targetLanguages
+            .map((lang) => (result as any)[`title_${lang}`])
+            .find((title) => typeof title === 'string' && title.trim().length > 0);
+        if (fallbackTitle) {
+            result.slug = toUrlSlug(fallbackTitle) || undefined;
+        }
+    }
+
+    return result;
 };
 
 const countWords = (html: string) => {
@@ -959,15 +1048,19 @@ export async function generateAIArticle(
         de: 'German (DE)',
         cn: 'Chinese (CN)',
     };
-
-    const extractCandidateText = (candidate: any) => {
-        const parts = candidate?.content?.parts;
-        if (!Array.isArray(parts)) return '';
-        return parts
-            .map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
-            .join('')
-            .trim();
+    const collectedGroundingChunks: any[] = [];
+    const collectGroundingChunks = (metadata: any) => {
+        const chunks = metadata?.groundingChunks;
+        if (!Array.isArray(chunks)) return;
+        chunks.forEach((chunk: any) => {
+            const uri = chunk?.web?.uri;
+            if (!uri) return;
+            if (!collectedGroundingChunks.some((existing) => existing?.web?.uri === uri)) {
+                collectedGroundingChunks.push(chunk);
+            }
+        });
     };
+    let latestRawOutput = '';
 
     const requestModelOutput = async (promptText: string, groundingEnabled = useGrounding) => {
         const body: any = {
@@ -1006,7 +1099,7 @@ export async function generateAIArticle(
 
         const result = await response.json();
         const candidate = result?.candidates?.[0];
-        const modelText = extractCandidateText(candidate);
+        const modelText = extractTextFromCandidate(candidate);
 
         if (!modelText) throw new Error(formatGeminiError(result));
         return {
@@ -1017,19 +1110,6 @@ export async function generateAIArticle(
     };
 
     try {
-        const collectedGroundingChunks: any[] = [];
-        const collectGroundingChunks = (metadata: any) => {
-            const chunks = metadata?.groundingChunks;
-            if (!Array.isArray(chunks)) return;
-            chunks.forEach((chunk: any) => {
-                const uri = chunk?.web?.uri;
-                if (!uri) return;
-                if (!collectedGroundingChunks.some((existing) => existing?.web?.uri === uri)) {
-                    collectedGroundingChunks.push(chunk);
-                }
-            });
-        };
-
         const parseOrRepair = async (raw: string) => {
             let parsed = tryParseJson(raw);
             if (!parsed) {
@@ -1039,6 +1119,7 @@ export async function generateAIArticle(
         };
 
         let output = await requestModelOutput(finalPrompt);
+        latestRawOutput = output.content;
         collectGroundingChunks(output.groundingMetadata);
         let parsedContent: any;
         try {
@@ -1060,6 +1141,7 @@ The previous grounded response was not valid JSON. Regenerate with strict JSON o
 ### Grounded URLs (for context)
 ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs returned.'}`;
             output = await requestModelOutput(fallbackPrompt, false);
+            latestRawOutput = output.content;
             parsedContent = await parseOrRepair(output.content);
         }
 
@@ -1072,6 +1154,7 @@ Your previous output was incomplete. You must return full HTML article bodies fo
 - Do not return title-only or excerpt-only output.
 - Return valid raw JSON only.`;
             output = await requestModelOutput(retryPrompt);
+            latestRawOutput = output.content;
             collectGroundingChunks(output.groundingMetadata);
             parsedContent = await parseOrRepair(output.content);
         }
@@ -1094,6 +1177,7 @@ Grounded generation returned incomplete content. Regenerate with strict JSON com
 ### Grounded URLs (for context)
 ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs returned.'}`;
             output = await requestModelOutput(fallbackPrompt, false);
+            latestRawOutput = output.content;
             parsedContent = await parseOrRepair(output.content);
         }
 
@@ -1163,10 +1247,127 @@ ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs return
     } catch (e) {
         console.error("Failed to parse Gemini response as JSON", e);
         if (e instanceof Error && e.message) {
+            if (latestRawOutput.trim()) {
+                const recoverableError = e as RecoverableArticleGenerationError;
+                recoverableError.code = 'ARTICLE_OUTPUT_RECOVERABLE';
+                recoverableError.rawOutput = latestRawOutput;
+                recoverableError.model = selectedModel;
+                recoverableError.targetLanguages = targetLanguages;
+                recoverableError.groundedSources = normalizeSourceList(
+                    collectedGroundingChunks.map((chunk: any) => ({
+                        url: chunk?.web?.uri,
+                        title: chunk?.web?.title
+                    }))
+                );
+            }
             throw e;
         }
-        throw new Error('Generated content was not in valid JSON format.');
+        const fallbackError: RecoverableArticleGenerationError = new Error('Generated content was not in valid JSON format.');
+        if (latestRawOutput.trim()) {
+            fallbackError.code = 'ARTICLE_OUTPUT_RECOVERABLE';
+            fallbackError.rawOutput = latestRawOutput;
+            fallbackError.model = selectedModel;
+            fallbackError.targetLanguages = targetLanguages;
+            fallbackError.groundedSources = normalizeSourceList(
+                collectedGroundingChunks.map((chunk: any) => ({
+                    url: chunk?.web?.uri,
+                    title: chunk?.web?.title
+                }))
+            );
+        }
+        throw fallbackError;
     }
+}
+
+export async function recoverAIArticleFromRawOutput(
+    rawOutput: string,
+    options: {
+        targetLanguages?: string[];
+        modelOverride?: string;
+        sources?: Array<{ title?: string; url?: string }>;
+        signal?: AbortSignal;
+    } = {}
+): Promise<GeneratedArticle> {
+    const cleanedRawOutput = String(rawOutput || '').trim();
+    if (!cleanedRawOutput) {
+        throw new Error('No recoverable output found. Generate again and retry recovery.');
+    }
+
+    const apiKey = await getSetting('gemini_api_key');
+    if (!apiKey) throw new Error('Gemini API Key not found in settings.');
+
+    const selectedModel = options.modelOverride || await getArticleModelSetting();
+    const targetLanguages = options.targetLanguages && options.targetLanguages.length > 0
+        ? options.targetLanguages
+        : ['sk', 'en', 'de', 'cn'];
+
+    let parsed: any = tryParseJson(cleanedRawOutput);
+    if (!parsed) {
+        try {
+            parsed = await repairJsonWithGemini(cleanedRawOutput, selectedModel, apiKey, options.signal);
+        } catch {
+            parsed = null;
+        }
+    }
+
+    if (!parsed) {
+        const recoveryPrompt = `You are a JSON formatter for a CMS.
+Convert the INPUT into strict JSON with this shape:
+- slug
+- title_*, excerpt_*, content_*, meta_title_*, meta_description_*, meta_keywords_* for requested languages
+- tags (array of strings)
+- sources (array of {title,url})
+
+Rules:
+1) Preserve the original article text as much as possible.
+2) Do not add commentary.
+3) Output raw JSON only.
+4) If a field is unavailable, return an empty string (or empty array for arrays).
+
+INPUT:
+${cleanedRawOutput}`;
+
+        const body: any = {
+            contents: [{ parts: [{ text: recoveryPrompt }] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+                response_mime_type: "application/json",
+                responseSchema: getArticleResponseSchema(targetLanguages),
+                response_schema: getArticleResponseSchema(targetLanguages),
+                temperature: 0,
+                maxOutputTokens: 16384
+            }
+        };
+
+        const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify(body),
+            signal: options.signal
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Gemini recovery failed: ${response.statusText} - ${errorBody}`);
+        }
+
+        const result = await response.json();
+        const recoveredText = extractTextFromCandidate(result?.candidates?.[0]);
+        if (!recoveredText) {
+            throw new Error(formatGeminiError(result));
+        }
+
+        parsed = tryParseJson(recoveredText);
+        if (!parsed) {
+            parsed = await repairJsonWithGemini(recoveredText, selectedModel, apiKey, options.signal);
+        }
+    }
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Recovery completed but output is still not a usable article JSON object.');
+    }
+
+    return finalizeRecoveredArticle(parsed, targetLanguages, options.sources || []);
 }
 
 export async function generateAIEdit(

@@ -32,13 +32,22 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { generateAIArticle, generateAIOutline, generateAIResearchPack, GeneratedArticle, getAIArticlePrompt, testGeminiConnection } from '@/lib/aiService';
+import {
+    generateAIArticle,
+    generateAIOutline,
+    generateAIResearchPack,
+    GeneratedArticle,
+    getAIArticlePrompt,
+    hasRecoverableArticleOutput,
+    recoverAIArticleFromRawOutput,
+    testGeminiConnection
+} from '@/lib/aiService';
 import { fetchAISettings, fetchGeminiModels, filterTextModels, GeminiModel } from '@/lib/aiSettings';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatArticleHtml } from '@/lib/articleFormat';
 import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
-import { Building2, RefreshCw, UserRound } from 'lucide-react';
+import { AlertTriangle, Building2, ClipboardCopy, RefreshCw, UserRound, Wand2 } from 'lucide-react';
 
 type AILabProps = {
     redirectTab?: string;
@@ -61,6 +70,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [showSourceLinks, setShowSourceLinks] = useState(false);
     const [generating, setGenerating] = useState(false);
     const [generatedContent, setGeneratedContent] = useState<GeneratedArticle | null>(null);
+    const [recoverableRawOutput, setRecoverableRawOutput] = useState('');
+    const [recoverableErrorMessage, setRecoverableErrorMessage] = useState('');
+    const [recoverableSources, setRecoverableSources] = useState<Array<{ title?: string; url?: string }>>([]);
+    const [showRawRecoveryEditor, setShowRawRecoveryEditor] = useState(false);
+    const [recoveringOutput, setRecoveringOutput] = useState(false);
     const [useOutlineWorkflow, setUseOutlineWorkflow] = useState(false);
     const [outlineText, setOutlineText] = useState('');
     const [outlineNotes, setOutlineNotes] = useState('');
@@ -106,6 +120,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const generationTimeoutRef = useRef<number | null>(null);
     const generationTimerRef = useRef<number | null>(null);
     const generationStartRef = useRef<number | null>(null);
+    const RECOVERY_STORAGE_KEY = 'ai_lab_recoverable_article_output_v1';
 
     const lengthDefaults: Record<string, number> = {
         Short: 400,
@@ -229,6 +244,45 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         }
     }, [toneStyle, toneCustom]);
 
+    useEffect(() => {
+        try {
+            const raw = window.localStorage.getItem(RECOVERY_STORAGE_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as {
+                rawOutput?: string;
+                errorMessage?: string;
+                sources?: Array<{ title?: string; url?: string }>;
+            };
+            if (parsed?.rawOutput && parsed.rawOutput.trim()) {
+                setRecoverableRawOutput(parsed.rawOutput);
+                setRecoverableErrorMessage(parsed.errorMessage || '');
+                setRecoverableSources(Array.isArray(parsed.sources) ? parsed.sources : []);
+            }
+        } catch (error) {
+            console.warn('Failed to restore recoverable AI output from local storage.', error);
+        }
+    }, []);
+
+    useEffect(() => {
+        try {
+            if (recoverableRawOutput.trim()) {
+                window.localStorage.setItem(
+                    RECOVERY_STORAGE_KEY,
+                    JSON.stringify({
+                        rawOutput: recoverableRawOutput,
+                        errorMessage: recoverableErrorMessage,
+                        sources: recoverableSources,
+                        updatedAt: new Date().toISOString()
+                    })
+                );
+            } else {
+                window.localStorage.removeItem(RECOVERY_STORAGE_KEY);
+            }
+        } catch (error) {
+            console.warn('Failed to persist recoverable AI output.', error);
+        }
+    }, [recoverableRawOutput, recoverableErrorMessage, recoverableSources]);
+
     const addLink = () => setLinks([...links, '']);
     const removeLink = (index: number) => setLinks(links.filter((_, i) => i !== index));
     const updateLink = (index: number, val: string) => {
@@ -339,6 +393,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         (requestBudgetUsd || 0) > 0 &&
         preflightCostEstimate !== null &&
         preflightCostEstimate > requestBudgetUsd;
+    const hasRecoverableOutput = recoverableRawOutput.trim().length > 0;
     const requestCapActive = (requestBudgetUsd || 0) > 0;
     const tokenQuotaActive = (dailyTokenQuota || 0) > 0 || (monthlyTokenQuota || 0) > 0;
     const usdQuotaActive = (dailyUsdQuota || 0) > 0 || (monthlyUsdQuota || 0) > 0;
@@ -455,6 +510,55 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             });
         } catch (err) {
             console.error('Failed to log AI generation:', err);
+        }
+    };
+
+    const clearRecoverableOutput = () => {
+        setRecoverableRawOutput('');
+        setRecoverableErrorMessage('');
+        setRecoverableSources([]);
+        setShowRawRecoveryEditor(false);
+    };
+
+    const handleCopyRecoverableOutput = async () => {
+        if (!hasRecoverableOutput) return;
+        try {
+            await navigator.clipboard.writeText(recoverableRawOutput);
+            toast.success('Recovered raw output copied.');
+        } catch {
+            toast.error('Failed to copy raw output.');
+        }
+    };
+
+    const handleRecoverFromRawOutput = async () => {
+        if (!hasRecoverableOutput) {
+            toast.error('No recoverable output available.');
+            return;
+        }
+
+        setRecoveringOutput(true);
+        setGenerationStatus('Recovering generated output...');
+        try {
+            const recovered = await recoverAIArticleFromRawOutput(recoverableRawOutput, {
+                targetLanguages,
+                modelOverride: currentModel,
+                sources: recoverableSources
+            });
+            setGeneratedContent(recovered);
+
+            const preferredTab = targetLanguages.find((lang) => {
+                const title = (recovered as any)[`title_${lang}`];
+                const content = (recovered as any)[`content_${lang}`];
+                return Boolean((title && String(title).trim()) || (content && String(content).trim()));
+            }) || targetLanguages[0] || 'en';
+            setActiveTab(preferredTab);
+
+            toast.success('Recovered article output successfully.');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to recover raw output.');
+        } finally {
+            setRecoveringOutput(false);
+            setGenerationStatus('');
         }
     };
 
@@ -648,6 +752,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             });
             setGenerationStatus('Finalizing...');
             setGeneratedContent(content);
+            clearRecoverableOutput();
             const durationMs = Date.now() - startTime;
             setGenerationTimeMs(durationMs);
 
@@ -686,7 +791,15 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 toast.error('Generation request was cancelled or timed out.');
                 await logGenerationEvent({ request_id: requestId, status: 'aborted', duration_ms: Date.now() - startTime, error_message: error?.message });
             } else {
-                toast.error(error.message || 'Generation failed');
+                if (hasRecoverableArticleOutput(error)) {
+                    setRecoverableRawOutput(error.rawOutput || '');
+                    setRecoverableErrorMessage(error.message || 'JSON parsing failed.');
+                    setRecoverableSources(Array.isArray(error.groundedSources) ? error.groundedSources : []);
+                    setShowRawRecoveryEditor(false);
+                    toast.error('Article text was generated, but parsing failed. Use Recover Output to salvage it.');
+                } else {
+                    toast.error(error.message || 'Generation failed');
+                }
                 await logGenerationEvent({ request_id: requestId, status: 'failed', duration_ms: Date.now() - startTime, error_message: error?.message || 'Unknown error' });
             }
         } finally {
@@ -1651,9 +1764,90 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                     </Button>
                                 </div>
                             )}
+                            {!generatedContent && hasRecoverableOutput && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs gap-2"
+                                    onClick={handleRecoverFromRawOutput}
+                                    disabled={recoveringOutput}
+                                >
+                                    <Wand2 className={`h-3.5 w-3.5 ${recoveringOutput ? 'animate-spin' : ''}`} />
+                                    {recoveringOutput ? 'Recovering…' : 'Recover Output'}
+                                </Button>
+                            )}
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0 pb-6">
+                        {!generatedContent && hasRecoverableOutput && (
+                            <div className="mb-4 rounded-lg border border-amber-300/70 bg-amber-50/40 p-4">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5" />
+                                    <div className="flex-1 space-y-2">
+                                        <p className="text-sm font-medium text-amber-900">
+                                            The model returned content, but JSON parsing failed.
+                                        </p>
+                                        <p className="text-xs text-amber-900/80">
+                                            You can recover and preview this output without regenerating the article.
+                                        </p>
+                                        {recoverableErrorMessage && (
+                                            <p className="text-[11px] text-amber-900/80 font-mono">
+                                                {recoverableErrorMessage}
+                                            </p>
+                                        )}
+                                        <div className="flex flex-wrap gap-2">
+                                            <Button
+                                                size="sm"
+                                                onClick={handleRecoverFromRawOutput}
+                                                disabled={recoveringOutput}
+                                                className="h-8"
+                                            >
+                                                <Wand2 className={`h-3.5 w-3.5 mr-1.5 ${recoveringOutput ? 'animate-spin' : ''}`} />
+                                                {recoveringOutput ? 'Recovering…' : 'Recover & Preview'}
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setShowRawRecoveryEditor((prev) => !prev)}
+                                                className="h-8"
+                                            >
+                                                {showRawRecoveryEditor ? 'Hide Raw Output' : 'View Raw Output'}
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleCopyRecoverableOutput}
+                                                className="h-8"
+                                            >
+                                                <ClipboardCopy className="h-3.5 w-3.5 mr-1.5" />
+                                                Copy
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={clearRecoverableOutput}
+                                                className="h-8"
+                                            >
+                                                Dismiss
+                                            </Button>
+                                        </div>
+                                        {showRawRecoveryEditor && (
+                                            <div className="space-y-2 pt-1">
+                                                <Textarea
+                                                    value={recoverableRawOutput}
+                                                    onChange={(e) => setRecoverableRawOutput(e.target.value)}
+                                                    className="min-h-[220px] font-mono text-xs"
+                                                    placeholder="Raw AI output to recover..."
+                                                />
+                                                <p className="text-[11px] text-amber-900/80">
+                                                    You can edit this text before recovery if needed.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {generatedContent ? (
                             <div className="h-[calc(100vh-260px)] overflow-y-auto pr-4 pb-16">
                                 <div className="space-y-6">
