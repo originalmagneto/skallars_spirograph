@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -231,6 +232,9 @@ const AISettings = () => {
             { key: 'gemini_image_api_key', value: '', description: 'Optional: API Key for Gemini Image generation' },
             { key: 'gemini_model', value: '', description: 'Selected Gemini model for text generation' },
             { key: 'gemini_request_budget_usd', value: '', description: 'Optional: per-request USD budget cap in Article Studio' },
+            { key: 'gemini_article_prompt_default_instructions', value: '', description: 'Optional: default article prompt instructions appended to all article generations' },
+            { key: 'gemini_article_prompt_slovak_native_instructions', value: '', description: 'Optional: Slovak-native writing constraints for article generation and translation' },
+            { key: 'gemini_translation_prompt_default_instructions', value: '', description: 'Optional: default translation prompt instructions for multilingual article translation calls' },
             { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
             { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
             { key: 'gemini_price_input_per_million', value: '', description: 'Optional: price per 1M input tokens (USD)' },
@@ -251,6 +255,9 @@ const AISettings = () => {
     const selectedModel = settings.find(s => s.key === 'gemini_model')?.value || '';
     const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
     const requestBudgetUsd = settings.find(s => s.key === 'gemini_request_budget_usd')?.value || '';
+    const articlePromptDefaults = settings.find(s => s.key === 'gemini_article_prompt_default_instructions')?.value || '';
+    const articlePromptSlovakNative = settings.find(s => s.key === 'gemini_article_prompt_slovak_native_instructions')?.value || '';
+    const translationPromptDefaults = settings.find(s => s.key === 'gemini_translation_prompt_default_instructions')?.value || '';
     const priceInput = settings.find(s => s.key === 'gemini_price_input_per_million')?.value || '';
     const priceOutput = settings.find(s => s.key === 'gemini_price_output_per_million')?.value || '';
     const quotaDailyTokens = settings.find(s => s.key === 'gemini_quota_daily_tokens')?.value || '';
@@ -482,6 +489,58 @@ const AISettings = () => {
                         <p className="text-[10px] text-muted-foreground leading-tight">
                             Quotas are checked before dispatch in Article Studio. USD quotas require token pricing values above.
                         </p>
+                    </CardContent>
+                </Card>
+
+                {/* B3. Prompt Defaults */}
+                <Card className="xl:col-span-12 shadow-sm border-border/60">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-base">
+                            <MagicWand01Icon size={18} className="text-primary" /> Article Prompt Defaults
+                        </CardTitle>
+                        <CardDescription>
+                            Global prompt instructions applied automatically to article generation and multilingual translation.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Global Article Instructions (all languages)</Label>
+                            <Textarea
+                                value={articlePromptDefaults}
+                                onChange={(e) => handleUpdate('gemini_article_prompt_default_instructions', e.target.value)}
+                                placeholder="Example: Write in a formal legal tone suitable for senior business leaders. Prefer short, clear sentences."
+                                className="min-h-[110px] text-xs"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Appended to the core article prompt. Keep concise and directive.
+                            </p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Slovak Native Style Instructions</Label>
+                            <Textarea
+                                value={articlePromptSlovakNative}
+                                onChange={(e) => handleUpdate('gemini_article_prompt_slovak_native_instructions', e.target.value)}
+                                placeholder="Example: Use native Slovak legal/business phrasing, avoid literal calques from English, and prefer idiomatic Slovak sentence rhythm."
+                                className="min-h-[110px] text-xs"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Applied when Slovak output is generated or translated.
+                            </p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Translation Prompt Instructions (multilingual mode)</Label>
+                            <Textarea
+                                value={translationPromptDefaults}
+                                onChange={(e) => handleUpdate('gemini_translation_prompt_default_instructions', e.target.value)}
+                                placeholder="Example: Translate for legal clarity and native readability, preserving legal precision and HTML structure."
+                                className="min-h-[110px] text-xs"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                Used by per-language translation calls after the primary language article is generated.
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
 

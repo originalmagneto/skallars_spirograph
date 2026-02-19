@@ -323,3 +323,44 @@ High-impact mismatches found and now resolved:
   - Replaced gradient-heavy section treatment with clean solid brand-light backgrounds (`#f4f3ff` / `#f0f0ff`) and subtle indigo divider lines.
   - Simplified cards to white surfaces with indigo borders/shadows and top accent rules, avoiding diffuse glow gradients.
   - Updated typography and card accents to align with brand indigo hierarchy and cleaner enterprise tone.
+
+## Change Log (Feb 19, 2026 - Gemini Article Generation Reliability + Reuse Guide)
+- **Primary Finding**:
+  - One-shot multilingual article generation (all languages in one large JSON response) is the main failure mode for parse instability, especially when grounding/tools are involved.
+  - Gemini JSON repair can itself return invalid JSON; retry cascades can waste tokens quickly.
+
+- **Reliability Architecture (Implemented)**:
+  - Added bounded-generation flow in `src/lib/aiService.ts`:
+    - One primary generation pass.
+    - No unbounded re-generation loops on parse failures.
+    - Low-cost fallback path to return usable content instead of hard-fail.
+  - Added resilient parse/recovery behavior:
+    - Candidate text extraction now reads all text parts (not only first part).
+    - Recovery can produce a safe HTML fallback article from raw output.
+    - Missing language fields are filled deterministically to avoid “sources-only” payloads.
+  - Added multilingual stability mode:
+    - For standard (non-custom-prompt) multilingual requests, generate one primary language first, then translate article package per language via structured JSON schema.
+    - Merge translated fields + sources + usage metadata.
+  - Added operator-facing recovery UX in AI Lab:
+    - Preserve recoverable raw output.
+    - Recover/preview/copy raw output after parse failures.
+    - Persist recoverable output in localStorage for refresh safety.
+
+- **Token Control Rules (Now Required)**:
+  - Never run repeated model retries for the same generation event without a hard cap.
+  - Prefer deterministic post-processing over new generation calls.
+  - Use single-language generation + per-language translation for multilingual outputs to avoid oversized mixed JSON payloads.
+  - Keep recovery path available so generated text is not lost if strict JSON parse fails.
+
+- **Reusable Reference**:
+  - See `docs/gemini-article-generation-playbook.md` for implementation details, copy patterns, request budgeting strategy, and integration checklist for future projects.
+
+- **Prompt Governance (Admin-Editable Defaults)**:
+  - Added admin-editable default prompt settings in `AI Settings` so teams can tune writing voice without code changes:
+    - `gemini_article_prompt_default_instructions`
+    - `gemini_article_prompt_slovak_native_instructions`
+    - `gemini_translation_prompt_default_instructions`
+  - Runtime wiring applies these defaults to:
+    - primary article generation prompt
+    - multilingual translation prompt pipeline
+  - AILab prompt preview/reset now includes these defaults so operators can see the effective prompt before dispatch.

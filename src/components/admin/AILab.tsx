@@ -102,6 +102,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const [toneStyle, setToneStyle] = useState('Client-Friendly');
     const [toneInstructions, setToneInstructions] = useState('Clear, approachable, and confidence-building. Avoid legalese unless essential, explain terms briefly.');
     const [toneCustom, setToneCustom] = useState(false);
+    const [articlePromptDefaultInstructions, setArticlePromptDefaultInstructions] = useState('');
+    const [articlePromptSlovakNativeInstructions, setArticlePromptSlovakNativeInstructions] = useState('');
     const [priceInputPerM, setPriceInputPerM] = useState<number | null>(null);
     const [priceOutputPerM, setPriceOutputPerM] = useState<number | null>(null);
     const [generationTimeMs, setGenerationTimeMs] = useState<number | null>(null);
@@ -189,6 +191,8 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             setRequestCooldownSeconds(settings.geminiRequestCooldownSeconds ?? 0);
             setPriceInputPerM(settings.priceInputPerM);
             setPriceOutputPerM(settings.priceOutputPerM);
+            setArticlePromptDefaultInstructions(settings.geminiArticlePromptDefaultInstructions || '');
+            setArticlePromptSlovakNativeInstructions(settings.geminiArticlePromptSlovakNativeInstructions || '');
 
             if (settings.geminiApiKey && settings.geminiModel) {
                 try {
@@ -299,7 +303,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
             targetWordCount,
             tone: toneStyle,
-            toneInstructions
+            toneInstructions,
+            defaultInstructions: articlePromptDefaultInstructions,
+            nativeSkInstructions: articlePromptSlovakNativeInstructions
         });
         setCustomPrompt(p);
         setShowPromptEditor(true);
@@ -313,7 +319,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
             targetWordCount,
             tone: toneStyle,
-            toneInstructions
+            toneInstructions,
+            defaultInstructions: articlePromptDefaultInstructions,
+            nativeSkInstructions: articlePromptSlovakNativeInstructions
         });
         setCustomPrompt(p);
         toast.success('Prompt reset to default');

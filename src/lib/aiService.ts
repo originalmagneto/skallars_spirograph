@@ -719,7 +719,19 @@ const getArticleTranslationResponseSchema = () => ({
 export function getAIArticlePrompt(
     prompt: string,
     links: string[] = [],
-    options: { type?: string, length?: string, targetLanguages?: string[], researchDepth?: string, targetWordCount?: number, tone?: string, toneInstructions?: string, outline?: string, researchFindings?: string } = {}
+    options: {
+        type?: string;
+        length?: string;
+        targetLanguages?: string[];
+        researchDepth?: string;
+        targetWordCount?: number;
+        tone?: string;
+        toneInstructions?: string;
+        outline?: string;
+        researchFindings?: string;
+        defaultInstructions?: string;
+        nativeSkInstructions?: string;
+    } = {}
 ): string {
     const {
         type = 'Deep Dive',
@@ -730,7 +742,9 @@ export function getAIArticlePrompt(
         tone = 'Client-Friendly',
         toneInstructions = '',
         outline = '',
-        researchFindings = ''
+        researchFindings = '',
+        defaultInstructions = '',
+        nativeSkInstructions = ''
     } = options;
     const researchContext = links.length > 0
         ? `\n\n### RESEARCH SOURCES (PRIMARY & EXPANDED)\n1. PRIMARY: Analyze these specific user-provided URLs first:\n${links.join('\n')}\n2. EXPANDED: Use Google Grounding to find ADDITIONAL authoritative sources to complement the primary data. Do not limit research to only the provided links. Cite both primary and discovered sources.`
@@ -750,6 +764,12 @@ export function getAIArticlePrompt(
         // Force instruction to ignore brevity
     }
     const toneBlock = getToneGuide(tone, toneInstructions);
+    const defaultInstructionsBlock = defaultInstructions.trim()
+        ? `\n\n### ADMIN DEFAULT INSTRUCTIONS\n${defaultInstructions.trim()}`
+        : '';
+    const slovakNativeBlock = targetLanguages.includes('sk') && nativeSkInstructions.trim()
+        ? `\n\n### SLOVAK NATIVE WRITING REQUIREMENT\n${nativeSkInstructions.trim()}`
+        : '';
     const outlineBlock = outline
         ? `\n\n### APPROVED OUTLINE\nUse this outline exactly. Do not add or remove sections unless strictly necessary.\n${outline}\n`
         : '';
@@ -789,6 +809,8 @@ ${selectedStyle}
 
 ### TONE GUIDELINES
 ${toneBlock}
+${defaultInstructionsBlock}
+${slovakNativeBlock}
 
 ### WRITING RULES
 1. **Professionalism**: Use professional, business-grade language. Avoid generic AI phrases.
@@ -1032,6 +1054,8 @@ const translateArticlePackage = async (
     targetLang: string,
     selectedModel: string,
     apiKey: string,
+    translationInstructions = '',
+    slovakNativeInstructions = '',
     signal?: AbortSignal
 ): Promise<{
     title: string;
@@ -1044,6 +1068,12 @@ const translateArticlePackage = async (
 }> => {
     const sourceLabel = LANGUAGE_LABELS[sourceLang] || sourceLang;
     const targetLabel = LANGUAGE_LABELS[targetLang] || targetLang;
+    const translationBlock = translationInstructions.trim()
+        ? `\n\nAdditional translation instructions:\n${translationInstructions.trim()}`
+        : '';
+    const slovakNativeBlock = targetLang === 'sk' && slovakNativeInstructions.trim()
+        ? `\n\nSlovak native style requirement:\n${slovakNativeInstructions.trim()}`
+        : '';
     const payload = {
         title: (article as any)[`title_${sourceLang}`] || '',
         excerpt: (article as any)[`excerpt_${sourceLang}`] || '',
@@ -1061,6 +1091,9 @@ Rules:
 3) Keep links, citations, and source references intact.
 4) Return strict JSON only with keys:
    title, excerpt, content, meta_title, meta_description, meta_keywords
+5) Translate idiomatically in the target language, not literally from source language.
+${translationBlock}
+${slovakNativeBlock}
 
 INPUT JSON:
 ${JSON.stringify(payload)}`;
@@ -1134,6 +1167,9 @@ export async function generateAIArticle(
     let { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
     const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
     const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
+    const articleDefaultInstructions = (await getSetting('gemini_article_prompt_default_instructions') || '').trim();
+    const slovakNativeInstructions = (await getSetting('gemini_article_prompt_slovak_native_instructions') || '').trim();
+    const translationDefaultInstructions = (await getSetting('gemini_translation_prompt_default_instructions') || '').trim();
 
     // Reliability mode: for multi-language generation, produce one primary language first
     // and translate it into remaining languages in separate structured calls.
@@ -1196,6 +1232,8 @@ export async function generateAIArticle(
                     lang,
                     selectedModel,
                     apiKey,
+                    translationDefaultInstructions,
+                    slovakNativeInstructions,
                     signal
                 );
                 setLanguageFields(lang, translated);
@@ -1267,7 +1305,11 @@ export async function generateAIArticle(
 
     const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
-    let finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, options);
+    let finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, {
+        ...options,
+        defaultInstructions: articleDefaultInstructions,
+        nativeSkInstructions: slovakNativeInstructions
+    });
 
     // Inject model-specific system instruction if available
     if (modelConfig.systemInstructionAddon) {

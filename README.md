@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Skallars Spirograph
 
-## Getting Started
+Skallars Spirograph is a multilingual law-firm website + admin panel built with Next.js, Supabase, and Gemini.
 
-First, run the development server:
+## Stack
+- Next.js 15 (App Router), React 18, TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (Postgres/Auth/Storage)
+- Gemini API for article generation and image generation
 
+## Local Development
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Build
+```bash
+npm run build
+npm run start
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key Documentation
+- Project operating context and change log:
+  - `AGENTS.md`
+- Gemini article generation reliability/reuse guide:
+  - `docs/gemini-article-generation-playbook.md`
+- Product plan:
+  - `ROADMAP.md`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Core AI Files
+- Article + AI logic:
+  - `src/lib/aiService.ts`
+- Admin generation UI:
+  - `src/components/admin/AILab.tsx`
+- AI settings UI:
+  - `src/components/admin/AISettings.tsx`
 
-## Learn More
+## Environment Variables
+At minimum:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-To learn more about Next.js, take a look at the following resources:
+For Gemini + LinkedIn workflows, see full env list in `AGENTS.md`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes for Future Projects
+If you want to reuse this Gemini implementation, start with:
+- `docs/gemini-article-generation-playbook.md`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+It documents the bounded-call architecture, multilingual generation strategy (primary language + per-language translation), and recoverable-output UX pattern used to prevent token waste and lost article drafts.
