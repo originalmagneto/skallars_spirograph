@@ -375,7 +375,7 @@ ${rawContent}`;
     }
 
     const result = await response.json();
-    const repaired = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const repaired = extractTextFromCandidate(result?.candidates?.[0]);
     if (!repaired) {
         throw new Error(formatGeminiError(result));
     }
@@ -401,6 +401,28 @@ const normalizeArticleHtml = (html: string) => {
         .map((block) => `<p>${block.replace(/\n+/g, '<br />')}</p>`);
 
     return paragraphs.join('\n');
+};
+
+const escapeHtml = (value: string) =>
+    value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+const rawTextToHtml = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    const blocks = trimmed
+        .replace(/\r/g, '')
+        .split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean);
+    if (blocks.length === 0) return '';
+    return blocks
+        .map((block) => `<p>${escapeHtml(block).replace(/\n+/g, '<br />')}</p>`)
+        .join('\n');
 };
 
 const slugifyHeading = (text: string) => {
@@ -502,6 +524,30 @@ const finalizeRecoveredArticle = (
     }
 
     return result;
+};
+
+const createRawFallbackArticle = (
+    rawOutput: string,
+    targetLanguages: string[],
+    sources: Array<{ title?: string; url?: string }> = []
+): GeneratedArticle => {
+    const fallbackBody = normalizeArticleHtml(rawTextToHtml(rawOutput));
+    const article: GeneratedArticle = {
+        slug: `recovered-${Date.now()}`,
+        tags: [],
+        sources: normalizeSourceList(sources)
+    };
+
+    targetLanguages.forEach((lang) => {
+        (article as any)[`title_${lang}`] = 'Recovered AI Draft';
+        (article as any)[`excerpt_${lang}`] = 'Recovered from raw AI output after JSON parsing failed. Review and refine before publishing.';
+        (article as any)[`content_${lang}`] = fallbackBody || '<p>Recovered draft is empty.</p>';
+        (article as any)[`meta_title_${lang}`] = '';
+        (article as any)[`meta_description_${lang}`] = '';
+        (article as any)[`meta_keywords_${lang}`] = '';
+    });
+
+    return article;
 };
 
 const countWords = (html: string) => {
@@ -1245,7 +1291,27 @@ ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs return
 
         return parsedContent;
     } catch (e) {
-        console.error("Failed to parse Gemini response as JSON", e);
+        console.warn("[AI] Failed to parse Gemini response as JSON. Attempting auto-recovery.", e);
+        if (latestRawOutput.trim()) {
+            try {
+                const autoRecovered = await recoverAIArticleFromRawOutput(latestRawOutput, {
+                    targetLanguages,
+                    modelOverride: selectedModel,
+                    sources: normalizeSourceList([
+                        ...(providedSources || []),
+                        ...collectedGroundingChunks.map((chunk: any) => ({
+                            url: chunk?.web?.uri,
+                            title: chunk?.web?.title
+                        }))
+                    ]),
+                    signal
+                });
+                console.warn('[AI] Returned auto-recovered article after JSON parse failure.');
+                return autoRecovered;
+            } catch (recoveryError) {
+                console.error('[AI] Auto-recovery from raw output failed.', recoveryError);
+            }
+        }
         if (e instanceof Error && e.message) {
             if (latestRawOutput.trim()) {
                 const recoverableError = e as RecoverableArticleGenerationError;
@@ -1311,7 +1377,8 @@ export async function recoverAIArticleFromRawOutput(
     }
 
     if (!parsed) {
-        const recoveryPrompt = `You are a JSON formatter for a CMS.
+        try {
+            const recoveryPrompt = `You are a JSON formatter for a CMS.
 Convert the INPUT into strict JSON with this shape:
 - slug
 - title_*, excerpt_*, content_*, meta_title_*, meta_description_*, meta_keywords_* for requested languages
@@ -1327,47 +1394,58 @@ Rules:
 INPUT:
 ${cleanedRawOutput}`;
 
-        const body: any = {
-            contents: [{ parts: [{ text: recoveryPrompt }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                response_mime_type: "application/json",
-                responseSchema: getArticleResponseSchema(targetLanguages),
-                response_schema: getArticleResponseSchema(targetLanguages),
-                temperature: 0,
-                maxOutputTokens: 16384
+            const body: any = {
+                contents: [{ parts: [{ text: recoveryPrompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    response_mime_type: "application/json",
+                    responseSchema: getArticleResponseSchema(targetLanguages),
+                    response_schema: getArticleResponseSchema(targetLanguages),
+                    temperature: 0,
+                    maxOutputTokens: 16384
+                }
+            };
+
+            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                body: JSON.stringify(body),
+                signal: options.signal
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(`Gemini recovery failed: ${response.statusText} - ${errorBody}`);
             }
-        };
 
-        const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-            body: JSON.stringify(body),
-            signal: options.signal
-        });
+            const result = await response.json();
+            const recoveredText = extractTextFromCandidate(result?.candidates?.[0]);
+            if (!recoveredText) {
+                throw new Error(formatGeminiError(result));
+            }
 
-        if (!response.ok) {
-            const errorBody = await response.text();
-            throw new Error(`Gemini recovery failed: ${response.statusText} - ${errorBody}`);
-        }
-
-        const result = await response.json();
-        const recoveredText = extractTextFromCandidate(result?.candidates?.[0]);
-        if (!recoveredText) {
-            throw new Error(formatGeminiError(result));
-        }
-
-        parsed = tryParseJson(recoveredText);
-        if (!parsed) {
-            parsed = await repairJsonWithGemini(recoveredText, selectedModel, apiKey, options.signal);
+            parsed = tryParseJson(recoveredText);
+            if (!parsed) {
+                parsed = await repairJsonWithGemini(recoveredText, selectedModel, apiKey, options.signal);
+            }
+        } catch (schemaRecoveryError) {
+            console.error('[AI] Schema recovery failed. Falling back to raw text article.', schemaRecoveryError);
+            return createRawFallbackArticle(cleanedRawOutput, targetLanguages, options.sources || []);
         }
     }
 
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error('Recovery completed but output is still not a usable article JSON object.');
+        return createRawFallbackArticle(cleanedRawOutput, targetLanguages, options.sources || []);
     }
-
-    return finalizeRecoveredArticle(parsed, targetLanguages, options.sources || []);
+    const finalized = finalizeRecoveredArticle(parsed, targetLanguages, options.sources || []);
+    const hasAnyContent = targetLanguages.some((lang) => {
+        const value = (finalized as any)[`content_${lang}`];
+        return typeof value === 'string' && value.trim().length > 0;
+    });
+    if (!hasAnyContent) {
+        return createRawFallbackArticle(cleanedRawOutput, targetLanguages, options.sources || []);
+    }
+    return finalized;
 }
 
 export async function generateAIEdit(
