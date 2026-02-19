@@ -322,21 +322,6 @@ const convertMarkdownToHtml = (html: string): string => {
         .replace(/(?<![a-zA-Z0-9])_([^_\n]+)_(?![a-zA-Z0-9])/g, '<em>$1</em>');
 };
 
-const hasMeaningfulArticleHtml = (html?: string) => {
-    if (!html) return false;
-    const normalized = String(html).trim();
-    if (!normalized) return false;
-    const textOnly = normalized.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    const paragraphCount = (normalized.match(/<p[\s>]/gi) || []).length;
-    const headingCount = (normalized.match(/<h[23][\s>]/gi) || []).length;
-    return textOnly.length >= 320 && paragraphCount >= 2 && headingCount >= 1;
-};
-
-const hasCompleteMultilingualContent = (payload: any, targetLanguages: string[]) => {
-    if (!payload || typeof payload !== 'object') return false;
-    return targetLanguages.every((lang) => hasMeaningfulArticleHtml(payload[`content_${lang}`]));
-};
-
 const repairJsonWithGemini = async (
     rawContent: string,
     selectedModel: string,
@@ -550,59 +535,45 @@ const createRawFallbackArticle = (
     return article;
 };
 
-const countWords = (html: string) => {
-    const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-    if (!text) return 0;
-    return text.split(' ').length;
-};
+const fillMissingArticleFields = (payload: any, targetLanguages: string[]) => {
+    const result: any = { ...(payload || {}) };
+    const firstTitle = targetLanguages
+        .map((lang) => String(result[`title_${lang}`] || '').trim())
+        .find(Boolean) || 'Recovered AI Draft';
+    const firstExcerpt = targetLanguages
+        .map((lang) => String(result[`excerpt_${lang}`] || '').trim())
+        .find(Boolean) || 'Generated draft. Please review and refine.';
+    const firstContent = targetLanguages
+        .map((lang) => String(result[`content_${lang}`] || '').trim())
+        .find(Boolean) || '<p>Generated draft content is incomplete. Please regenerate or recover from raw output.</p>';
 
-const shouldEnhanceFormatting = (html: string) => {
-    if (!html) return false;
-    const words = countWords(html);
-    if (words < 180) return false;
-    const hasH2 = /<h2\b/i.test(html);
-    const hasH3 = /<h3\b/i.test(html);
-    const hasList = /<(ul|ol)\b/i.test(html);
-    const hasQuote = /<blockquote\b/i.test(html);
-    const hasEm = /<em\b/i.test(html);
-    let missing = 0;
-    if (!hasH2) missing += 1;
-    if (!hasH3) missing += 1;
-    if (!hasList) missing += 1;
-    if (!hasQuote) missing += 1;
-    if (!hasEm) missing += 1;
-    return missing >= 2;
-};
+    targetLanguages.forEach((lang) => {
+        if (!String(result[`title_${lang}`] || '').trim()) {
+            result[`title_${lang}`] = `${firstTitle}`;
+        }
+        if (!String(result[`excerpt_${lang}`] || '').trim()) {
+            result[`excerpt_${lang}`] = firstExcerpt;
+        }
+        if (!String(result[`content_${lang}`] || '').trim()) {
+            result[`content_${lang}`] = firstContent;
+        }
+        if (result[`meta_title_${lang}`] == null) result[`meta_title_${lang}`] = '';
+        if (result[`meta_description_${lang}`] == null) result[`meta_description_${lang}`] = '';
+        if (result[`meta_keywords_${lang}`] == null) result[`meta_keywords_${lang}`] = '';
+    });
 
-const enhanceArticleFormatting = async (html: string, languageLabel: string, signal?: AbortSignal) => {
-    if (!shouldEnhanceFormatting(html)) return html;
-    const instruction = `Reformat the HTML into a richly structured, premium article.
-Rules:
-1. **Preserve Facts**: Keep all facts, numbers, names, and URLs exactly as is.
-2. **Language**: Keep the language as ${languageLabel}.
-3. **Format**: Use semantic HTML only. No markdown.
-4. **Structure**:
-   - Start with a compelling lead paragraph.
-   - Use <h2> for main sections (minimum 4).
-   - Use <h3> for specific subsections (frequently used).
-5. **Richness**:
-   - **Bold** key terms and important phrases using <strong> (aim for 2-3 highlight phrases per paragraph for skimmability).
-   - Use one <blockquote> every 2-3 sections to highlight a key insight or principle.
-   - Use <ul> or <ol> lists whenever listing 3+ items.
-   - Use <em> for subtle emphasis.
-6. **Flow**: Paragraphs should be concise (2-4 sentences).
-7. **Sources**: Keep all existing citations and links.`;
-    try {
-        const edited = await generateAIEdit(html, {
-            mode: 'rewrite',
-            customInstruction: instruction,
-            languageLabel,
-            signal,
-        });
-        return edited || html;
-    } catch {
-        return html;
+    if (typeof result.tags === 'string') {
+        result.tags = result.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean);
     }
+    if (!Array.isArray(result.tags)) {
+        result.tags = [];
+    }
+
+    if (!result.slug) {
+        result.slug = toUrlSlug(firstTitle) || `recovered-${Date.now()}`;
+    }
+
+    return result;
 };
 
 const STYLE_GUIDES: Record<string, string> = {
@@ -1088,12 +1059,6 @@ export async function generateAIArticle(
         finalPrompt = `${modelConfig.systemInstructionAddon}\n\n${finalPrompt}`;
     }
 
-    const languageLabels: Record<string, string> = {
-        sk: 'Slovak (SK)',
-        en: 'English (EN)',
-        de: 'German (DE)',
-        cn: 'Chinese (CN)',
-    };
     const collectedGroundingChunks: any[] = [];
     const collectGroundingChunks = (metadata: any) => {
         const chunks = metadata?.groundingChunks;
@@ -1157,93 +1122,30 @@ export async function generateAIArticle(
 
     try {
         const parseOrRepair = async (raw: string) => {
-            let parsed = tryParseJson(raw);
-            if (!parsed) {
-                parsed = await repairJsonWithGemini(raw, selectedModel, apiKey, signal);
+            const direct = tryParseJson(raw);
+            if (direct) return direct;
+
+            // Grounded outputs frequently include non-JSON fragments. Avoid expensive re-generation loops.
+            if (useGrounding) {
+                throw new Error('Grounded output was not valid JSON.');
             }
-            return parsed;
+
+            return await repairJsonWithGemini(raw, selectedModel, apiKey, signal);
         };
 
-        let output = await requestModelOutput(finalPrompt);
+        const output = await requestModelOutput(finalPrompt);
         latestRawOutput = output.content;
         collectGroundingChunks(output.groundingMetadata);
-        let parsedContent: any;
-        try {
-            parsedContent = await parseOrRepair(output.content);
-        } catch (parseError) {
-            if (!useGrounding) throw parseError;
-            const groundedSources = collectedGroundingChunks
-                .map((chunk: any) => chunk?.web?.uri)
-                .filter(Boolean)
-                .slice(0, 12) as string[];
-            const fallbackPrompt = `${finalPrompt}
-
-### JSON RECOVERY MODE
-The previous grounded response was not valid JSON. Regenerate with strict JSON only.
-- Return complete HTML article fields for all requested languages.
-- Keep source-backed claims where relevant.
-- Output raw JSON only.
-
-### Grounded URLs (for context)
-${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs returned.'}`;
-            output = await requestModelOutput(fallbackPrompt, false);
-            latestRawOutput = output.content;
-            parsedContent = await parseOrRepair(output.content);
-        }
-
-        if (!hasCompleteMultilingualContent(parsedContent, targetLanguages) && links.length > 0) {
-            const retryPrompt = `${finalPrompt}
-
-### RETRY REQUIREMENT
-Your previous output was incomplete. You must return full HTML article bodies for all requested languages.
-- Every \`content_*\` field must include at least 4 <p> paragraphs and multiple headings.
-- Do not return title-only or excerpt-only output.
-- Return valid raw JSON only.`;
-            output = await requestModelOutput(retryPrompt);
-            latestRawOutput = output.content;
-            collectGroundingChunks(output.groundingMetadata);
-            parsedContent = await parseOrRepair(output.content);
-        }
-
-        // If grounding flow still produced partial JSON, fall back to a schema-constrained pass
-        // while preserving discovered source context from the grounded response.
-        if (!hasCompleteMultilingualContent(parsedContent, targetLanguages) && useGrounding) {
-            const groundedSources = collectedGroundingChunks
-                .map((chunk: any) => chunk?.web?.uri)
-                .filter(Boolean)
-                .slice(0, 12) as string[];
-            const fallbackPrompt = `${finalPrompt}
-
-### FALLBACK MODE
-Grounded generation returned incomplete content. Regenerate with strict JSON completeness.
-- Return complete HTML article fields for all requested languages.
-- Keep source-backed claims where relevant.
-- Output raw JSON only.
-
-### Grounded URLs (for context)
-${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs returned.'}`;
-            output = await requestModelOutput(fallbackPrompt, false);
-            latestRawOutput = output.content;
-            parsedContent = await parseOrRepair(output.content);
-        }
-
-        if (!hasCompleteMultilingualContent(parsedContent, targetLanguages)) {
-            throw new Error('Generated content was incomplete for one or more target languages.');
-        }
+        let parsedContent: any = await parseOrRepair(output.content);
+        parsedContent = fillMissingArticleFields(parsedContent, targetLanguages);
 
         for (const lang of targetLanguages) {
             const field = `content_${lang}`;
             // Convert any markdown syntax to HTML, then normalize
-            parsedContent[field] = normalizeArticleHtml(convertMarkdownToHtml(parsedContent[field] || ''));
+            parsedContent[field] = addHeadingAnchors(
+                normalizeArticleHtml(convertMarkdownToHtml(parsedContent[field] || ''))
+            );
         }
-
-        const enhancements = await Promise.all(
-            targetLanguages.map((lang) => enhanceArticleFormatting(parsedContent[`content_${lang}`] || '', languageLabels[lang] || lang, signal))
-        );
-        targetLanguages.forEach((lang, index) => {
-            const field = `content_${lang}`;
-            parsedContent[field] = addHeadingAnchors(enhancements[index] || parsedContent[field] || '');
-        });
 
         const appendSources = (sourceItems: Array<{ url: string; title?: string }>) => {
             if (!sourceItems.length) return;
@@ -1304,6 +1206,8 @@ ${groundedSources.length ? groundedSources.join('\n') : 'No grounded URLs return
                             title: chunk?.web?.title
                         }))
                     ]),
+                    allowRepairCall: false,
+                    allowModelRecovery: false,
                     signal
                 });
                 console.warn('[AI] Returned auto-recovered article after JSON parse failure.');
@@ -1351,6 +1255,8 @@ export async function recoverAIArticleFromRawOutput(
         targetLanguages?: string[];
         modelOverride?: string;
         sources?: Array<{ title?: string; url?: string }>;
+        allowRepairCall?: boolean;
+        allowModelRecovery?: boolean;
         signal?: AbortSignal;
     } = {}
 ): Promise<GeneratedArticle> {
@@ -1366,9 +1272,11 @@ export async function recoverAIArticleFromRawOutput(
     const targetLanguages = options.targetLanguages && options.targetLanguages.length > 0
         ? options.targetLanguages
         : ['sk', 'en', 'de', 'cn'];
+    const allowRepairCall = options.allowRepairCall ?? true;
+    const allowModelRecovery = options.allowModelRecovery ?? false;
 
     let parsed: any = tryParseJson(cleanedRawOutput);
-    if (!parsed) {
+    if (!parsed && allowRepairCall) {
         try {
             parsed = await repairJsonWithGemini(cleanedRawOutput, selectedModel, apiKey, options.signal);
         } catch {
@@ -1376,7 +1284,7 @@ export async function recoverAIArticleFromRawOutput(
         }
     }
 
-    if (!parsed) {
+    if (!parsed && allowModelRecovery) {
         try {
             const recoveryPrompt = `You are a JSON formatter for a CMS.
 Convert the INPUT into strict JSON with this shape:
@@ -1432,6 +1340,10 @@ ${cleanedRawOutput}`;
             console.error('[AI] Schema recovery failed. Falling back to raw text article.', schemaRecoveryError);
             return createRawFallbackArticle(cleanedRawOutput, targetLanguages, options.sources || []);
         }
+    }
+
+    if (!parsed && !allowModelRecovery) {
+        return createRawFallbackArticle(cleanedRawOutput, targetLanguages, options.sources || []);
     }
 
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
