@@ -36,6 +36,9 @@ flowchart LR
 4. Merge fields, normalize HTML, fill missing fields, append sources.
 5. Return a complete payload even if one translation leg fails.
 
+Detailed rendering reference (prompt -> admin preview -> public list/detail):
+- `docs/article-rendering-reference.md`
+
 Core implementation:
 - `src/lib/aiService.ts` (`generateAIArticle`, `translateArticlePackage`, `getAIArticlePrompt`)
 - `src/components/admin/AILab.tsx`

@@ -107,6 +107,8 @@ Storage buckets referenced:
   - Pro: Gemini native image models use `generateContent` with `responseModalities` + `imageConfig`, Imagen models use `predict`; fallback to Turbo on failure.
   - Custom image model names can be set in AI Settings (`gemini_image_model`).
   - Image generation can use a separate API key (`gemini_image_api_key`). Article Editor uses global defaults with an override toggle.
+- Article rendering implementation reference (prompt contract + admin preview + public list/detail):
+  - `docs/article-rendering-reference.md`
 
 ## Auth and Roles
 - Supabase Auth handles sessions; role is fetched from `profiles.role`.
