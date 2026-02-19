@@ -614,6 +614,13 @@ const STYLE_GUIDES: Record<string, string> = {
 - **Focus**: Applicability, deadlines, and actionable compliance guidance.`,
 };
 
+const LANGUAGE_LABELS: Record<string, string> = {
+    sk: 'Slovak (SK)',
+    en: 'English (EN)',
+    de: 'German (DE)',
+    cn: 'Chinese (CN)',
+};
+
 const TONE_GUIDES: Record<string, string> = {
     'Client-Friendly': 'Clear, approachable, and confidence-building. Avoid legalese unless essential, explain terms briefly.',
     'Legal Memo': 'Formal, precise, and risk-aware. Use structured reasoning and cite applicable rules where relevant.',
@@ -694,6 +701,18 @@ const getResearchPackResponseSchema = () => ({
         key_points: { type: 'ARRAY', items: { type: 'STRING' } },
         facts: { type: 'ARRAY', items: { type: 'STRING' } },
         outline: { type: 'ARRAY', items: { type: 'STRING' } }
+    }
+});
+
+const getArticleTranslationResponseSchema = () => ({
+    type: 'OBJECT',
+    properties: {
+        title: { type: 'STRING' },
+        excerpt: { type: 'STRING' },
+        content: { type: 'STRING' },
+        meta_title: { type: 'STRING' },
+        meta_description: { type: 'STRING' },
+        meta_keywords: { type: 'STRING' }
     }
 });
 
@@ -1007,6 +1026,98 @@ export async function generateAIResearchPack(
     return responsePayload;
 }
 
+const translateArticlePackage = async (
+    article: GeneratedArticle,
+    sourceLang: string,
+    targetLang: string,
+    selectedModel: string,
+    apiKey: string,
+    signal?: AbortSignal
+): Promise<{
+    title: string;
+    excerpt: string;
+    content: string;
+    meta_title: string;
+    meta_description: string;
+    meta_keywords: string;
+    usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
+}> => {
+    const sourceLabel = LANGUAGE_LABELS[sourceLang] || sourceLang;
+    const targetLabel = LANGUAGE_LABELS[targetLang] || targetLang;
+    const payload = {
+        title: (article as any)[`title_${sourceLang}`] || '',
+        excerpt: (article as any)[`excerpt_${sourceLang}`] || '',
+        content: (article as any)[`content_${sourceLang}`] || '',
+        meta_title: (article as any)[`meta_title_${sourceLang}`] || '',
+        meta_description: (article as any)[`meta_description_${sourceLang}`] || '',
+        meta_keywords: (article as any)[`meta_keywords_${sourceLang}`] || ''
+    };
+
+    const prompt = `Translate this legal article package from ${sourceLabel} to ${targetLabel}.
+
+Rules:
+1) Preserve all facts and legal meaning.
+2) Preserve HTML tags and structure in "content".
+3) Keep links, citations, and source references intact.
+4) Return strict JSON only with keys:
+   title, excerpt, content, meta_title, meta_description, meta_keywords
+
+INPUT JSON:
+${JSON.stringify(payload)}`;
+
+    const body: any = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            responseMimeType: "application/json",
+            response_mime_type: "application/json",
+            responseSchema: getArticleTranslationResponseSchema(),
+            response_schema: getArticleTranslationResponseSchema(),
+            temperature: 0.2,
+            maxOutputTokens: 16384
+        }
+    };
+
+    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Gemini translation failed: ${response.statusText} - ${errorBody}`);
+    }
+
+    const result = await response.json();
+    const content = extractTextFromCandidate(result?.candidates?.[0]);
+    if (!content) throw new Error(formatGeminiError(result));
+
+    let parsed = tryParseJson(content);
+    if (!parsed) {
+        parsed = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error(`Invalid translated payload for ${targetLang}.`);
+    }
+
+    return {
+        title: String((parsed as any).title || ''),
+        excerpt: String((parsed as any).excerpt || ''),
+        content: String((parsed as any).content || ''),
+        meta_title: String((parsed as any).meta_title || ''),
+        meta_description: String((parsed as any).meta_description || ''),
+        meta_keywords: String((parsed as any).meta_keywords || ''),
+        usage: result?.usageMetadata
+            ? {
+                promptTokens: result.usageMetadata.promptTokenCount || 0,
+                completionTokens: result.usageMetadata.candidatesTokenCount || 0,
+                totalTokens: result.usageMetadata.totalTokenCount || 0
+            }
+            : undefined
+    };
+};
+
 export async function generateAIArticle(
     prompt: string,
     links: string[] = [],
@@ -1023,6 +1134,110 @@ export async function generateAIArticle(
     let { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
     const targetLanguages = options.targetLanguages || ['sk', 'en', 'de', 'cn'];
     const thinkingBudget = options.thinkingBudgetOverride ?? await getArticleThinkingBudget();
+
+    // Reliability mode: for multi-language generation, produce one primary language first
+    // and translate it into remaining languages in separate structured calls.
+    if (targetLanguages.length > 1 && !customPrompt) {
+        const [primaryLang, ...otherLangs] = targetLanguages;
+        const primaryArticle = await generateAIArticle(prompt, links, {
+            ...options,
+            targetLanguages: [primaryLang]
+        });
+
+        const merged: GeneratedArticle = {
+            ...primaryArticle,
+            tags: Array.isArray(primaryArticle.tags) ? [...primaryArticle.tags] : [],
+            sources: normalizeSourceList([
+                ...(primaryArticle.sources || []),
+                ...(providedSources || [])
+            ]),
+            usage: primaryArticle.usage
+                ? {
+                    promptTokens: primaryArticle.usage.promptTokens || 0,
+                    completionTokens: primaryArticle.usage.completionTokens || 0,
+                    totalTokens: primaryArticle.usage.totalTokens || 0
+                }
+                : undefined
+        };
+
+        const setLanguageFields = (
+            lang: string,
+            value: {
+                title: string;
+                excerpt: string;
+                content: string;
+                meta_title: string;
+                meta_description: string;
+                meta_keywords: string;
+            }
+        ) => {
+            (merged as any)[`title_${lang}`] = value.title;
+            (merged as any)[`excerpt_${lang}`] = value.excerpt;
+            (merged as any)[`content_${lang}`] = value.content;
+            (merged as any)[`meta_title_${lang}`] = value.meta_title;
+            (merged as any)[`meta_description_${lang}`] = value.meta_description;
+            (merged as any)[`meta_keywords_${lang}`] = value.meta_keywords;
+        };
+
+        const getPrimaryFields = () => ({
+            title: String((primaryArticle as any)[`title_${primaryLang}`] || ''),
+            excerpt: String((primaryArticle as any)[`excerpt_${primaryLang}`] || ''),
+            content: String((primaryArticle as any)[`content_${primaryLang}`] || ''),
+            meta_title: String((primaryArticle as any)[`meta_title_${primaryLang}`] || ''),
+            meta_description: String((primaryArticle as any)[`meta_description_${primaryLang}`] || ''),
+            meta_keywords: String((primaryArticle as any)[`meta_keywords_${primaryLang}`] || '')
+        });
+
+        for (const lang of otherLangs) {
+            try {
+                const translated = await translateArticlePackage(
+                    primaryArticle,
+                    primaryLang,
+                    lang,
+                    selectedModel,
+                    apiKey,
+                    signal
+                );
+                setLanguageFields(lang, translated);
+                if (translated.usage) {
+                    if (!merged.usage) {
+                        merged.usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+                    }
+                    merged.usage.promptTokens += translated.usage.promptTokens || 0;
+                    merged.usage.completionTokens += translated.usage.completionTokens || 0;
+                    merged.usage.totalTokens += translated.usage.totalTokens || 0;
+                }
+            } catch (translationError) {
+                console.warn(`[AI] Translation fallback used for ${lang}.`, translationError);
+                setLanguageFields(lang, getPrimaryFields());
+            }
+        }
+
+        const completed = fillMissingArticleFields(merged, targetLanguages);
+        targetLanguages.forEach((lang) => {
+            const field = `content_${lang}`;
+            (completed as any)[field] = addHeadingAnchors(
+                normalizeArticleHtml(convertMarkdownToHtml((completed as any)[field] || ''))
+            );
+        });
+
+        if (Array.isArray(completed.sources) && completed.sources.length > 0) {
+            const sourceItems = normalizeSourceList(completed.sources);
+            const contentFields = targetLanguages.map((lang) => `content_${lang}`);
+            const hasSources = contentFields.some((field) =>
+                String((completed as any)[field] || '').includes('Sources & References')
+            );
+            if (!hasSources) {
+                const sourcesHtml = `\n\n<h3>Sources & References</h3>\n<ol>${sourceItems.map((s) => `<li><a href="${s.url}" target="_blank" rel="noopener noreferrer">${s.title || s.url}</a></li>`).join('')}</ol>`;
+                contentFields.forEach((field) => {
+                    (completed as any)[field] = String((completed as any)[field] || '') + sourcesHtml;
+                });
+            }
+            completed.sources = sourceItems;
+        }
+
+        return completed;
+    }
 
     // Disable grounding for Gemini 2.5 as it currently causes 400 errors (likely unsupported)
     if (useGrounding && /gemini-2\.5/i.test(selectedModel)) {
