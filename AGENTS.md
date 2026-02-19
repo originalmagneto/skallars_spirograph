@@ -353,7 +353,8 @@ High-impact mismatches found and now resolved:
   - Keep recovery path available so generated text is not lost if strict JSON parse fails.
 
 - **Reusable Reference**:
-  - See `docs/gemini-article-generation-playbook.md` for implementation details, copy patterns, request budgeting strategy, and integration checklist for future projects.
+  - See `docs/ai-content-pipeline-playbook.md` for the consolidated cross-feature implementation guide (Gemini articles, image generation, and LinkedIn publish/scheduling/metrics).
+  - See `docs/gemini-article-generation-playbook.md` for article-generation-specific reliability internals.
 
 - **Prompt Governance (Admin-Editable Defaults)**:
   - Added admin-editable default prompt settings in `AI Settings` so teams can tune writing voice without code changes:
@@ -365,3 +366,14 @@ High-impact mismatches found and now resolved:
     - primary article generation prompt
     - multilingual translation prompt pipeline
   - AILab prompt preview/reset now includes these defaults so operators can see the effective prompt before dispatch.
+
+## Change Log (Feb 19, 2026 - Consolidated AI Pipeline Documentation)
+- Added `docs/ai-content-pipeline-playbook.md` as the primary reusable reference for future projects.
+- Includes end-to-end documentation for:
+  - Article generation reliability architecture (multilingual + parse recovery).
+  - Image generation architecture (Turbo + Gemini/Imagen fallback chain).
+  - LinkedIn distribution architecture (OAuth, direct share, queue scheduling, cron runner, and metrics sync).
+- Added explicit portability checklists:
+  - Required settings keys and env vars.
+  - Supabase SQL bootstrap order.
+  - API surface summary and migration checklist.

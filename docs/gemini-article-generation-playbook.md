@@ -2,6 +2,9 @@
 
 Last updated: Feb 19, 2026
 
+For the full cross-feature pipeline (articles + image generation + LinkedIn distribution), start with:
+- `docs/ai-content-pipeline-playbook.md`
+
 ## Why This Exists
 This guide documents the production approach used in Skallars Spirograph to make Gemini-based article generation reliable, cost-bounded, and recoverable.
 

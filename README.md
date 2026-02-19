@@ -23,7 +23,9 @@ npm run start
 ## Key Documentation
 - Project operating context and change log:
   - `AGENTS.md`
-- Gemini article generation reliability/reuse guide:
+- Consolidated AI content pipeline guide (Gemini articles + images + LinkedIn):
+  - `docs/ai-content-pipeline-playbook.md`
+- Gemini article reliability deep-dive:
   - `docs/gemini-article-generation-playbook.md`
 - Product plan:
   - `ROADMAP.md`
@@ -46,7 +48,8 @@ At minimum:
 For Gemini + LinkedIn workflows, see full env list in `AGENTS.md`.
 
 ## Notes for Future Projects
-If you want to reuse this Gemini implementation, start with:
-- `docs/gemini-article-generation-playbook.md`
+If you want to reuse this implementation in another project, start with:
+- `docs/ai-content-pipeline-playbook.md`
 
-It documents the bounded-call architecture, multilingual generation strategy (primary language + per-language translation), and recoverable-output UX pattern used to prevent token waste and lost article drafts.
+Then use:
+- `docs/gemini-article-generation-playbook.md` for article-generation internals and reliability deep-dive details.
