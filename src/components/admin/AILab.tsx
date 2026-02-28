@@ -140,16 +140,15 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         'Neutral': 'Balanced and objective. Avoid strong opinions or marketing language.',
     };
 
-    const GEMINI3_FLASH_PREVIEW_RE = /gemini-3-flash-preview/i;
-    const GEMINI3_FLASH_PREVIEW_LONGFORM_WORD_TARGET = 3000;
-    const isGemini3FlashPreviewModel = GEMINI3_FLASH_PREVIEW_RE.test(currentModel || '');
-    const effectiveArticleType = isGemini3FlashPreviewModel ? 'Deep Dive' : articleType;
-    const effectiveArticleLength = isGemini3FlashPreviewModel ? 'Report' : articleLength;
-    const effectiveResearchMode: 'none' | 'deep' | 'grounding' = isGemini3FlashPreviewModel ? 'deep' : researchMode;
-    const effectiveTargetWordCount = isGemini3FlashPreviewModel
-        ? Math.max(targetWordCount, GEMINI3_FLASH_PREVIEW_LONGFORM_WORD_TARGET)
+    const DEEP_DIVE_LONGFORM_WORD_TARGET = 3000;
+    const isDeepDivePolicy = articleType === 'Deep Dive';
+    const effectiveArticleType = articleType;
+    const effectiveArticleLength = isDeepDivePolicy ? 'Report' : articleLength;
+    const effectiveResearchMode: 'none' | 'deep' | 'grounding' = isDeepDivePolicy ? 'deep' : researchMode;
+    const effectiveTargetWordCount = isDeepDivePolicy
+        ? Math.max(targetWordCount, DEEP_DIVE_LONGFORM_WORD_TARGET)
         : targetWordCount;
-    const enforceGroundingPolicy = isGemini3FlashPreviewModel;
+    const enforceGroundingPolicy = isDeepDivePolicy;
 
     const articleSettingsDirty =
         currentModel !== savedModel ||
@@ -546,7 +545,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     targetLanguages,
                     articleType: effectiveArticleType,
                     articleLength: effectiveArticleLength,
-                    gemini3FlashPreviewPolicy: isGemini3FlashPreviewModel,
+                    deepDivePolicy: isDeepDivePolicy,
                     toneStyle,
                     toneCustom,
                     outlineEnabled: useOutlineWorkflow,
@@ -722,14 +721,14 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         await logGenerationEvent({ request_id: requestId, status: 'started' });
         const startTime = Date.now();
         try {
-            if (isGemini3FlashPreviewModel) {
-                setGenerationStatus('Gemini 3 Flash Preview policy active: Deep Research + Grounding + Long-form.');
+            if (isDeepDivePolicy) {
+                setGenerationStatus('Deep Dive policy active: Deep Research + Grounding + Long-form.');
             }
             const validLinks = links.filter(l => l.trim() !== '');
             let researchFindings = '';
             let researchSourcesLocal: Array<{ title?: string; url?: string }> = [];
             // Research mode logic:
-            // - 'deep': Run pre-pass research, then write (with/without grounding based on model policy)
+            // - 'deep': Run pre-pass research, then write (with/without grounding based on Deep Dive policy)
             // - 'grounding': No pre-pass, write WITH Google Search tool active
             // - 'none': No research, no tools
             let useGroundingForArticle = enforceGroundingPolicy || effectiveResearchMode === 'grounding';
@@ -769,7 +768,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             if (useOutlineWorkflow && !outlineText && !showPromptEditor) {
                 await handleGenerateOutline({
                     researchFindings,
-                    useGroundingOverride: enforceGroundingPolicy ? true : false,
+                    useGroundingOverride: enforceGroundingPolicy,
                     signal: controller.signal,
                     timeoutMs: effectiveResearchMode === 'deep' ? 600000 : 120000,
                     modelOverride: currentModel,
@@ -1242,7 +1241,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                 <GlobalSearchIcon size={16} className="text-primary" />
                                 Research Mode
                             </Label>
-                            <Select value={researchMode} onValueChange={(value) => setResearchMode(value as 'none' | 'deep' | 'grounding')}>
+                            <Select
+                                value={isDeepDivePolicy ? 'deep' : researchMode}
+                                onValueChange={(value) => setResearchMode(value as 'none' | 'deep' | 'grounding')}
+                                disabled={isDeepDivePolicy}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select research mode" />
                                 </SelectTrigger>
@@ -1253,15 +1256,15 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                 </SelectContent>
                             </Select>
                             <p className="text-xs text-muted-foreground">
-                                {researchMode === 'deep'
+                                {effectiveResearchMode === 'deep'
                                     ? 'Deep Research: Gathers sources first, then writes the article using compiled findings. Best for factual accuracy.'
-                                    : researchMode === 'grounding'
+                                    : effectiveResearchMode === 'grounding'
                                         ? 'Live Grounding: Uses Google Search inline during writing. May affect JSON stability with some models.'
                                         : 'None: Uses only your prompt and provided links. Fastest generation.'}
                             </p>
-                            {isGemini3FlashPreviewModel && (
+                            {isDeepDivePolicy && (
                                 <p className="text-xs text-primary">
-                                    Gemini 3 Flash Preview policy is active: generation enforces Deep Research + Live Grounding.
+                                    Deep Dive policy is active: generation enforces Deep Research + Live Grounding.
                                 </p>
                             )}
                         </div>
@@ -1411,11 +1414,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                                     disabled={articleType === 'Deep Dive'}
                                                 />
                                                 <p className="text-[10px] text-muted-foreground">
-                                                    {isGemini3FlashPreviewModel
-                                                        ? `Gemini 3 Flash Preview policy enforces long-form output (>=${GEMINI3_FLASH_PREVIEW_LONGFORM_WORD_TARGET} target words or equivalent Deep Dive depth).`
-                                                        : articleType === 'Deep Dive'
-                                                            ? 'Deep Dive articles use the maximum available token limit.'
-                                                            : 'Word count target is enforced in the prompt (+/-10%).'}
+                                                    {articleType === 'Deep Dive'
+                                                        ? `Deep Dive policy enforces long-form output (>=${DEEP_DIVE_LONGFORM_WORD_TARGET} target words or equivalent depth).`
+                                                        : 'Word count target is enforced in the prompt (+/-10%).'}
                                                 </p>
                                             </div>
 

@@ -312,6 +312,68 @@ const extractTextFromCandidate = (candidate: any) => {
         .trim();
 };
 
+const buildResearchPackFallback = (rawText: string): ResearchPack => {
+    const cleaned = String(rawText || '')
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .replace(/\r/g, '')
+        .trim();
+    const lines = cleaned
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const normalizedLines = lines
+        .map((line) => line.replace(/^[-*•]\s+/, '').replace(/^\d+[\).\s]+/, '').trim())
+        .filter(Boolean);
+
+    const paragraphs = cleaned
+        .split(/\n{2,}/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+    let summary = '';
+    const summaryLine = lines.find((line) => /^summary\s*[:\-]/i.test(line));
+    if (summaryLine) {
+        summary = summaryLine.replace(/^summary\s*[:\-]\s*/i, '').trim();
+    }
+    if (!summary) {
+        summary = paragraphs[0] || normalizedLines.slice(0, 3).join(' ');
+    }
+    if (summary.length > 1200) {
+        summary = `${summary.slice(0, 1197)}...`;
+    }
+
+    const keyPoints = Array.from(
+        new Set(
+            normalizedLines
+                .filter((line) => !/^summary\s*[:\-]/i.test(line))
+                .slice(0, 8)
+        )
+    );
+
+    const facts = Array.from(
+        new Set(
+            normalizedLines.filter((line) => /\b\d{4}\b|\d+%|\b\d+[.,]?\d*\b/.test(line)).slice(0, 8)
+        )
+    );
+
+    const outline = Array.from(
+        new Set(
+            lines
+                .filter((line) => /^h[23]\s*:/i.test(line) || /^#{2,3}\s+/.test(line))
+                .map((line) => line.replace(/^#{2,3}\s+/, (match) => (match.startsWith('###') ? 'H3: ' : 'H2: ')).trim())
+                .slice(0, 12)
+        )
+    );
+
+    return {
+        summary: summary || undefined,
+        key_points: keyPoints.length ? keyPoints : undefined,
+        facts: facts.length ? facts : undefined,
+        outline: outline.length ? outline : undefined
+    };
+};
+
 /**
  * Convert common markdown syntax to HTML.
  * Handles **bold**, *italic*, __bold__, _italic_.
@@ -1013,30 +1075,52 @@ export async function generateAIResearchPack(
     }
 
     const result = await response.json();
-    const groundingMetadata = result?.candidates?.[0]?.groundingMetadata;
+    const candidate = result?.candidates?.[0];
+    const groundingMetadata = candidate?.groundingMetadata;
     const usageMetadata = result?.usageMetadata;
-    const content = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const content = extractTextFromCandidate(candidate);
 
     if (!content) throw new Error(formatGeminiError(result));
 
-    let parsed = tryParseJson(content);
-    if (!parsed) {
-        parsed = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
+    let parsed: any = tryParseJson(content);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        try {
+            parsed = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
+        } catch (repairError) {
+            console.warn('[AI] Research pack JSON repair failed, using text fallback.', repairError);
+            parsed = buildResearchPackFallback(content);
+        }
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        parsed = buildResearchPackFallback(content);
     }
 
-    const responsePayload: ResearchPack = parsed || {};
+    const responsePayload: ResearchPack = {
+        summary: typeof parsed.summary === 'string' ? parsed.summary.trim() : undefined,
+        key_points: Array.isArray(parsed.key_points)
+            ? parsed.key_points.map((item: any) => String(item || '').trim()).filter(Boolean)
+            : undefined,
+        facts: Array.isArray(parsed.facts)
+            ? parsed.facts.map((item: any) => String(item || '').trim()).filter(Boolean)
+            : undefined,
+        outline: Array.isArray(parsed.outline)
+            ? parsed.outline.map((item: any) => String(item || '').trim()).filter(Boolean)
+            : undefined
+    };
 
     if (groundingMetadata?.groundingChunks) {
-        const sourceItems = groundingMetadata.groundingChunks
-            .map((chunk: any) => {
-                const uri = chunk.web?.uri;
-                if (!uri) return null;
-                return {
-                    url: uri,
-                    title: chunk.web?.title || uri,
-                };
-            })
-            .filter(Boolean) as Array<{ url: string; title?: string }>;
+        const sourceItems = normalizeSourceList(
+            groundingMetadata.groundingChunks
+                .map((chunk: any) => {
+                    const uri = chunk.web?.uri;
+                    if (!uri) return null;
+                    return {
+                        url: uri,
+                        title: chunk.web?.title || uri,
+                    };
+                })
+                .filter(Boolean) as Array<{ url: string; title?: string }>
+        );
         if (sourceItems.length > 0) {
             responsePayload.sources = sourceItems;
         }
@@ -1167,7 +1251,7 @@ export async function generateAIArticle(
     // Get selected model, fallback to gemini-2.0-flash
     const selectedModel = options.modelOverride || await getArticleModelSetting();
     console.log('[AI] Using Gemini model:', selectedModel, '(override:', options.modelOverride || 'none', ')');
-    const isGemini3FlashPreview = /gemini-3-flash-preview/i.test(selectedModel);
+    const isDeepDivePolicy = options.type === 'Deep Dive';
 
     const modelConfig = getModelConfig(selectedModel);
     let { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
@@ -1177,8 +1261,8 @@ export async function generateAIArticle(
     const slovakNativeInstructions = (await getSetting('gemini_article_prompt_slovak_native_instructions') || AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions).trim();
     const translationDefaultInstructions = (await getSetting('gemini_translation_prompt_default_instructions') || AI_PROMPT_DEFAULTS.translationDefaultInstructions).trim();
 
-    // Gemini 3 Flash preview policy: always keep grounding enabled.
-    if (isGemini3FlashPreview) {
+    // Deep Dive policy: always keep grounding enabled.
+    if (isDeepDivePolicy) {
         useGrounding = true;
     }
 
@@ -1294,15 +1378,15 @@ export async function generateAIArticle(
         useGrounding = false;
     }
 
-    // If research findings are provided (e.g. from Deep Dive phase 1), we don't need grounding.
-    // Disabling grounding allows us to use responseMimeType="application/json" which prevents parse errors.
-    if (useGrounding && options.researchFindings && !isGemini3FlashPreview) {
+    // If research findings are provided, we usually don't need live grounding during writing.
+    // Keep grounding enabled for Deep Dive policy, otherwise disable for better JSON stability.
+    if (useGrounding && options.researchFindings && !isDeepDivePolicy) {
         console.log('[AI] Disabling grounding because research findings are provided.');
         useGrounding = false;
     }
 
     // Use model specific max tokens if available, otherwise estimate
-    const isDeepDive = options.type === 'Deep Dive';
+    const isDeepDive = isDeepDivePolicy;
     let maxOutputTokens = modelConfig.maxOutputTokens;
 
     if (!isDeepDive) {
@@ -1313,10 +1397,6 @@ export async function generateAIArticle(
         // ensuring we don't truncate.
         maxOutputTokens = modelConfig.maxOutputTokens;
     }
-    if (isGemini3FlashPreview) {
-        maxOutputTokens = Math.max(maxOutputTokens, 65536);
-    }
-
     const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
     let finalPrompt = customPrompt || getAIArticlePrompt(prompt, links, {
@@ -1329,10 +1409,10 @@ export async function generateAIArticle(
     if (modelConfig.systemInstructionAddon) {
         finalPrompt = `${modelConfig.systemInstructionAddon}\n\n${finalPrompt}`;
     }
-    if (isGemini3FlashPreview) {
+    if (isDeepDivePolicy) {
         finalPrompt = `${finalPrompt}
 
-### GEMINI 3 FLASH PREVIEW LONG-FORM POLICY (MANDATORY)
+### DEEP DIVE LONG-FORM POLICY (MANDATORY)
 1. Deliver comprehensive long-form analysis, not a summary.
 2. Target at least 3000 words for the primary language output when topic scope allows.
 3. Include at least 8 <h2> sections and 12+ <h3> subsections where relevant.
@@ -1406,9 +1486,9 @@ export async function generateAIArticle(
             const direct = tryParseJson(raw);
             if (direct) return direct;
 
-            // Grounded outputs frequently include non-JSON fragments. For Gemini 3 Flash Preview
+            // Grounded outputs frequently include non-JSON fragments. For Deep Dive,
             // we allow a one-shot JSON repair pass to keep grounding + structured output.
-            if (useGrounding && !isGemini3FlashPreview) {
+            if (useGrounding && !isDeepDivePolicy) {
                 throw new Error('Grounded output was not valid JSON.');
             }
 
