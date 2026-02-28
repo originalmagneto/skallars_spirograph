@@ -140,6 +140,17 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         'Neutral': 'Balanced and objective. Avoid strong opinions or marketing language.',
     };
 
+    const GEMINI3_FLASH_PREVIEW_RE = /gemini-3-flash-preview/i;
+    const GEMINI3_FLASH_PREVIEW_LONGFORM_WORD_TARGET = 3000;
+    const isGemini3FlashPreviewModel = GEMINI3_FLASH_PREVIEW_RE.test(currentModel || '');
+    const effectiveArticleType = isGemini3FlashPreviewModel ? 'Deep Dive' : articleType;
+    const effectiveArticleLength = isGemini3FlashPreviewModel ? 'Report' : articleLength;
+    const effectiveResearchMode: 'none' | 'deep' | 'grounding' = isGemini3FlashPreviewModel ? 'deep' : researchMode;
+    const effectiveTargetWordCount = isGemini3FlashPreviewModel
+        ? Math.max(targetWordCount, GEMINI3_FLASH_PREVIEW_LONGFORM_WORD_TARGET)
+        : targetWordCount;
+    const enforceGroundingPolicy = isGemini3FlashPreviewModel;
+
     const articleSettingsDirty =
         currentModel !== savedModel ||
         thinkingBudget !== savedThinkingBudget ||
@@ -297,11 +308,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
 
     const handlePreparePrompt = () => {
         const p = getAIArticlePrompt(prompt || '[Your topic here]', links.filter(l => l.trim() !== ''), {
-            type: articleType,
-            length: articleLength,
+            type: effectiveArticleType,
+            length: effectiveArticleLength,
             targetLanguages,
-            researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
-            targetWordCount,
+            researchDepth: effectiveResearchMode === 'deep' ? 'Deep' : 'Quick',
+            targetWordCount: effectiveTargetWordCount,
             tone: toneStyle,
             toneInstructions,
             defaultInstructions: articlePromptDefaultInstructions,
@@ -313,11 +324,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
 
     const handleResetPrompt = () => {
         const p = getAIArticlePrompt(prompt || '[Your topic here]', links.filter(l => l.trim() !== ''), {
-            type: articleType,
-            length: articleLength,
+            type: effectiveArticleType,
+            length: effectiveArticleLength,
             targetLanguages,
-            researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
-            targetWordCount,
+            researchDepth: effectiveResearchMode === 'deep' ? 'Deep' : 'Quick',
+            targetWordCount: effectiveTargetWordCount,
             tone: toneStyle,
             toneInstructions,
             defaultInstructions: articlePromptDefaultInstructions,
@@ -351,14 +362,14 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         const promptChars = [
             promptValue,
             toneInstructions,
-            articleType,
-            articleLength,
+            effectiveArticleType,
+            effectiveArticleLength,
             targetLanguages.join(','),
             ...validLinks
         ].join(' ').length;
         const primaryPromptTokens = Math.ceil(promptChars / 3.8);
-        const primaryPromptOverhead = researchMode === 'deep' ? 1400 : (researchMode === 'grounding' ? 550 : 350);
-        const primaryOutputTokens = Math.ceil(targetWordCount * 1.8) + (useOutlineWorkflow ? 250 : 0) + Math.max(0, thinkingBudget || 0);
+        const primaryPromptOverhead = effectiveResearchMode === 'deep' ? 1400 : (effectiveResearchMode === 'grounding' ? 550 : 350);
+        const primaryOutputTokens = Math.ceil(effectiveTargetWordCount * 1.8) + (useOutlineWorkflow ? 250 : 0) + Math.max(0, thinkingBudget || 0);
 
         // In multilingual reliability mode we generate one primary language and run
         // one translation call per additional language.
@@ -374,9 +385,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             additionalLanguages * translationOutputTokensPerLanguage;
 
         // Deep mode runs a dedicated research pre-pass before article generation.
-        if (researchMode === 'deep') {
+        if (effectiveResearchMode === 'deep') {
             const researchPromptTokens = Math.ceil((promptChars + validLinks.join(' ').length) / 3.8) + 800;
-            const researchOutputTokens = Math.max(450, Math.ceil(targetWordCount * 0.5));
+            const researchOutputTokens = Math.max(450, Math.ceil(effectiveTargetWordCount * 0.5));
             promptTokens += researchPromptTokens;
             outputTokens += researchOutputTokens;
         }
@@ -406,6 +417,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     useEffect(() => {
         setPreflightCostEstimate(estimateRequestCost());
     }, [
+        currentModel,
         prompt,
         customPrompt,
         links,
@@ -528,12 +540,13 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 details: {
                     promptLength: promptValue.length,
                     linkCount: validLinks.length,
-                    useGrounding: researchMode !== 'none',
-                    researchMode,
-                    targetWordCount,
+                    useGrounding: enforceGroundingPolicy || effectiveResearchMode !== 'none',
+                    researchMode: effectiveResearchMode,
+                    targetWordCount: effectiveTargetWordCount,
                     targetLanguages,
-                    articleType,
-                    articleLength,
+                    articleType: effectiveArticleType,
+                    articleLength: effectiveArticleLength,
+                    gemini3FlashPreviewPolicy: isGemini3FlashPreviewModel,
                     toneStyle,
                     toneCustom,
                     outlineEnabled: useOutlineWorkflow,
@@ -709,22 +722,25 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
         await logGenerationEvent({ request_id: requestId, status: 'started' });
         const startTime = Date.now();
         try {
+            if (isGemini3FlashPreviewModel) {
+                setGenerationStatus('Gemini 3 Flash Preview policy active: Deep Research + Grounding + Long-form.');
+            }
             const validLinks = links.filter(l => l.trim() !== '');
             let researchFindings = '';
             let researchSourcesLocal: Array<{ title?: string; url?: string }> = [];
             // Research mode logic:
-            // - 'deep': Run pre-pass research, then write WITHOUT tools (uses findings)
+            // - 'deep': Run pre-pass research, then write (with/without grounding based on model policy)
             // - 'grounding': No pre-pass, write WITH Google Search tool active
             // - 'none': No research, no tools
-            let useGroundingForArticle = researchMode === 'grounding';
+            let useGroundingForArticle = enforceGroundingPolicy || effectiveResearchMode === 'grounding';
 
-            if (researchMode === 'deep') {
+            if (effectiveResearchMode === 'deep') {
                 setGenerationStatus('Gathering sources and research...');
                 try {
                     const researchPack = await generateAIResearchPack(prompt || customPrompt, validLinks, {
-                        type: articleType,
-                        length: articleLength,
-                        targetWordCount,
+                        type: effectiveArticleType,
+                        length: effectiveArticleLength,
+                        targetWordCount: effectiveTargetWordCount,
                         tone: toneStyle,
                         toneInstructions,
                         modelOverride: currentModel,
@@ -736,24 +752,26 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     setResearchSources(researchSourcesLocal);
                     setResearchSummary(researchPack.summary || '');
                     // We already grounded in research phase; avoid double grounding in generation.
-                    useGroundingForArticle = false;
+                    useGroundingForArticle = enforceGroundingPolicy;
                 } catch (researchError: any) {
                     console.warn('Research pre-pass failed, continuing without grounding:', researchError);
                     setResearchSources([]);
                     setResearchSummary('');
-                    // Keep grounding DISABLED to preserve JSON mode for article generation.
-                    // Enabling grounding here would break JSON parsing.
-                    useGroundingForArticle = false;
-                    toast.warning('Research failed. Generating article without web grounding.');
+                    useGroundingForArticle = enforceGroundingPolicy;
+                    toast.warning(
+                        enforceGroundingPolicy
+                            ? 'Research pre-pass failed. Continuing with live grounding.'
+                            : 'Research failed. Generating article without web grounding.'
+                    );
                 }
             }
 
             if (useOutlineWorkflow && !outlineText && !showPromptEditor) {
                 await handleGenerateOutline({
                     researchFindings,
-                    useGroundingOverride: false,
+                    useGroundingOverride: enforceGroundingPolicy ? true : false,
                     signal: controller.signal,
-                    timeoutMs: researchMode === 'deep' ? 600000 : 120000,
+                    timeoutMs: effectiveResearchMode === 'deep' ? 600000 : 120000,
                     modelOverride: currentModel,
                     thinkingBudgetOverride: thinkingBudget
                 });
@@ -767,13 +785,13 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 ? `${customPrompt}${researchFindings ? `\n\n### RESEARCH BRIEF (PRE-COMPILED)\n${researchFindings}` : ''}`
                 : undefined;
             const content = await generateAIArticle(prompt, validLinks, {
-                type: articleType,
-                length: articleLength,
+                type: effectiveArticleType,
+                length: effectiveArticleLength,
                 useGrounding: useGroundingForArticle,
                 customPrompt: customPromptOverride,
                 targetLanguages,
-                researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
-                targetWordCount,
+                researchDepth: effectiveResearchMode === 'deep' ? 'Deep' : 'Quick',
+                targetWordCount: effectiveTargetWordCount,
                 tone: toneStyle,
                 toneInstructions,
                 modelOverride: currentModel,
@@ -860,7 +878,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 options.signal.addEventListener('abort', () => outlineController.abort(), { once: true });
             }
         }
-        const defaultTimeoutMs = researchMode === 'deep' ? 600000 : 120000;
+        const defaultTimeoutMs = effectiveResearchMode === 'deep' ? 600000 : 120000;
         const timeoutMs = options?.timeoutMs ?? defaultTimeoutMs;
         const outlineTimeout = window.setTimeout(() => {
             outlineController.abort();
@@ -870,12 +888,12 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             const primaryLang = targetLanguages[0] || 'en';
             const useGrounding = typeof options?.useGroundingOverride === 'boolean'
                 ? options.useGroundingOverride
-                : (researchMode === 'deep');
+                : (enforceGroundingPolicy || effectiveResearchMode === 'deep');
             const outlineResult = await generateAIOutline(prompt, validLinks, {
-                type: articleType,
-                length: articleLength,
-                researchDepth: researchMode === 'deep' ? 'Deep' : 'Quick',
-                targetWordCount,
+                type: effectiveArticleType,
+                length: effectiveArticleLength,
+                researchDepth: effectiveResearchMode === 'deep' ? 'Deep' : 'Quick',
+                targetWordCount: effectiveTargetWordCount,
                 tone: toneStyle,
                 toneInstructions,
                 languageLabel: languageLabels[primaryLang] || primaryLang,
@@ -1241,6 +1259,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                         ? 'Live Grounding: Uses Google Search inline during writing. May affect JSON stability with some models.'
                                         : 'None: Uses only your prompt and provided links. Fastest generation.'}
                             </p>
+                            {isGemini3FlashPreviewModel && (
+                                <p className="text-xs text-primary">
+                                    Gemini 3 Flash Preview policy is active: generation enforces Deep Research + Live Grounding.
+                                </p>
+                            )}
                         </div>
 
                         {uiMode === 'power' ? (
@@ -1388,9 +1411,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                                                     disabled={articleType === 'Deep Dive'}
                                                 />
                                                 <p className="text-[10px] text-muted-foreground">
-                                                    {articleType === 'Deep Dive'
-                                                        ? 'Deep Dive articles use the maximum available token limit.'
-                                                        : 'Word count target is enforced in the prompt (+/-10%).'}
+                                                    {isGemini3FlashPreviewModel
+                                                        ? `Gemini 3 Flash Preview policy enforces long-form output (>=${GEMINI3_FLASH_PREVIEW_LONGFORM_WORD_TARGET} target words or equivalent Deep Dive depth).`
+                                                        : articleType === 'Deep Dive'
+                                                            ? 'Deep Dive articles use the maximum available token limit.'
+                                                            : 'Word count target is enforced in the prompt (+/-10%).'}
                                                 </p>
                                             </div>
 

@@ -1167,6 +1167,7 @@ export async function generateAIArticle(
     // Get selected model, fallback to gemini-2.0-flash
     const selectedModel = options.modelOverride || await getArticleModelSetting();
     console.log('[AI] Using Gemini model:', selectedModel, '(override:', options.modelOverride || 'none', ')');
+    const isGemini3FlashPreview = /gemini-3-flash-preview/i.test(selectedModel);
 
     const modelConfig = getModelConfig(selectedModel);
     let { useGrounding = false, customPrompt, signal, sources: providedSources } = options;
@@ -1175,6 +1176,11 @@ export async function generateAIArticle(
     const articleDefaultInstructions = (await getSetting('gemini_article_prompt_default_instructions') || AI_PROMPT_DEFAULTS.articleDefaultInstructions).trim();
     const slovakNativeInstructions = (await getSetting('gemini_article_prompt_slovak_native_instructions') || AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions).trim();
     const translationDefaultInstructions = (await getSetting('gemini_translation_prompt_default_instructions') || AI_PROMPT_DEFAULTS.translationDefaultInstructions).trim();
+
+    // Gemini 3 Flash preview policy: always keep grounding enabled.
+    if (isGemini3FlashPreview) {
+        useGrounding = true;
+    }
 
     // Reliability mode: for multi-language generation, produce one primary language first
     // and translate it into remaining languages in separate structured calls.
@@ -1290,7 +1296,7 @@ export async function generateAIArticle(
 
     // If research findings are provided (e.g. from Deep Dive phase 1), we don't need grounding.
     // Disabling grounding allows us to use responseMimeType="application/json" which prevents parse errors.
-    if (useGrounding && options.researchFindings) {
+    if (useGrounding && options.researchFindings && !isGemini3FlashPreview) {
         console.log('[AI] Disabling grounding because research findings are provided.');
         useGrounding = false;
     }
@@ -1307,6 +1313,9 @@ export async function generateAIArticle(
         // ensuring we don't truncate.
         maxOutputTokens = modelConfig.maxOutputTokens;
     }
+    if (isGemini3FlashPreview) {
+        maxOutputTokens = Math.max(maxOutputTokens, 65536);
+    }
 
     const thinkingConfig = buildThinkingConfig(selectedModel, thinkingBudget);
 
@@ -1319,6 +1328,16 @@ export async function generateAIArticle(
     // Inject model-specific system instruction if available
     if (modelConfig.systemInstructionAddon) {
         finalPrompt = `${modelConfig.systemInstructionAddon}\n\n${finalPrompt}`;
+    }
+    if (isGemini3FlashPreview) {
+        finalPrompt = `${finalPrompt}
+
+### GEMINI 3 FLASH PREVIEW LONG-FORM POLICY (MANDATORY)
+1. Deliver comprehensive long-form analysis, not a summary.
+2. Target at least 3000 words for the primary language output when topic scope allows.
+3. Include at least 8 <h2> sections and 12+ <h3> subsections where relevant.
+4. Add concrete examples, practical implications, and risk scenarios in each major section.
+5. Preserve strict JSON schema output requirements.`;
     }
 
     const collectedGroundingChunks: any[] = [];
@@ -1387,8 +1406,9 @@ export async function generateAIArticle(
             const direct = tryParseJson(raw);
             if (direct) return direct;
 
-            // Grounded outputs frequently include non-JSON fragments. Avoid expensive re-generation loops.
-            if (useGrounding) {
+            // Grounded outputs frequently include non-JSON fragments. For Gemini 3 Flash Preview
+            // we allow a one-shot JSON repair pass to keep grounding + structured output.
+            if (useGrounding && !isGemini3FlashPreview) {
                 throw new Error('Grounded output was not valid JSON.');
             }
 
@@ -1968,47 +1988,61 @@ export async function generateAIImage(
         if (imageSize) imageConfig.imageSize = imageSize;
 
         const makeGenerateContentRequest = async (finalPrompt: string, modelName = imageModel) => {
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-                    body: JSON.stringify({
-                        contents: [
-                            {
-                                parts: [
-                                    {
-                                        text: `Generate a professional, high-quality image for an article. The image should be: ${normalizePrompt(finalPrompt)}`
-                                    }
-                                ]
+            let lastError: Error | null = null;
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                        body: JSON.stringify({
+                            contents: [
+                                {
+                                    parts: [
+                                        {
+                                            text: `Generate a professional, high-quality image for an article. The image should be: ${normalizePrompt(finalPrompt)}`
+                                        }
+                                    ]
+                                }
+                            ],
+                            generationConfig: {
+                                responseModalities: ["IMAGE"],
+                                ...(Object.keys(imageConfig).length > 0 ? { imageConfig } : {})
                             }
-                        ],
-                        generationConfig: {
-                            responseModalities: ["IMAGE"],
-                            ...(Object.keys(imageConfig).length > 0 ? { imageConfig } : {})
-                        }
-                    })
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    const statusError = new Error(`generateContent failed: ${response.status} ${response.statusText} - ${errorBody}`);
+                    lastError = statusError;
+                    if (response.status >= 500 && attempt === 0) {
+                        await new Promise((resolve) => setTimeout(resolve, 650));
+                        continue;
+                    }
+                    throw statusError;
                 }
-            );
 
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`generateContent failed: ${response.status} ${response.statusText} - ${errorBody}`);
+                const result = await response.json();
+                const parts = result.candidates?.[0]?.content?.parts || [];
+                const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+                if (imagePart?.inlineData?.data) {
+                    const mimeType = imagePart.inlineData.mimeType || 'image/png';
+                    return `data:${mimeType};base64,${imagePart.inlineData.data}`;
+                }
+                const finishReason = result?.candidates?.[0]?.finishReason;
+                const modelVersion = result?.modelVersion || modelName;
+                if (finishReason) {
+                    const finishError = new Error(`No image returned (finishReason: ${finishReason}, model: ${modelVersion}).`);
+                    lastError = finishError;
+                    throw finishError;
+                }
+                const parseError = new Error(formatGeminiError(result));
+                lastError = parseError;
+                throw parseError;
             }
-
-            const result = await response.json();
-            const parts = result.candidates?.[0]?.content?.parts || [];
-            const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-            if (imagePart?.inlineData?.data) {
-                const mimeType = imagePart.inlineData.mimeType || 'image/png';
-                return `data:${mimeType};base64,${imagePart.inlineData.data}`;
-            }
-            const finishReason = result?.candidates?.[0]?.finishReason;
-            const modelVersion = result?.modelVersion || modelName;
-            if (finishReason) {
-                throw new Error(`No image returned (finishReason: ${finishReason}, model: ${modelVersion}).`);
-            }
-            throw new Error(formatGeminiError(result));
+            throw lastError || new Error('Image generation failed.');
         };
 
         const makePredictRequest = async (finalPrompt: string, modelName = imageModel) => {
