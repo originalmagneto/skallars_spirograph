@@ -888,9 +888,6 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     aspectRatio: imageAspect,
                     model: effectiveModel,
                 });
-                if (effectiveProvider === 'gemini' && url.includes('image.pollinations.ai')) {
-                    toast.warning('NanoBanana generation is unavailable or requires billing. Using Turbo mode instead.');
-                }
                 results.push({ url, provider: effectiveProvider });
             }
             setGeneratedImages(results);
@@ -1771,7 +1768,7 @@ Rules:
                                         NanoBanana (Gemini)
                                     </div>
                                     <p className="text-[10px] text-muted-foreground">
-                                        Uses your Gemini API key. Turbo remains internal fallback only on hard failures.
+                                        Uses your Gemini API key. If generation fails, switch model or simplify the prompt.
                                     </p>
                                 </div>
                             )}

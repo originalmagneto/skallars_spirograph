@@ -69,7 +69,7 @@ const IMAGE_DEFAULT_SETTINGS: Array<{ key: string; value: string; description: s
     {
         key: 'image_model',
         value: 'default',
-        description: 'Selected image mode (default, pro, or turbo fallback)'
+        description: 'Selected image mode (default, pro, or turbo manual mode)'
     }
 ];
 
@@ -323,7 +323,7 @@ const AISettings = () => {
             { key: 'gemini_translation_prompt_default_instructions', value: AI_PROMPT_DEFAULTS.translationDefaultInstructions, description: 'Default translation prompt instructions for multilingual article translation calls' },
             { key: 'gemini_image_model', value: DEFAULT_NANO_BANANA_2_MODEL, description: 'NanoBanana 2 default model (Gemini 3.1 Flash Image)' },
             { key: 'gemini_image_model_pro', value: DEFAULT_NANO_BANANA_PRO_MODEL, description: 'NanoBanana Pro model (Gemini 3 Pro Image)' },
-            { key: 'image_model', value: 'default', description: 'Selected image mode (default, pro, or turbo fallback)' },
+            { key: 'image_model', value: 'default', description: 'Selected image mode (default, pro, or turbo manual mode)' },
             { key: 'gemini_price_input_per_million', value: '', description: 'Optional: price per 1M input tokens (USD)' },
             { key: 'gemini_price_output_per_million', value: '', description: 'Optional: price per 1M output tokens (USD)' },
             { key: 'gemini_quota_daily_tokens', value: '', description: 'Optional: per-user daily token quota' },
@@ -690,11 +690,11 @@ const AISettings = () => {
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="font-bold text-sm">Turbo Fallback</span>
+                                        <span className="font-bold text-sm">Turbo (Manual)</span>
                                         <Badge variant="outline" className="text-[9px] h-5 bg-background">POLLINATIONS FLUX</Badge>
                                     </div>
                                     <p className="text-xs text-muted-foreground leading-relaxed">
-                                        Optional fallback mode for very fast drafts when you want to bypass Gemini image models.
+                                        Optional manual mode for very fast drafts when you explicitly want Pollinations instead of Gemini image models.
                                     </p>
                                 </div>
                             </button>

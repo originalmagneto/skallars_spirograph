@@ -1915,8 +1915,7 @@ export async function generateAIImage(
     // Pro mode: Use Gemini Image models (requires Gemini API key)
     const apiKey = await getSetting('gemini_image_api_key') || await getSetting('gemini_api_key');
     if (!apiKey) {
-        console.warn('Gemini API key not found, falling back to Turbo mode');
-        return generateAIImage(prompt, { turbo: true });
+        throw new Error('Gemini image API key is missing. Configure gemini_image_api_key or gemini_api_key in AI Settings.');
     }
 
     const translatePromptToEnglish = async (text: string) => {
@@ -2102,8 +2101,8 @@ export async function generateAIImage(
             throw primaryError;
         }
     } catch (err) {
-        console.warn('Gemini image generation failed (Handled), falling back to Turbo mode:', err);
-        return generateAIImage(prompt, { turbo: true, width, height });
+        console.warn('Gemini image generation failed:', err);
+        throw err instanceof Error ? err : new Error('Gemini image generation failed.');
     }
 }
 
