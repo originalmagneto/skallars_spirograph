@@ -1968,9 +1968,9 @@ export async function generateAIImage(
         if (normalizedAspectRatio) imageConfig.aspectRatio = normalizedAspectRatio;
         if (imageSize) imageConfig.imageSize = imageSize;
 
-        const makeGenerateContentRequest = async (finalPrompt: string) => {
+        const makeGenerateContentRequest = async (finalPrompt: string, modelName = imageModel) => {
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -2004,12 +2004,17 @@ export async function generateAIImage(
                 const mimeType = imagePart.inlineData.mimeType || 'image/png';
                 return `data:${mimeType};base64,${imagePart.inlineData.data}`;
             }
+            const finishReason = result?.candidates?.[0]?.finishReason;
+            const modelVersion = result?.modelVersion || modelName;
+            if (finishReason) {
+                throw new Error(`No image returned (finishReason: ${finishReason}, model: ${modelVersion}).`);
+            }
             throw new Error(formatGeminiError(result));
         };
 
-        const makePredictRequest = async (finalPrompt: string) => {
+        const makePredictRequest = async (finalPrompt: string, modelName = imageModel) => {
             const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:predict?key=${apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:predict?key=${apiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -2049,6 +2054,14 @@ export async function generateAIImage(
         const looksLikeImagen = imageModel.toLowerCase().includes('imagen');
         const needsEnglish = looksLikeImagen && /[^\x00-\x7F]/.test(prompt);
         const effectivePrompt = needsEnglish ? await translatePromptToEnglish(prompt) : prompt;
+        const normalizedPrompt = normalizePrompt(effectivePrompt);
+        const compactPrompt = truncatePrompt(normalizedPrompt, 320);
+        const requestedModel = model?.trim();
+        const allowProFallback =
+            !looksLikeImagen &&
+            proImageModel &&
+            imageModel !== proImageModel &&
+            (!requestedModel || requestedModel === defaultImageModel);
 
         if (effectivePrompt !== prompt) {
             console.log('[AI] Translated prompt to English for Imagen model.');
@@ -2060,11 +2073,33 @@ export async function generateAIImage(
             }
             return await makeGenerateContentRequest(effectivePrompt);
         } catch (primaryError) {
-            console.warn('[AI] Primary image generation failed, retrying with alternate endpoint...', primaryError);
             if (looksLikeImagen) {
+                console.warn('[AI] Imagen predict failed, retrying with generateContent...', primaryError);
                 return await makeGenerateContentRequest(effectivePrompt);
             }
-            return await makePredictRequest(effectivePrompt);
+
+            const primaryMessage = primaryError instanceof Error ? primaryError.message : String(primaryError);
+            if (primaryMessage.includes('finishReason: NO_IMAGE')) {
+                if (compactPrompt !== normalizedPrompt) {
+                    try {
+                        console.warn('[AI] NanoBanana returned NO_IMAGE, retrying with condensed prompt...');
+                        return await makeGenerateContentRequest(compactPrompt);
+                    } catch (condensedErr) {
+                        console.warn('[AI] Condensed-prompt retry failed.', condensedErr);
+                    }
+                }
+                if (allowProFallback) {
+                    try {
+                        console.warn('[AI] NanoBanana default returned NO_IMAGE, retrying with pro image model...');
+                        return await makeGenerateContentRequest(effectivePrompt, proImageModel);
+                    } catch (proErr) {
+                        console.warn('[AI] Pro-model retry failed.', proErr);
+                    }
+                }
+            }
+
+            console.warn('[AI] Gemini image generation failed without alternate endpoint retry.', primaryError);
+            throw primaryError;
         }
     } catch (err) {
         console.warn('Gemini image generation failed (Handled), falling back to Turbo mode:', err);
