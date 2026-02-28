@@ -886,16 +886,16 @@ ${slovakNativeBlock}
 3.1 **Completeness**: Never return only titles. Every language must include full \`content_*\` HTML with paragraphs and headings, even when links are provided without grounding.
 4. **Formatting (CRITICAL)**: 
    - Use **HTML tags** for all content.
-   - **Headings**: Use \`<h2>\` for main sections and \`<h3>\` for subsections. **Use H3 frequently** to break up text.
+   - **Headings**: Use \`<h2>\` for major sections and \`<h3>\` only where truly needed. Avoid over-segmentation.
    - **Paragraphs**: Wrap all body text in \`<p>\` tags. Keep them short (2-4 sentences).
-   - **Lists**: Use \`<ul>\` with \`<li>\` for bullet points. Include at least 2 lists in the article.
-   - **Emphasis**: Use \`<strong>\` to bold **key terms**, **important concepts**, and **takeaways**. (Target: 2-3 bolded phrases per paragraph).
-   - **Quotes**: Include at least one \`<blockquote>\` every major section (or every 300 words) to highlight a key insight, legal principle, or "pull quote".
+   - **Lists**: Use \`<ul>\` or \`<ol>\` with \`<li>\` for enumerations/questions. Do not represent list items as headings.
+   - **Emphasis**: Use \`<strong>\` sparingly (typically max 1 short phrase per paragraph). Never wrap full sentences or whole list items in \`<strong>\`.
+   - **Quotes**: Include \`<blockquote>\` only when there is a genuine quote-worthy insight. Do not force one in every section.
    - **Subtle Emphasis**: Use \`<em>\` for foreign phrases or subtle stress.
    - **Prohibited**: Do NOT use markdown characters like \`#\`, \`**\`, or \`- \` inside the JSON strings. Use HTML only.
 5. **Structure Requirements**:
    - Minimum **4** \`<h2>\` sections.
-   - Each H2 section should ideally have **1-2** \`<h3>\` subsections.
+   - Use \`<h3>\` only if it improves readability; plain paragraphs/lists are preferred over unnecessary subheadings.
    - Include at least **two** bullet lists.
    - Paragraphs should be short and punchy.
 6. **Citations & Links**:

@@ -37,9 +37,11 @@ const addHeadingAnchors = (html: string) => {
 
 const looksLikeHeading = (plain: string) => {
     if (!plain) return false;
-    if (/^\d+\.\s+/.test(plain)) return true;
-    if (/^[ivxlcdm]+\.\s+/i.test(plain)) return true;
+    // Numbered items should stay list items, not headings.
+    if (/^\d+[\.\)]\s+/.test(plain)) return false;
+    if (/^[ivxlcdm]+[\.\)]\s+/i.test(plain)) return false;
     if (plain.length <= 120 && /:$/.test(plain)) return true;
+    if (plain.length <= 90 && !/[.!?]$/.test(plain)) return true;
     return false;
 };
 
@@ -106,10 +108,37 @@ export const formatArticleHtml = (input: string) => {
             }
 
             if ((looksLikeHeading(plain) && isShort) || (strongOnly && isShort)) {
-                const h2 = doc.createElement('h2');
-                h2.innerHTML = p.innerHTML;
-                p.replaceWith(h2);
+                const h3 = doc.createElement('h3');
+                h3.innerHTML = p.innerHTML;
+                p.replaceWith(h3);
             }
+        });
+
+        // Convert consecutive numbered paragraphs (e.g. "1. ...") into <ol><li>.
+        const numberedPattern = /^\s*\d+[\.\)]\s+/;
+        const topLevelChildren = Array.from(container.children);
+        let orderedList: HTMLOListElement | null = null;
+        topLevelChildren.forEach((child) => {
+            if (child.tagName !== 'P') {
+                orderedList = null;
+                return;
+            }
+            const paragraph = child as HTMLParagraphElement;
+            const text = (paragraph.textContent || '').trim();
+            if (!numberedPattern.test(text)) {
+                orderedList = null;
+                return;
+            }
+
+            if (!orderedList) {
+                orderedList = doc.createElement('ol');
+                paragraph.before(orderedList);
+            }
+
+            const li = doc.createElement('li');
+            li.innerHTML = paragraph.innerHTML.replace(numberedPattern, '').trim();
+            orderedList.appendChild(li);
+            paragraph.remove();
         });
 
         return addHeadingAnchors(container.innerHTML);
@@ -124,47 +153,52 @@ export const formatArticleHtml = (input: string) => {
 
   const output: string[] = [];
   let listItems: string[] = [];
+  let orderedItems: string[] = [];
 
   const flushList = () => {
     if (listItems.length === 0) return;
     output.push(`<ul>${listItems.map((item) => `<li>${item}</li>`).join('')}</ul>`);
     listItems = [];
   };
+  const flushOrderedList = () => {
+    if (orderedItems.length === 0) return;
+    output.push(`<ol>${orderedItems.map((item) => `<li>${item}</li>`).join('')}</ol>`);
+    orderedItems = [];
+  };
 
   lines.forEach((line) => {
     const plain = line.replace(/<[^>]+>/g, '').trim();
     const isBullet = /^[-•]\s+/.test(plain);
+    const isOrdered = /^\d+[\.\)]\s+/.test(plain);
     const isStrongHeading = /^<strong>[\s\S]+<\/strong>$/.test(line);
     const isQuote = /^(“|\"|„)/.test(plain);
 
     if (isBullet) {
+      flushOrderedList();
       const item = plain.replace(/^[-•]\s+/, '');
       listItems.push(item);
       return;
     }
+    if (isOrdered) {
+      flushList();
+      const item = plain.replace(/^\d+[\.\)]\s+/, '');
+      orderedItems.push(item);
+      return;
+    }
 
     flushList();
+    flushOrderedList();
 
     const strongSegments = line.split(/(<strong>[\s\S]*?<\/strong>)/i).filter(Boolean);
     if (strongSegments.length > 1) {
-      strongSegments.forEach((segment) => {
-        const match = segment.match(/^<strong>([\s\S]*?)<\/strong>$/i);
-        if (match) {
-          const headingText = match[1]?.trim();
-          if (headingText) {
-            output.push(`<h2>${headingText}</h2>`);
-          }
-          return;
-        }
-        const segmentPlain = segment.replace(/<[^>]+>/g, '').trim();
-        if (!segmentPlain) return;
-        output.push(`<p>${segment}</p>`);
-      });
+      // Keep inline emphasis inline; converting every <strong> fragment to <h2>
+      // produces oversized, fragmented article typography.
+      output.push(`<p>${line}</p>`);
       return;
     }
 
     if (looksLikeHeading(plain) || isStrongHeading) {
-      output.push(`<h2>${line}</h2>`);
+      output.push(`<h3>${line}</h3>`);
       return;
     }
 
@@ -177,5 +211,6 @@ export const formatArticleHtml = (input: string) => {
   });
 
   flushList();
+  flushOrderedList();
   return addHeadingAnchors(output.join('\n'));
 };

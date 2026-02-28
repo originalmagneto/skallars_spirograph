@@ -61,7 +61,7 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
 
     return (
         <div className="min-h-screen bg-white">
-            <div className="container mx-auto px-4 py-16 max-w-3xl">
+            <div className="container mx-auto px-4 py-16 max-w-[60rem]">
                 <div className="mb-6 flex items-center gap-3 text-sm font-medium">
                     <Link href="/" className="text-[#210059] hover:underline hover:text-purple-700 transition-colors">
                         {t.navigation.home}
@@ -127,9 +127,10 @@ export default function ArticleViewer({ post }: ArticleViewerProps) {
                     )}
 
                     <div
-                        className="prose prose-xl prose-slate max-w-none 
+                        className="prose prose-lg prose-slate max-w-none 
               prose-headings:font-bold prose-headings:text-[#210059] prose-headings:tracking-tight
-              prose-h2:mt-12 prose-h2:mb-4 prose-h3:mt-9 prose-h3:mb-3
+              prose-h2:mt-12 prose-h2:mb-4 prose-h2:text-[2rem] prose-h2:leading-[1.2]
+              prose-h3:mt-8 prose-h3:mb-3 prose-h3:text-[1.5rem] prose-h3:leading-[1.25]
               prose-p:mt-4 prose-p:mb-5 prose-p:text-gray-600 prose-p:leading-relaxed
               prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline
               prose-strong:text-[#210059] prose-strong:font-bold
