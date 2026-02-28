@@ -27,7 +27,11 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { generateAIEdit, generateAIImage } from '@/lib/aiService';
-import { fetchAISettings } from '@/lib/aiSettings';
+import {
+    fetchAISettings,
+    DEFAULT_NANO_BANANA_2_MODEL,
+    DEFAULT_NANO_BANANA_PRO_MODEL,
+} from '@/lib/aiSettings';
 import { formatArticleHtml } from '@/lib/articleFormat';
 import { AdminPanelHeader, AdminSectionCard, BENTO_SIZE_CLASS, BentoSize, useBentoLayout } from '@/components/admin/AdminPrimitives';
 
@@ -166,14 +170,14 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [imageStyle, setImageStyle] = useState('Editorial Photo');
     const [imageAspect, setImageAspect] = useState<'1:1' | '16:9' | '4:3' | '3:4'>('16:9');
     const [imageCount, setImageCount] = useState(2);
-    const [imageMode, setImageMode] = useState<'lite' | 'advanced'>('lite');
+    const [imageMode, setImageMode] = useState<'default' | 'advanced'>('default');
     const [useGlobalImageSettings, setUseGlobalImageSettings] = useState(true);
-    const [globalImageProvider, setGlobalImageProvider] = useState<'gemini' | 'turbo'>('gemini');
+    const [globalImageProvider, setGlobalImageProvider] = useState<'gemini'>('gemini');
     const [globalImageModel, setGlobalImageModel] = useState('');
-    const [overrideImageProvider, setOverrideImageProvider] = useState<'gemini' | 'turbo'>('gemini');
+    const [overrideImageProvider, setOverrideImageProvider] = useState<'gemini'>('gemini');
     const [overrideImageModel, setOverrideImageModel] = useState('');
     const [imageGenerating, setImageGenerating] = useState(false);
-    const [generatedImages, setGeneratedImages] = useState<Array<{ url: string; provider: 'gemini' | 'turbo' }>>([]);
+    const [generatedImages, setGeneratedImages] = useState<Array<{ url: string; provider: 'gemini' }>>([]);
     const [linkedinStatus, setLinkedinStatus] = useState<{
         connected: boolean;
         member_name?: string | null;
@@ -396,13 +400,13 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     useEffect(() => {
         const loadImageSettings = async () => {
             const settings = await fetchAISettings();
-            const provider = settings.imageEngine === 'turbo' ? 'turbo' : 'gemini';
-            setGlobalImageProvider(provider);
-            setOverrideImageProvider(provider);
-            if (settings.geminiImageModel) {
-                setGlobalImageModel(settings.geminiImageModel);
-                setOverrideImageModel(settings.geminiImageModel);
-            }
+            setGlobalImageProvider('gemini');
+            setOverrideImageProvider('gemini');
+            const defaultModel = settings.geminiImageModelDefault || DEFAULT_NANO_BANANA_2_MODEL;
+            const proModel = settings.geminiImageModelPro || DEFAULT_NANO_BANANA_PRO_MODEL;
+            const activeModel = settings.imageMode === 'pro' ? proModel : defaultModel;
+            setGlobalImageModel(activeModel);
+            setOverrideImageModel(activeModel);
         };
         loadImageSettings();
     }, []);
@@ -867,24 +871,22 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         setImageGenerating(true);
         setGeneratedImages([]);
         try {
-            const liteMode = imageMode === 'lite';
-            const effectiveProvider = liteMode
-                ? 'turbo'
-                : (useGlobalImageSettings ? globalImageProvider : overrideImageProvider);
-            const effectiveModel = liteMode
-                ? ''
-                : (useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel));
+            const defaultMode = imageMode === 'default';
+            const effectiveProvider: 'gemini' = 'gemini';
+            const effectiveModel = defaultMode
+                ? DEFAULT_NANO_BANANA_2_MODEL
+                : (useGlobalImageSettings ? globalImageModel : (overrideImageModel || globalImageModel || DEFAULT_NANO_BANANA_2_MODEL));
             const { width, height } = aspectSizes[imageAspect];
             const finalPrompt = `${imagePrompt}\nStyle: ${imageStyle}. Aspect ratio: ${imageAspect}.`;
-            const results: Array<{ url: string; provider: 'gemini' | 'turbo' }> = [];
-            const total = liteMode ? 1 : imageCount;
+            const results: Array<{ url: string; provider: 'gemini' }> = [];
+            const total = defaultMode ? 1 : imageCount;
             for (let i = 0; i < total; i += 1) {
                 const url = await generateAIImage(finalPrompt, {
-                    turbo: effectiveProvider === 'turbo',
+                    turbo: false,
                     width,
                     height,
                     aspectRatio: imageAspect,
-                    model: effectiveProvider === 'gemini' && effectiveModel ? effectiveModel : undefined,
+                    model: effectiveModel,
                 });
                 if (effectiveProvider === 'gemini' && url.includes('image.pollinations.ai')) {
                     toast.warning('NanoBanana generation is unavailable or requires billing. Using Turbo mode instead.');
@@ -1725,17 +1727,17 @@ Rules:
 
                     <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Generation Mode</Label>
-                        <Select value={imageMode} onValueChange={(value) => setImageMode(value as 'lite' | 'advanced')}>
+                        <Select value={imageMode} onValueChange={(value) => setImageMode(value as 'default' | 'advanced')}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select mode" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="lite">Lite (Fast Draft)</SelectItem>
-                                <SelectItem value="advanced">Advanced (Full Controls)</SelectItem>
+                                <SelectItem value="default">Default (NanoBanana 2)</SelectItem>
+                                <SelectItem value="advanced">Advanced (Pro/Custom Model)</SelectItem>
                             </SelectContent>
                         </Select>
                         <p className="text-[10px] text-muted-foreground">
-                            Lite uses Turbo with one variant. Advanced unlocks NanoBanana model and provider controls.
+                            Default mode runs one NanoBanana 2 variant. Advanced unlocks Pro/custom model controls and multi-variant generation.
                         </p>
                     </div>
 
@@ -1754,8 +1756,8 @@ Rules:
                             {useGlobalImageSettings ? (
                                 <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
                                     <div className="font-medium text-foreground">Using global image defaults</div>
-                                    <div>Provider: {displayImageProvider === 'gemini' ? 'NanoBanana (Gemini)' : 'Turbo (Fast)'}</div>
-                                    {displayImageProvider === 'gemini' && displayImageModel && (
+                                    <div>Provider: NanoBanana (Gemini)</div>
+                                    {displayImageModel && (
                                         <div>Model: {displayImageModel}</div>
                                     )}
                                     <div>
@@ -1765,20 +1767,11 @@ Rules:
                             ) : (
                                 <div className="space-y-2">
                                     <Label className="text-xs text-muted-foreground">Provider</Label>
-                                    <Select
-                                        value={overrideImageProvider}
-                                        onValueChange={(value) => setOverrideImageProvider(value as 'gemini' | 'turbo')}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select provider" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="gemini">NanoBanana (Gemini)</SelectItem>
-                                            <SelectItem value="turbo">Turbo (Fast)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <div className="rounded-md border px-3 py-2 text-xs text-muted-foreground bg-muted/40">
+                                        NanoBanana (Gemini)
+                                    </div>
                                     <p className="text-[10px] text-muted-foreground">
-                                        NanoBanana uses your API key. Turbo is fast and free for drafts.
+                                        Uses your Gemini API key. Turbo remains internal fallback only on hard failures.
                                     </p>
                                 </div>
                             )}
@@ -1829,7 +1822,7 @@ Rules:
                                     </div>
                                     <div className="p-3 space-y-2">
                                         <div className="text-[11px] text-muted-foreground">
-                                            Provider: {img.provider === 'gemini' ? 'Gemini' : 'Turbo'}
+                                            Provider: NanoBanana (Gemini)
                                         </div>
                                         <div className="flex gap-2">
                                             <Button size="sm" variant="outline" onClick={() => handleSaveImage(img.url)}>
