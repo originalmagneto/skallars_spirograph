@@ -24,7 +24,11 @@ import {
 import { Badge } from '@/components/ui/badge';
 import AIUsageStats from './AIUsageStats';
 import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
-import { AI_PROMPT_DEFAULTS } from '@/lib/aiSettings';
+import {
+    AI_PROMPT_DEFAULTS,
+    DEFAULT_NANO_BANANA_2_MODEL,
+    DEFAULT_NANO_BANANA_PRO_MODEL
+} from '@/lib/aiSettings';
 
 interface GeminiModel {
     name: string;
@@ -51,9 +55,49 @@ const PROMPT_DEFAULT_SETTINGS: Array<{ key: string; value: string; description: 
     }
 ];
 
+const IMAGE_DEFAULT_SETTINGS: Array<{ key: string; value: string; description: string }> = [
+    {
+        key: 'gemini_image_model',
+        value: DEFAULT_NANO_BANANA_2_MODEL,
+        description: 'NanoBanana 2 default model (Gemini 3.1 Flash Image)'
+    },
+    {
+        key: 'gemini_image_model_pro',
+        value: DEFAULT_NANO_BANANA_PRO_MODEL,
+        description: 'NanoBanana Pro model (Gemini 3 Pro Image)'
+    },
+    {
+        key: 'image_model',
+        value: 'default',
+        description: 'Selected image mode (default, pro, or turbo fallback)'
+    }
+];
+
 const applyPromptDefaults = (rows: any[] = []) => {
     const next = [...rows];
     for (const defaultSetting of PROMPT_DEFAULT_SETTINGS) {
+        const index = next.findIndex((setting) => setting.key === defaultSetting.key);
+        if (index === -1) {
+            next.push(defaultSetting);
+            continue;
+        }
+
+        const existing = next[index];
+        const existingValue = typeof existing?.value === 'string' ? existing.value.trim() : '';
+        if (!existingValue) {
+            next[index] = {
+                ...existing,
+                value: defaultSetting.value,
+                description: existing?.description || defaultSetting.description
+            };
+        }
+    }
+    return next;
+};
+
+const applyImageDefaults = (rows: any[] = []) => {
+    const next = [...rows];
+    for (const defaultSetting of IMAGE_DEFAULT_SETTINGS) {
         const index = next.findIndex((setting) => setting.key === defaultSetting.key);
         if (index === -1) {
             next.push(defaultSetting);
@@ -98,7 +142,7 @@ const AISettings = () => {
                 .order('key');
 
             if (error) throw error;
-            const normalizedSettings = applyPromptDefaults(data || []);
+            const normalizedSettings = applyImageDefaults(applyPromptDefaults(data || []));
             setSettings(normalizedSettings);
             const storedImageModel = normalizedSettings.find(s => s.key === 'gemini_image_model')?.value;
             if (storedImageModel) {
@@ -277,8 +321,9 @@ const AISettings = () => {
             { key: 'gemini_article_prompt_default_instructions', value: AI_PROMPT_DEFAULTS.articleDefaultInstructions, description: 'Default article prompt instructions appended to all article generations' },
             { key: 'gemini_article_prompt_slovak_native_instructions', value: AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions, description: 'Slovak-native writing constraints for article generation and translation' },
             { key: 'gemini_translation_prompt_default_instructions', value: AI_PROMPT_DEFAULTS.translationDefaultInstructions, description: 'Default translation prompt instructions for multilingual article translation calls' },
-            { key: 'gemini_image_model', value: 'imagen-3.0-generate-001', description: 'Selected Gemini model for image generation' },
-            { key: 'image_model', value: 'pro', description: 'Selected model for image generation (turbo or pro)' },
+            { key: 'gemini_image_model', value: DEFAULT_NANO_BANANA_2_MODEL, description: 'NanoBanana 2 default model (Gemini 3.1 Flash Image)' },
+            { key: 'gemini_image_model_pro', value: DEFAULT_NANO_BANANA_PRO_MODEL, description: 'NanoBanana Pro model (Gemini 3 Pro Image)' },
+            { key: 'image_model', value: 'default', description: 'Selected image mode (default, pro, or turbo fallback)' },
             { key: 'gemini_price_input_per_million', value: '', description: 'Optional: price per 1M input tokens (USD)' },
             { key: 'gemini_price_output_per_million', value: '', description: 'Optional: price per 1M output tokens (USD)' },
             { key: 'gemini_quota_daily_tokens', value: '', description: 'Optional: per-user daily token quota' },
@@ -295,7 +340,8 @@ const AISettings = () => {
     const geminiApiKey = settings.find(s => s.key === 'gemini_api_key')?.value || '';
     const geminiImageApiKey = settings.find(s => s.key === 'gemini_image_api_key')?.value || '';
     const selectedModel = settings.find(s => s.key === 'gemini_model')?.value || '';
-    const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'turbo';
+    const currentImageModel = settings.find(s => s.key === 'image_model')?.value || 'default';
+    const currentProImageModel = settings.find(s => s.key === 'gemini_image_model_pro')?.value || DEFAULT_NANO_BANANA_PRO_MODEL;
     const requestBudgetUsd = settings.find(s => s.key === 'gemini_request_budget_usd')?.value || '';
     const articlePromptDefaults = settings.find(s => s.key === 'gemini_article_prompt_default_instructions')?.value || AI_PROMPT_DEFAULTS.articleDefaultInstructions;
     const articlePromptSlovakNative = settings.find(s => s.key === 'gemini_article_prompt_slovak_native_instructions')?.value || AI_PROMPT_DEFAULTS.articleSlovakNativeInstructions;
@@ -600,19 +646,19 @@ const AISettings = () => {
                         </Label>
                         <div className="grid grid-cols-1 gap-3">
                             <button
-                                className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'turbo' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
-                                onClick={() => handleUpdate('image_model', 'turbo')}
+                                className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'default' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
+                                onClick={() => handleUpdate('image_model', 'default')}
                             >
-                                <div className={`p-2 rounded-lg ${currentImageModel === 'turbo' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                                    <ZapIcon size={20} className={currentImageModel === 'turbo' ? "fill-current" : ""} />
+                                <div className={`p-2 rounded-lg ${currentImageModel === 'default' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                    <Image01Icon size={20} className={currentImageModel === 'default' ? "fill-current" : ""} />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="font-bold text-sm">Standard (Fast)</span>
-                                        <Badge variant="outline" className="text-[9px] h-5 bg-background">FLUX</Badge>
+                                        <span className="font-bold text-sm">Default (NanoBanana 2)</span>
+                                        <Badge variant="secondary" className="text-[9px] h-5 bg-blue-100 text-blue-700">GEMINI 3.1 FLASH IMAGE</Badge>
                                     </div>
                                     <p className="text-xs text-muted-foreground leading-relaxed">
-                                        Uses Flux Schnell via Pollinations.ai. Free and extremely fast. Best for abstract or simple covers.
+                                        Uses <strong className="text-foreground">{DEFAULT_NANO_BANANA_2_MODEL}</strong>. This is the global default for image generation.
                                     </p>
                                 </div>
                             </button>
@@ -626,11 +672,29 @@ const AISettings = () => {
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center justify-between mb-1">
-                                        <span className="font-bold text-sm">High Quality</span>
-                                        <Badge variant="secondary" className="text-[9px] h-5 bg-indigo-100 text-indigo-700">IMAGEN 3</Badge>
+                                        <span className="font-bold text-sm">Pro (NanoBanana Pro)</span>
+                                        <Badge variant="secondary" className="text-[9px] h-5 bg-indigo-100 text-indigo-700">GEMINI 3 PRO IMAGE</Badge>
                                     </div>
                                     <p className="text-xs text-muted-foreground leading-relaxed">
-                                        Uses Google Imagen/Gemini. Requires API Key. Best for <strong className="text-foreground">Slovak Text</strong>, photorealism, and complex scenes.
+                                        Uses <strong className="text-foreground">{DEFAULT_NANO_BANANA_PRO_MODEL}</strong>. Best for the highest-quality final covers and complex scenes.
+                                    </p>
+                                </div>
+                            </button>
+
+                            <button
+                                className={`flex items-start gap-4 p-4 rounded-xl border transition-all text-left group ${currentImageModel === 'turbo' ? 'border-primary bg-primary/5 shadow-inner' : 'border-border hover:border-primary/50'}`}
+                                onClick={() => handleUpdate('image_model', 'turbo')}
+                            >
+                                <div className={`p-2 rounded-lg ${currentImageModel === 'turbo' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                    <ZapIcon size={20} className={currentImageModel === 'turbo' ? "fill-current" : ""} />
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <span className="font-bold text-sm">Turbo Fallback</span>
+                                        <Badge variant="outline" className="text-[9px] h-5 bg-background">POLLINATIONS FLUX</Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Optional fallback mode for very fast drafts when you want to bypass Gemini image models.
                                     </p>
                                 </div>
                             </button>
@@ -666,7 +730,7 @@ const AISettings = () => {
                         </div>
 
                         <div className="space-y-2 pt-1">
-                            <Label className="text-xs">Model Override</Label>
+                            <Label className="text-xs">Default Model (NanoBanana 2)</Label>
                             {availableImageModels.length > 0 ? (
                                 <Select
                                     value={useCustomImageModel ? '' : (settings.find(s => s.key === 'gemini_image_model')?.value || '')}
@@ -676,7 +740,7 @@ const AISettings = () => {
                                     }}
                                 >
                                     <SelectTrigger className="h-8 text-xs">
-                                        <SelectValue placeholder="Default (Imagen 3)" />
+                                        <SelectValue placeholder={`Default (${DEFAULT_NANO_BANANA_2_MODEL})`} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {availableImageModels.map((m) => (
@@ -693,11 +757,22 @@ const AISettings = () => {
                                         setCustomImageModel(e.target.value);
                                         handleUpdate('gemini_image_model', e.target.value);
                                     }}
-                                    placeholder="e.g. imagen-3.0-generate-001"
+                                    placeholder={`e.g. ${DEFAULT_NANO_BANANA_2_MODEL}`}
                                     className="h-8 text-xs font-mono"
                                 />
                             )}
-                            <p className="text-[10px] text-muted-foreground">Specific model ID for High Quality mode.</p>
+                            <p className="text-[10px] text-muted-foreground">Model ID for default image mode.</p>
+                        </div>
+
+                        <div className="space-y-2 pt-1">
+                            <Label className="text-xs">Pro Model (NanoBanana Pro)</Label>
+                            <Input
+                                value={currentProImageModel}
+                                onChange={(e) => handleUpdate('gemini_image_model_pro', e.target.value)}
+                                placeholder={`e.g. ${DEFAULT_NANO_BANANA_PRO_MODEL}`}
+                                className="h-8 text-xs font-mono"
+                            />
+                            <p className="text-[10px] text-muted-foreground">Model ID for pro image mode.</p>
                         </div>
                     </CardContent>
                 </Card>

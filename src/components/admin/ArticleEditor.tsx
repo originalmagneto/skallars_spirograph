@@ -887,7 +887,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     model: effectiveProvider === 'gemini' && effectiveModel ? effectiveModel : undefined,
                 });
                 if (effectiveProvider === 'gemini' && url.includes('image.pollinations.ai')) {
-                    toast.warning('Gemini/Imagen is unavailable or requires billing. Using Turbo mode instead.');
+                    toast.warning('NanoBanana generation is unavailable or requires billing. Using Turbo mode instead.');
                 }
                 results.push({ url, provider: effectiveProvider });
             }
@@ -1735,7 +1735,7 @@ Rules:
                             </SelectContent>
                         </Select>
                         <p className="text-[10px] text-muted-foreground">
-                            Lite uses Turbo with one variant. Advanced unlocks model and provider controls.
+                            Lite uses Turbo with one variant. Advanced unlocks NanoBanana model and provider controls.
                         </p>
                     </div>
 
@@ -1754,7 +1754,7 @@ Rules:
                             {useGlobalImageSettings ? (
                                 <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
                                     <div className="font-medium text-foreground">Using global image defaults</div>
-                                    <div>Provider: {displayImageProvider === 'gemini' ? 'Gemini (Pro)' : 'Turbo (Fast)'}</div>
+                                    <div>Provider: {displayImageProvider === 'gemini' ? 'NanoBanana (Gemini)' : 'Turbo (Fast)'}</div>
                                     {displayImageProvider === 'gemini' && displayImageModel && (
                                         <div>Model: {displayImageModel}</div>
                                     )}
@@ -1773,12 +1773,12 @@ Rules:
                                             <SelectValue placeholder="Select provider" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="gemini">Gemini (Pro)</SelectItem>
+                                            <SelectItem value="gemini">NanoBanana (Gemini)</SelectItem>
                                             <SelectItem value="turbo">Turbo (Fast)</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <p className="text-[10px] text-muted-foreground">
-                                        Gemini uses your API key. Turbo is fast and free for drafts.
+                                        NanoBanana uses your API key. Turbo is fast and free for drafts.
                                     </p>
                                 </div>
                             )}
@@ -1800,7 +1800,7 @@ Rules:
                                     <Input
                                         value={overrideImageModel}
                                         onChange={(e) => setOverrideImageModel(e.target.value)}
-                                        placeholder="imagen-3.0-generate-001"
+                                        placeholder="gemini-3.1-flash-image-preview"
                                     />
                                     <p className="text-[10px] text-muted-foreground">
                                         Leave empty to fall back to the global model.

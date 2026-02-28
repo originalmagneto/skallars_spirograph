@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
-import { AI_PROMPT_DEFAULTS } from "@/lib/aiSettings";
+import {
+    AI_PROMPT_DEFAULTS,
+    DEFAULT_NANO_BANANA_2_MODEL,
+    DEFAULT_NANO_BANANA_PRO_MODEL,
+} from "@/lib/aiSettings";
 
 export interface GeneratedArticle {
     slug?: string;  // URL-friendly identifier
@@ -1887,15 +1891,14 @@ export async function generateAIImage(
         seed
     } = options;
 
+    const globalImageMode = await getSetting('image_model');
+
     // Check global settings if turbo is not forced
-    // Default to 'turbo' if not set or if forceTurbo is true
+    // Default is Gemini/Nano Banana 2 unless explicitly set to turbo.
     let useTurbo = forceTurbo;
 
     if (useTurbo === undefined) {
-        const globalImageModel = await getSetting('image_model');
-        useTurbo = globalImageModel === 'turbo';
-        // If global setting is missing, default to turbo (safer/free)
-        if (globalImageModel === null) useTurbo = true;
+        useTurbo = globalImageMode === 'turbo';
     }
 
     const normalizePrompt = (value: string) => value.replace(/\s+/g, ' ').trim();
@@ -1943,8 +1946,10 @@ export async function generateAIImage(
     };
 
     try {
-        // Get selected image model, fallback to Imagen default
-        const imageModel = model || await getSetting('gemini_image_model') || 'imagen-3.0-generate-001';
+        const defaultImageModel = await getSetting('gemini_image_model') || DEFAULT_NANO_BANANA_2_MODEL;
+        const proImageModel = await getSetting('gemini_image_model_pro') || DEFAULT_NANO_BANANA_PRO_MODEL;
+        const imageModelFromSettings = globalImageMode === 'pro' ? proImageModel : defaultImageModel;
+        const imageModel = model || imageModelFromSettings;
         console.log('[AI] Generating image with Gemini model:', imageModel);
 
         const normalizedAspectRatio = aspectRatio || (() => {
@@ -1980,7 +1985,7 @@ export async function generateAIImage(
                             }
                         ],
                         generationConfig: {
-                            responseModalities: ["Image"],
+                            responseModalities: ["IMAGE"],
                             ...(Object.keys(imageConfig).length > 0 ? { imageConfig } : {})
                         }
                     })

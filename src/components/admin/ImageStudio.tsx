@@ -5,7 +5,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateAIImage } from "@/lib/aiService";
-import { fetchAISettings, fetchGeminiModels, filterImageModels, resolveImageKey } from "@/lib/aiSettings";
+import {
+  fetchAISettings,
+  fetchGeminiModels,
+  filterImageModels,
+  resolveImageKey,
+  DEFAULT_NANO_BANANA_2_MODEL,
+  DEFAULT_NANO_BANANA_PRO_MODEL,
+} from "@/lib/aiSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -247,17 +254,25 @@ export default function ImageStudio() {
 
   const resolvedEngine = useMemo(() => {
     if (engineOverride === "settings") {
-      if (!settings.image_model) return "turbo";
+      if (!settings.image_model) return "gemini";
       return settings.image_model === "turbo" ? "turbo" : "gemini";
     }
     return engineOverride;
   }, [engineOverride, settings.image_model]);
 
+  const settingsSelectedModel = useMemo(() => {
+    const imageMode = settings.image_model || "default";
+    if (imageMode === "pro") {
+      return settings.gemini_image_model_pro || DEFAULT_NANO_BANANA_PRO_MODEL;
+    }
+    return settings.gemini_image_model || DEFAULT_NANO_BANANA_2_MODEL;
+  }, [settings.image_model, settings.gemini_image_model, settings.gemini_image_model_pro]);
+
   const resolvedModel = useMemo(() => {
     if (resolvedEngine === "turbo") return "turbo";
     if (useCustomModel && modelOverride.trim()) return modelOverride.trim();
-    return settings.gemini_image_model || "imagen-3.0-generate-001";
-  }, [resolvedEngine, useCustomModel, modelOverride, settings.gemini_image_model]);
+    return settingsSelectedModel;
+  }, [resolvedEngine, useCustomModel, modelOverride, settingsSelectedModel]);
 
   const finalPrompt = useMemo(() => {
     const overlayHint = overlayDraftText.trim()
@@ -654,7 +669,7 @@ export default function ImageStudio() {
                   Engine & Model
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  Default engine: {settings.image_model || "turbo"}
+                  Default mode: {settings.image_model || "default"}
                 </div>
               </div>
 
@@ -668,7 +683,7 @@ export default function ImageStudio() {
                     <SelectContent>
                       <SelectItem value="settings">Use Settings</SelectItem>
                       <SelectItem value="turbo">Turbo (Pollinations)</SelectItem>
-                      <SelectItem value="gemini">Gemini / Imagen</SelectItem>
+                      <SelectItem value="gemini">NanoBanana (Gemini)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -682,16 +697,16 @@ export default function ImageStudio() {
                     <Input
                       value={modelOverride}
                       onChange={(e) => setModelOverride(e.target.value)}
-                      placeholder="imagen-3.0-generate-001"
+                      placeholder={DEFAULT_NANO_BANANA_2_MODEL}
                     />
                   ) : (
-                    <Select value={modelOverride || settings.gemini_image_model || ""} onValueChange={setModelOverride}>
+                    <Select value={modelOverride || settingsSelectedModel} onValueChange={setModelOverride}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select model" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={settings.gemini_image_model || "imagen-3.0-generate-001"}>
-                          Default ({settings.gemini_image_model || "imagen-3.0-generate-001"})
+                        <SelectItem value={settingsSelectedModel}>
+                          Default ({settingsSelectedModel})
                         </SelectItem>
                         {imageModels.map((model) => (
                           <SelectItem key={model.name} value={model.name}>

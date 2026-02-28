@@ -5,12 +5,15 @@ export type AISettingsSnapshot = {
     geminiImageApiKey: string | null;
     geminiModel: string | null;
     geminiImageModel: string | null;
+    geminiImageModelDefault: string | null;
+    geminiImageModelPro: string | null;
     geminiArticleModel: string | null;
     geminiArticleThinkingBudget: number | null;
     geminiArticlePromptDefaultInstructions: string | null;
     geminiArticlePromptSlovakNativeInstructions: string | null;
     geminiTranslationPromptDefaultInstructions: string | null;
     imageEngine: "turbo" | "gemini";
+    imageMode: "default" | "pro" | "turbo";
     priceInputPerM: number | null;
     priceOutputPerM: number | null;
     geminiRequestBudgetUsd: number | null;
@@ -28,10 +31,15 @@ export type GeminiModel = {
     supportedGenerationMethods: string[];
 };
 
+export const DEFAULT_NANO_BANANA_2_MODEL = "gemini-3.1-flash-image-preview";
+export const DEFAULT_NANO_BANANA_PRO_MODEL = "gemini-3-pro-image-preview";
+
 const DEFAULTS = {
     geminiModel: "gemini-2.0-flash",
-    geminiImageModel: "imagen-3.0-generate-001",
+    geminiImageModel: DEFAULT_NANO_BANANA_2_MODEL,
+    geminiImageModelPro: DEFAULT_NANO_BANANA_PRO_MODEL,
     imageEngine: "gemini" as const,
+    imageMode: "default" as const,
     geminiArticlePromptDefaultInstructions: [
         "Write with senior legal-advisory clarity for Central European business clients.",
         "Prioritize concrete implications, obligations, risks, and practical next steps.",
@@ -64,18 +72,28 @@ export const fetchAISettings = async (): Promise<AISettingsSnapshot> => {
         if (row.key) map[row.key] = row.value;
     });
 
-    const imageEngine = map.image_model === "turbo" ? "turbo" : "gemini";
+    const imageMode =
+        map.image_model === "pro" || map.image_model === "turbo" || map.image_model === "default"
+            ? map.image_model
+            : DEFAULTS.imageMode;
+    const imageEngine = imageMode === "turbo" ? "turbo" : "gemini";
+    const geminiImageModelDefault = map.gemini_image_model || DEFAULTS.geminiImageModel;
+    const geminiImageModelPro = map.gemini_image_model_pro || DEFAULTS.geminiImageModelPro;
+    const resolvedImageModel = imageMode === "pro" ? geminiImageModelPro : geminiImageModelDefault;
     return {
         geminiApiKey: map.gemini_api_key || null,
         geminiImageApiKey: map.gemini_image_api_key || null,
         geminiModel: map.gemini_model || DEFAULTS.geminiModel,
-        geminiImageModel: map.gemini_image_model || DEFAULTS.geminiImageModel,
+        geminiImageModel: resolvedImageModel,
+        geminiImageModelDefault,
+        geminiImageModelPro,
         geminiArticleModel: map.gemini_article_model || null,
         geminiArticleThinkingBudget: toNumber(map.gemini_article_thinking_budget),
         geminiArticlePromptDefaultInstructions: map.gemini_article_prompt_default_instructions || DEFAULTS.geminiArticlePromptDefaultInstructions,
         geminiArticlePromptSlovakNativeInstructions: map.gemini_article_prompt_slovak_native_instructions || DEFAULTS.geminiArticlePromptSlovakNativeInstructions,
         geminiTranslationPromptDefaultInstructions: map.gemini_translation_prompt_default_instructions || DEFAULTS.geminiTranslationPromptDefaultInstructions,
         imageEngine,
+        imageMode,
         priceInputPerM: toNumber(map.gemini_price_input_per_million),
         priceOutputPerM: toNumber(map.gemini_price_output_per_million),
         geminiRequestBudgetUsd: toNumber(map.gemini_request_budget_usd),
