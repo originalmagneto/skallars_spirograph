@@ -34,6 +34,8 @@ import {
 } from '@/lib/aiSettings';
 import { formatArticleHtml } from '@/lib/articleFormat';
 import { AdminPanelHeader, AdminSectionCard, BENTO_SIZE_CLASS, BentoSize, useBentoLayout } from '@/components/admin/AdminPrimitives';
+import { useAdminDirtyState } from '@/hooks/use-admin-dirty-state';
+import { formatAdminDateTime } from '@/lib/formatters';
 
 interface ArticleFormData {
     title_sk: string;
@@ -162,6 +164,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     const [editLoading, setEditLoading] = useState(false);
     const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
     const [tagsInput, setTagsInput] = useState('');
+    const [savedSnapshot, setSavedSnapshot] = useState('');
     const editorRef = useRef<HTMLDivElement | null>(null);
     const linkedinSectionRef = useRef<HTMLDivElement | null>(null);
     const [seoFieldsAvailable, setSeoFieldsAvailable] = useState(true);
@@ -246,6 +249,19 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         linkedinStatus?.scopes?.includes('r_organization_social') ||
         (linkedinStatus?.organization_urns && linkedinStatus.organization_urns.length > 0)
     );
+
+    const buildSnapshot = (data: ArticleFormData) =>
+        JSON.stringify({
+            ...data,
+            tags: [...data.tags].sort(),
+            fact_checklist: Object.keys(data.fact_checklist || {})
+                .sort()
+                .reduce((acc, key) => {
+                    acc[key] = Boolean(data.fact_checklist[key]);
+                    return acc;
+                }, {} as Record<string, boolean>),
+        });
+
     const latestLinkedInShare = linkedinLogs.find((log) => log.status === 'success');
     const organizationOptions = useMemo(() => {
         const map = new Map<string, { urn: string; name: string }>();
@@ -315,7 +331,7 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
     useEffect(() => {
         if (article) {
             const derivedStatus = article.status || (article.is_published ? 'published' : 'draft');
-            setFormData({
+            const nextFormData: ArticleFormData = {
                 title_sk: article.title_sk || '',
                 title_en: article.title_en || '',
                 title_de: article.title_de || '',
@@ -358,10 +374,17 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                     acc[item.key] = false;
                     return acc;
                 }, {} as Record<string, boolean>),
-            });
+            };
+            setFormData(nextFormData);
             setTagsInput(Array.isArray(article.tags) ? article.tags.join(', ') : '');
+            setSavedSnapshot(buildSnapshot(nextFormData));
         }
     }, [article]);
+
+    useEffect(() => {
+        if (!isNew) return;
+        setSavedSnapshot(buildSnapshot(formData));
+    }, [isNew]);
 
     useEffect(() => {
         const checkSeoColumns = async () => {
@@ -724,6 +747,10 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 author_id: user.id,
                 published_at: publishedAt,
             };
+            const normalizedSavedData: ArticleFormData = {
+                ...mergedData,
+                published_at: publishedAt,
+            };
 
             let newArticleId = articleId;
 
@@ -743,20 +770,27 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
                 if (error) throw error;
             }
 
-            return newArticleId;
+            return {
+                articleId: newArticleId,
+                snapshot: buildSnapshot(normalizedSavedData),
+                savedData: normalizedSavedData,
+            };
         },
-        onSuccess: (newArticleId) => {
+        onSuccess: (result) => {
             toast.success(isNew ? 'Article created!' : 'Article saved!');
             queryClient.invalidateQueries({ queryKey: ['admin-articles'] });
             queryClient.invalidateQueries({ queryKey: ['articles'] });
+            setFormData(result.savedData);
+            setTagsInput(result.savedData.tags.join(', '));
+            setSavedSnapshot(result.snapshot);
 
             // If it was a new article, we want to update the URL to include the ID
             // so subsequent saves update the same article instead of creating new ones
-            if (isNew && newArticleId) {
+            if (isNew && result.articleId) {
                 const params = new URLSearchParams(searchParams.toString());
                 params.delete('create');
                 params.delete('articleId');
-                params.set('edit', newArticleId);
+                params.set('edit', result.articleId);
                 router.replace(`?${params.toString()}`);
             }
         },
@@ -903,6 +937,20 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         const windowOrigin = typeof window !== 'undefined' ? window.location.origin : '';
         const base = (windowOrigin || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '');
         return formData.slug && base ? `${base}/blog/${formData.slug}` : '';
+    };
+
+    const handleCopyArticleUrl = async () => {
+        const url = getArticleUrl();
+        if (!url) {
+            toast.error('Save a valid slug to generate the public article URL.');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(url);
+            toast.success('Article URL copied.');
+        } catch {
+            toast.error('Failed to copy article URL.');
+        }
     };
 
     const handleLinkedInConnect = async () => {
@@ -1301,6 +1349,15 @@ export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps
         await logArticleAction(actionLabel, next.status ?? formData.status);
     };
 
+    const isDirty = savedSnapshot !== '' && savedSnapshot !== buildSnapshot(formData);
+    const { confirmDiscardChanges } = useAdminDirtyState(isDirty, isNew ? 'new article draft' : 'article editor');
+
+    const handleCloseRequest = () => {
+        if (!onClose) return;
+        if (!confirmDiscardChanges('leave the editor')) return;
+        onClose();
+    };
+
     const statusLabel = (status: string) => {
         switch (status) {
             case 'review': return 'In Review';
@@ -1396,6 +1453,8 @@ Rules:
     const currentExcerpt = getCurrentExcerpt();
     const currentContent = getCurrentContent();
     const articleUrl = getArticleUrl();
+    const wordCount = stripHtml(currentContent).split(/\s+/).filter(Boolean).length;
+    const readingMinutes = wordCount > 0 ? Math.max(1, Math.round(wordCount / 200)) : 0;
     const contentChecklist = {
         title: Boolean(currentTitle.trim()),
         excerpt: Boolean(currentExcerpt.trim()),
@@ -1403,6 +1462,10 @@ Rules:
         content: Boolean(stripHtml(currentContent).trim()),
     };
     const contentReadyCount = Object.values(contentChecklist).filter(Boolean).length;
+    const complianceReady = Object.values(formData.fact_checklist || {}).filter(Boolean).length;
+    const seoReady = seoFieldsAvailable
+        ? Boolean(getCurrentMetaTitle().trim() && getCurrentMetaDescription().trim() && getCurrentMetaKeywords().trim())
+        : false;
     const successfulLinkedInShares = linkedinLogs.filter((log) => log.status === 'success');
     const pendingLinkedInShares = linkedinScheduled.filter((item) =>
         ['scheduled', 'retry', 'processing'].includes(item.status)
@@ -1424,17 +1487,34 @@ Rules:
                 actions={(
                     <div className="flex flex-wrap items-center gap-3">
                         {onClose && (
-                            <Button variant="outline" size="sm" onClick={onClose}>
+                            <Button variant="outline" size="sm" onClick={handleCloseRequest}>
                                 <ArrowLeft size={14} className="mr-1" />
                                 Back
                             </Button>
                         )}
+                        {isDirty && (
+                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                                Unsaved Changes
+                            </Badge>
+                        )}
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(formData.status)}`}>
                             {statusLabel(formData.status)}
                         </span>
+                        {articleUrl && (
+                            <>
+                                <Button variant="outline" size="sm" onClick={handleCopyArticleUrl}>
+                                    Copy URL
+                                </Button>
+                                <Button variant="outline" size="sm" asChild>
+                                    <a href={articleUrl} target="_blank" rel="noopener noreferrer">
+                                        Open Preview
+                                    </a>
+                                </Button>
+                            </>
+                        )}
                         <Button onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
                             <Save size={16} className="mr-2" />
-                            {saveMutation.isPending ? 'Saving...' : 'Save'}
+                            {saveMutation.isPending ? 'Saving…' : 'Save'}
                         </Button>
                         {!isNew && isAdmin && (
                             <AlertDialog>
@@ -1486,7 +1566,7 @@ Rules:
                         </Button>
                     )}
                 </div>
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
                     <div className="rounded-lg border bg-muted/20 p-3">
                         <div className="text-xs font-semibold text-foreground">Content Readiness</div>
                         <div className="mt-1 text-sm text-muted-foreground">
@@ -1506,9 +1586,9 @@ Rules:
                         </div>
                         <div className="mt-2 text-xs text-muted-foreground">
                             {formData.published_at
-                                ? `Published at ${new Date(formData.published_at).toLocaleString()}`
+                                ? `Published at ${formatAdminDateTime(formData.published_at)}`
                                 : formData.scheduled_at
-                                ? `Scheduled for ${new Date(formData.scheduled_at).toLocaleString()}`
+                                ? `Scheduled for ${formatAdminDateTime(formData.scheduled_at)}`
                                 : 'No publish date set yet.'}
                         </div>
                     </div>
@@ -1519,6 +1599,19 @@ Rules:
                         </div>
                         <div className="mt-2 text-xs text-muted-foreground">
                             {articleUrl ? 'Article URL is ready for sharing.' : 'Add and save slug to generate article URL.'}
+                        </div>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                        <div className="text-xs font-semibold text-foreground">Article Health</div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            {wordCount > 0 ? `${wordCount.toLocaleString()} words · ${readingMinutes} min read` : 'No readable content yet.'}
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            <Badge variant={seoReady ? 'secondary' : 'outline'}>SEO</Badge>
+                            <Badge variant={complianceReady >= factChecklistDefaults.length ? 'secondary' : 'outline'}>
+                                Compliance {complianceReady}/{factChecklistDefaults.length}
+                            </Badge>
+                            <Badge variant={Boolean(getCurrentDisclaimer().trim()) ? 'secondary' : 'outline'}>Disclaimer</Badge>
                         </div>
                     </div>
                 </div>
@@ -1867,7 +1960,7 @@ Rules:
                             <span>Connected as {linkedinStatus.member_name || 'LinkedIn Member'}</span>
                             {linkedinStatus.expires_at && (
                                 <span>
-                                    Token expires {new Date(linkedinStatus.expires_at).toLocaleString()}
+                                    Token expires {formatAdminDateTime(linkedinStatus.expires_at)}
                                 </span>
                             )}
                             {linkedinStatus.expired && (
@@ -1883,7 +1976,7 @@ Rules:
                             )}
                             {latestLinkedInShare?.created_at && (
                                 <span className="flex items-center gap-2">
-                                    Last shared {new Date(latestLinkedInShare.created_at).toLocaleString()}
+                                    Last shared {formatAdminDateTime(latestLinkedInShare.created_at)}
                                     {latestLinkedInShare.share_url && (
                                         <Button size="sm" variant="link" className="h-auto p-0 text-primary underline" asChild>
                                             <a
@@ -2236,7 +2329,7 @@ Rules:
                                                                 {log.status === 'success' ? 'Shared' : 'Error'}
                                                             </span>
                                                             <span className="text-muted-foreground">
-                                                                {new Date(log.created_at).toLocaleString()}
+                                                                {formatAdminDateTime(log.created_at)}
                                                             </span>
                                                             {(() => {
                                                                 if (!log.metrics) return null;
@@ -2312,7 +2405,7 @@ Rules:
                                                                 {item.status === 'scheduled' ? 'Scheduled' : item.status}
                                                             </span>
                                                             <span className="text-muted-foreground">
-                                                                {new Date(item.scheduled_at).toLocaleString()}
+                                                                {formatAdminDateTime(item.scheduled_at)}
                                                             </span>
                                                             {item.error_message && (
                                                                 <span className="text-destructive">{item.error_message}</span>
@@ -2490,7 +2583,7 @@ Rules:
                                 </div>
                                 <div
                                     ref={editorRef}
-                                    className="min-h-[260px] rounded-lg border border-input bg-background p-4 text-sm prose max-w-none focus:outline-none"
+                                    className="min-h-[260px] rounded-lg border border-input bg-background p-4 text-sm prose max-w-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     contentEditable
                                     role="textbox"
                                     aria-label="Article content editor"

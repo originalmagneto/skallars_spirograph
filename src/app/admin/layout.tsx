@@ -91,21 +91,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     return (
-        <div className="min-h-screen bg-white">
-            <header className="border-b bg-white sticky top-0 z-50">
-                <div className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-4 flex items-center justify-between">
+        <div className="min-h-screen bg-slate-50">
+            <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
+                <div className="flex w-full max-w-none items-center justify-between px-6 py-4 lg:px-8 2xl:px-12">
                     <div className="flex items-center gap-4">
                         <Link href="/" className="text-xl font-bold text-[#210059]">Skallars Admin</Link>
+                        <span className="hidden rounded-full border border-[#5d00ff]/15 bg-[#f6f2ff] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5d00ff] sm:inline-flex">
+                            {isAdmin ? "Admin" : "Editor"}
+                        </span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-500 mr-2">{user.email}</span>
+                        <span className="hidden text-sm text-gray-500 md:inline">{user.email}</span>
                         <Button variant="ghost" size="sm" onClick={handleSignOut} title="Sign Out">
                             <Logout01Icon size={18} />
                         </Button>
                     </div>
                 </div>
             </header>
-            <main className="w-full max-w-none px-6 lg:px-8 2xl:px-12 py-8">
+            <main className="w-full max-w-none px-6 py-6 lg:px-8 2xl:px-12">
                 {healthWarning && (
                     <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

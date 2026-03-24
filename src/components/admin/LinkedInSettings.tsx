@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { toast } from "sonner";
 import { CheckCircle2, ExternalLink, RefreshCw, XCircle } from "lucide-react";
 import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from "@/components/admin/AdminPrimitives";
+import { formatAdminDateTime } from "@/lib/formatters";
 
 type LinkedInStatus = {
     connected: boolean;
@@ -69,10 +70,7 @@ type LinkedInScheduled = {
 };
 
 const formatDate = (value?: string | null) => {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleString();
+    return formatAdminDateTime(value);
 };
 
 const normalizeOrgUrn = (value?: string | null) => {

@@ -23,6 +23,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from '@/components/admin/AdminPrimitives';
 import ArticleEditor from './ArticleEditor';
+import { useAdminDirtyRegistry } from '@/hooks/use-admin-dirty-state';
+import { formatAdminDate, formatAdminDateTime } from '@/lib/formatters';
 
 interface Article {
     id: string;
@@ -59,15 +61,26 @@ const ARTICLES_LAYOUT_DEFAULTS: Record<ArticlesLayoutKey, BentoSize> = {
     filters: 'full',
     list: 'full',
 };
+const STATUS_FILTER_VALUES = ['all', 'draft', 'review', 'scheduled', 'published', 'needs-action', 'shared'] as const;
+const SORT_ORDER_VALUES = ['newest', 'oldest'] as const;
 
 export default function ArticlesManager() {
     const queryClient = useQueryClient();
     const { isAdmin, session } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'scheduled' | 'published' | 'needs-action' | 'shared'>('all');
-    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+    const { confirmDirtyNavigation } = useAdminDirtyRegistry();
+    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+    const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'scheduled' | 'published' | 'needs-action' | 'shared'>(
+        STATUS_FILTER_VALUES.includes((searchParams.get('status') || 'all') as any)
+            ? (searchParams.get('status') as any)
+            : 'all',
+    );
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(
+        SORT_ORDER_VALUES.includes((searchParams.get('sort') || 'newest') as any)
+            ? (searchParams.get('sort') as any)
+            : 'newest',
+    );
     const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [linkedinSummary, setLinkedinSummary] = useState<
@@ -112,6 +125,56 @@ export default function ArticlesManager() {
         setEditingArticleId(null);
         setIsCreating(false);
     }, [searchParams]);
+
+    useEffect(() => {
+        const nextQuery = searchParams.get('q') || '';
+        const nextStatus = STATUS_FILTER_VALUES.includes((searchParams.get('status') || 'all') as any)
+            ? (searchParams.get('status') as typeof STATUS_FILTER_VALUES[number])
+            : 'all';
+        const nextSort = SORT_ORDER_VALUES.includes((searchParams.get('sort') || 'newest') as any)
+            ? (searchParams.get('sort') as typeof SORT_ORDER_VALUES[number])
+            : 'newest';
+
+        setSearchQuery(nextQuery);
+        setStatusFilter(nextStatus);
+        setSortOrder(nextSort);
+    }, [searchParams]);
+
+    const updateListQuery = (updates: Partial<{ q: string; status: string; sort: string; edit: string | null; create: boolean }>) => {
+        const params = new URLSearchParams(searchParams.toString());
+        const nextQ = updates.q ?? searchQuery;
+        const nextStatus = updates.status ?? statusFilter;
+        const nextSort = updates.sort ?? sortOrder;
+
+        params.set('workspace', 'publishing');
+        params.set('tab', 'articles');
+        params.delete('panel');
+        params.delete('linkedin');
+        params.delete('reason');
+        params.delete('linkedinTarget');
+        params.delete('stage');
+
+        if (nextQ.trim()) params.set('q', nextQ);
+        else params.delete('q');
+
+        if (nextStatus !== 'all') params.set('status', nextStatus);
+        else params.delete('status');
+
+        if (nextSort !== 'newest') params.set('sort', nextSort);
+        else params.delete('sort');
+
+        if ('edit' in updates) {
+            if (updates.edit) params.set('edit', updates.edit);
+            else params.delete('edit');
+        }
+
+        if ('create' in updates) {
+            if (updates.create) params.set('create', 'true');
+            else params.delete('create');
+        }
+
+        router.replace(`/admin?${params.toString()}`);
+    };
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -407,6 +470,7 @@ export default function ArticlesManager() {
         counts.shared = Object.values(linkedinSummary).filter((item) => !!item.sharedAt).length;
         return counts;
     }, [articles, linkedinSummary]);
+    const hasActiveFilters = Boolean(searchQuery.trim()) || statusFilter !== 'all' || sortOrder !== 'newest';
 
     // Show editor view
     if (editingArticleId || isCreating) {
@@ -416,9 +480,10 @@ export default function ArticlesManager() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                        if (!confirmDirtyNavigation('return to the Articles list')) return;
                         setEditingArticleId(null);
                         setIsCreating(false);
-                        router.replace('/admin?workspace=publishing&tab=articles');
+                        updateListQuery({ edit: null, create: false });
                     }}
                 >
                     ← Back to Articles
@@ -428,7 +493,7 @@ export default function ArticlesManager() {
                     onClose={() => {
                         setEditingArticleId(null);
                         setIsCreating(false);
-                        router.replace('/admin?workspace=publishing&tab=articles');
+                        updateListQuery({ edit: null, create: false });
                     }}
                 />
             </div>
@@ -456,7 +521,7 @@ export default function ArticlesManager() {
                         >
                             Open Studio
                         </Button>
-                        <Button onClick={() => router.push('/admin?workspace=publishing&tab=articles&create=true')}>
+                        <Button onClick={() => updateListQuery({ create: true, edit: null })}>
                             <Plus size={16} className="mr-2" />
                             New Article
                         </Button>
@@ -549,14 +614,22 @@ export default function ArticlesManager() {
                                     aria-label="Search articles"
                                     placeholder="Search title or slug..."
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) => {
+                                        const nextValue = e.target.value;
+                                        setSearchQuery(nextValue);
+                                        updateListQuery({ q: nextValue, edit: null, create: false });
+                                    }}
                                     className="pl-9"
                                 />
                             </div>
                             <select
                                 aria-label="Filter by status"
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                                onChange={(e) => {
+                                    const nextValue = e.target.value as typeof statusFilter;
+                                    setStatusFilter(nextValue);
+                                    updateListQuery({ status: nextValue, edit: null, create: false });
+                                }}
                                 className="h-9 rounded-md border px-3 text-sm bg-white"
                             >
                                 <option value="all">All statuses</option>
@@ -570,7 +643,11 @@ export default function ArticlesManager() {
                             <select
                                 aria-label="Sort articles"
                                 value={sortOrder}
-                                onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                                onChange={(e) => {
+                                    const nextValue = e.target.value as typeof sortOrder;
+                                    setSortOrder(nextValue);
+                                    updateListQuery({ sort: nextValue, edit: null, create: false });
+                                }}
                                 className="h-9 rounded-md border px-3 text-sm bg-white"
                             >
                                 <option value="newest">Newest first</option>
@@ -588,6 +665,22 @@ export default function ArticlesManager() {
                                 >
                                     {linkedinSummaryLoading ? 'Syncing LinkedIn…' : 'Sync LinkedIn'}
                                 </Button>
+                                {hasActiveFilters && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="ml-1 h-7 px-2 text-[11px]"
+                                        onClick={() => {
+                                            setSearchQuery('');
+                                            setStatusFilter('all');
+                                            setSortOrder('newest');
+                                            updateListQuery({ q: '', status: 'all', sort: 'newest', edit: null, create: false });
+                                        }}
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                )}
                             </div>
                         </div>
 
@@ -598,7 +691,10 @@ export default function ArticlesManager() {
                                     type="button"
                                     size="sm"
                                     variant={statusFilter === filter.value ? 'default' : 'outline'}
-                                    onClick={() => setStatusFilter(filter.value)}
+                                    onClick={() => {
+                                        setStatusFilter(filter.value);
+                                        updateListQuery({ status: filter.value, edit: null, create: false });
+                                    }}
                                     className="h-8"
                                 >
                                     {filter.label}
@@ -636,7 +732,7 @@ export default function ArticlesManager() {
                                 {searchQuery ? 'No articles match your search' : 'No articles yet'}
                             </p>
                             {!searchQuery && (
-                                <Button onClick={() => setIsCreating(true)}>
+                                <Button onClick={() => updateListQuery({ create: true, edit: null })}>
                                     <Plus size={16} className="mr-2" />
                                     Create First Article
                                 </Button>
@@ -704,11 +800,11 @@ export default function ArticlesManager() {
                                 <p className="mt-1 text-xs text-foreground/80">{workflowHint}</p>
                                 <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-3">
                                     <span>
-                                        {article.scheduled_at ? `Scheduled: ${new Date(article.scheduled_at).toLocaleString()}` : new Date(article.created_at).toLocaleDateString()}
+                                        {article.scheduled_at ? `Scheduled: ${formatAdminDateTime(article.scheduled_at)}` : formatAdminDate(article.created_at)}
                                     </span>
                                     {linkedinSummary[article.id]?.sharedAt && (
                                         <span>
-                                            LinkedIn: {new Date(linkedinSummary[article.id].sharedAt as string).toLocaleDateString()}
+                                            LinkedIn: {formatAdminDate(linkedinSummary[article.id].sharedAt as string)}
                                         </span>
                                     )}
                                     {metricsLabel && (
@@ -716,7 +812,7 @@ export default function ArticlesManager() {
                                     )}
                                     {linkedinSummary[article.id]?.scheduledAt && (
                                         <span>
-                                            Next share: {new Date(linkedinSummary[article.id].scheduledAt as string).toLocaleString()}
+                                            Next share: {formatAdminDateTime(linkedinSummary[article.id].scheduledAt as string)}
                                         </span>
                                     )}
                                 </div>
@@ -727,7 +823,7 @@ export default function ArticlesManager() {
                                 <Button
                                     variant={shouldPromoteLinkedIn ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => router.push(`/admin?workspace=publishing&tab=articles&edit=${article.id}`)}
+                                    onClick={() => updateListQuery({ edit: article.id, create: false })}
                                     className="flex-1 md:flex-none"
                                 >
                                     <Edit size={14} className="mr-1" />
@@ -736,7 +832,15 @@ export default function ArticlesManager() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => router.push(`/admin?workspace=publishing&tab=articles&edit=${article.id}&panel=linkedin`)}
+                                    onClick={() => {
+                                        const params = new URLSearchParams(searchParams.toString());
+                                        params.set('workspace', 'publishing');
+                                        params.set('tab', 'articles');
+                                        params.set('edit', article.id);
+                                        params.delete('create');
+                                        params.set('panel', 'linkedin');
+                                        router.push(`/admin?${params.toString()}`);
+                                    }}
                                     className="flex-1 md:flex-none"
                                 >
                                     <Share2 size={14} className="mr-1" />

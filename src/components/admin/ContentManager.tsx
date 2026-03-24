@@ -176,8 +176,10 @@ const ContentRow = ({
             )}
 
             {/* Collapsed View / Header */}
-            <div
-                className="flex items-center gap-4 p-4 cursor-pointer"
+            <button
+                type="button"
+                aria-expanded={isSelected}
+                className="flex w-full items-center gap-4 p-4 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#91CF17] focus-visible:ring-inset"
                 onClick={() => onSelect(isSelected ? null : item)}
             >
                 <div className={cn(
@@ -232,7 +234,7 @@ const ContentRow = ({
                         <ArrowRight01Icon size={16} className="text-slate-400" />
                     </motion.div>
                 </div>
-            </div>
+            </button>
 
             {/* Expanded Editing Area */}
             <AnimatePresence>

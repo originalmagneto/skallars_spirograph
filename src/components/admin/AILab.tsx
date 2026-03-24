@@ -47,6 +47,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatArticleHtml } from '@/lib/articleFormat';
 import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
+import { useAdminDirtyState } from '@/hooks/use-admin-dirty-state';
 import { AlertTriangle, Building2, ClipboardCopy, RefreshCw, UserRound, Wand2 } from 'lucide-react';
 
 type AILabProps = {
@@ -122,7 +123,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     const generationTimeoutRef = useRef<number | null>(null);
     const generationTimerRef = useRef<number | null>(null);
     const generationStartRef = useRef<number | null>(null);
+    const sessionRestoreDoneRef = useRef(false);
     const RECOVERY_STORAGE_KEY = 'ai_lab_recoverable_article_output_v1';
+    const SESSION_STORAGE_KEY = 'ai_lab_session_state_v1';
 
     const lengthDefaults: Record<string, number> = {
         Short: 400,
@@ -183,16 +186,31 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
     useEffect(() => {
         const init = async () => {
             const settings = await fetchAISettings();
+            let persistedSession: {
+                currentModel?: string;
+                thinkingBudget?: number;
+                requestBudgetUsd?: number;
+            } | null = null;
+            try {
+                const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+                persistedSession = raw ? JSON.parse(raw) : null;
+            } catch {
+                persistedSession = null;
+            }
             // Priority: Global model from Settings is the default.
             // geminiArticleModel is only used if explicitly set in Power Controls.
             const articleModel = settings.geminiModel || settings.geminiArticleModel || 'gemini-2.0-flash';
-            setCurrentModel(articleModel);
+            setCurrentModel(persistedSession?.currentModel || articleModel);
             setSavedModel(articleModel);
             const budget = settings.geminiArticleThinkingBudget ?? 0;
-            setThinkingBudget(budget);
+            setThinkingBudget(
+                typeof persistedSession?.thinkingBudget === 'number' ? persistedSession.thinkingBudget : budget,
+            );
             setSavedThinkingBudget(budget);
             const requestBudget = settings.geminiRequestBudgetUsd ?? 0;
-            setRequestBudgetUsd(requestBudget);
+            setRequestBudgetUsd(
+                typeof persistedSession?.requestBudgetUsd === 'number' ? persistedSession.requestBudgetUsd : requestBudget,
+            );
             setSavedRequestBudgetUsd(requestBudget);
             setDailyTokenQuota(settings.geminiQuotaDailyTokens ?? 0);
             setMonthlyTokenQuota(settings.geminiQuotaMonthlyTokens ?? 0);
@@ -260,6 +278,75 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
 
     useEffect(() => {
         try {
+            const raw = window.localStorage.getItem(SESSION_STORAGE_KEY);
+            if (!raw) {
+                sessionRestoreDoneRef.current = true;
+                return;
+            }
+            const parsed = JSON.parse(raw) as {
+                prompt?: string;
+                links?: string[];
+                articleType?: string;
+                articleLength?: string;
+                uiMode?: 'simple' | 'power';
+                researchMode?: 'none' | 'deep' | 'grounding';
+                targetWordCount?: number;
+                customPrompt?: string;
+                showPromptEditor?: boolean;
+                showPowerControls?: boolean;
+                showSourceLinks?: boolean;
+                useOutlineWorkflow?: boolean;
+                outlineText?: string;
+                outlineNotes?: string;
+                activeTab?: string;
+                targetLanguages?: string[];
+                toneStyle?: string;
+                toneInstructions?: string;
+                toneCustom?: boolean;
+                currentModel?: string;
+                thinkingBudget?: number;
+                requestBudgetUsd?: number;
+            };
+
+            if (typeof parsed.prompt === 'string') setPrompt(parsed.prompt);
+            if (Array.isArray(parsed.links) && parsed.links.length > 0) setLinks(parsed.links);
+            if (typeof parsed.articleType === 'string') setArticleType(parsed.articleType);
+            if (typeof parsed.articleLength === 'string') setArticleLength(parsed.articleLength);
+            if (parsed.uiMode === 'simple' || parsed.uiMode === 'power') setUiMode(parsed.uiMode);
+            if (parsed.researchMode === 'none' || parsed.researchMode === 'deep' || parsed.researchMode === 'grounding') {
+                setResearchMode(parsed.researchMode);
+            }
+            if (typeof parsed.targetWordCount === 'number' && Number.isFinite(parsed.targetWordCount)) {
+                setTargetWordCount(parsed.targetWordCount);
+            }
+            if (typeof parsed.customPrompt === 'string') setCustomPrompt(parsed.customPrompt);
+            if (typeof parsed.showPromptEditor === 'boolean') setShowPromptEditor(parsed.showPromptEditor);
+            if (typeof parsed.showPowerControls === 'boolean') setShowPowerControls(parsed.showPowerControls);
+            if (typeof parsed.showSourceLinks === 'boolean') setShowSourceLinks(parsed.showSourceLinks);
+            if (typeof parsed.useOutlineWorkflow === 'boolean') setUseOutlineWorkflow(parsed.useOutlineWorkflow);
+            if (typeof parsed.outlineText === 'string') setOutlineText(parsed.outlineText);
+            if (typeof parsed.outlineNotes === 'string') setOutlineNotes(parsed.outlineNotes);
+            if (parsed.activeTab === 'sk' || parsed.activeTab === 'en' || parsed.activeTab === 'de' || parsed.activeTab === 'cn') {
+                setActiveTab(parsed.activeTab);
+            }
+            if (Array.isArray(parsed.targetLanguages) && parsed.targetLanguages.length > 0) {
+                setTargetLanguages(parsed.targetLanguages.filter((lang): lang is string => typeof lang === 'string'));
+            }
+            if (typeof parsed.toneStyle === 'string') setToneStyle(parsed.toneStyle);
+            if (typeof parsed.toneInstructions === 'string') setToneInstructions(parsed.toneInstructions);
+            if (typeof parsed.toneCustom === 'boolean') setToneCustom(parsed.toneCustom);
+            if (typeof parsed.currentModel === 'string') setCurrentModel(parsed.currentModel);
+            if (typeof parsed.thinkingBudget === 'number' && Number.isFinite(parsed.thinkingBudget)) setThinkingBudget(parsed.thinkingBudget);
+            if (typeof parsed.requestBudgetUsd === 'number' && Number.isFinite(parsed.requestBudgetUsd)) setRequestBudgetUsd(parsed.requestBudgetUsd);
+        } catch (error) {
+            console.warn('Failed to restore AI Lab session state.', error);
+        } finally {
+            sessionRestoreDoneRef.current = true;
+        }
+    }, []);
+
+    useEffect(() => {
+        try {
             const raw = window.localStorage.getItem(RECOVERY_STORAGE_KEY);
             if (!raw) return;
             const parsed = JSON.parse(raw) as {
@@ -296,6 +383,141 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             console.warn('Failed to persist recoverable AI output.', error);
         }
     }, [recoverableRawOutput, recoverableErrorMessage, recoverableSources]);
+
+    useEffect(() => {
+        if (!sessionRestoreDoneRef.current) return;
+        try {
+            const hasSessionState = Boolean(
+                prompt.trim() ||
+                customPrompt.trim() ||
+                outlineText.trim() ||
+                outlineNotes.trim() ||
+                links.some((link) => link.trim()) ||
+                generatedContent ||
+                recoverableRawOutput.trim(),
+            );
+
+            if (!hasSessionState) {
+                window.localStorage.removeItem(SESSION_STORAGE_KEY);
+                return;
+            }
+
+            window.localStorage.setItem(
+                SESSION_STORAGE_KEY,
+                JSON.stringify({
+                    prompt,
+                    links,
+                    articleType,
+                    articleLength,
+                    uiMode,
+                    researchMode,
+                    targetWordCount,
+                    customPrompt,
+                    showPromptEditor,
+                    showPowerControls,
+                    showSourceLinks,
+                    useOutlineWorkflow,
+                    outlineText,
+                    outlineNotes,
+                    activeTab,
+                    targetLanguages,
+                    toneStyle,
+                    toneInstructions,
+                    toneCustom,
+                    currentModel,
+                    thinkingBudget,
+                    requestBudgetUsd,
+                    updatedAt: new Date().toISOString(),
+                }),
+            );
+        } catch (error) {
+            console.warn('Failed to persist AI Lab session state.', error);
+        }
+    }, [
+        prompt,
+        links,
+        articleType,
+        articleLength,
+        uiMode,
+        researchMode,
+        targetWordCount,
+        customPrompt,
+        showPromptEditor,
+        showPowerControls,
+        showSourceLinks,
+        useOutlineWorkflow,
+        outlineText,
+        outlineNotes,
+        activeTab,
+        targetLanguages,
+        toneStyle,
+        toneInstructions,
+        toneCustom,
+        currentModel,
+        thinkingBudget,
+        requestBudgetUsd,
+        generatedContent,
+        recoverableRawOutput,
+    ]);
+
+    const hasSessionDraft = Boolean(
+        prompt.trim() ||
+        customPrompt.trim() ||
+        outlineText.trim() ||
+        outlineNotes.trim() ||
+        links.some((link) => link.trim()) ||
+        generatedContent ||
+        recoverableRawOutput.trim() ||
+        articleSettingsDirty,
+    );
+    const { confirmDiscardChanges } = useAdminDirtyState(hasSessionDraft, "AI article draft");
+
+    const resetSession = () => {
+        if (!confirmDiscardChanges("reset the current AI draft")) return;
+
+        clearGenerationTimers();
+        generationControllerRef.current?.abort();
+        generationControllerRef.current = null;
+        setGenerating(false);
+        setPrompt('');
+        setLinks(['']);
+        setArticleType('Deep Dive');
+        setArticleLength('Medium');
+        setUiMode('simple');
+        setResearchMode('none');
+        setTargetWordCount(lengthDefaults.Medium);
+        setCustomPrompt('');
+        setShowPromptEditor(false);
+        setShowPowerControls(false);
+        setShowSourceLinks(false);
+        setUseOutlineWorkflow(false);
+        setOutlineText('');
+        setOutlineNotes('');
+        setOutlineSources([]);
+        setGeneratedContent(null);
+        setRecoverableRawOutput('');
+        setRecoverableErrorMessage('');
+        setRecoverableSources([]);
+        setShowRawRecoveryEditor(false);
+        setResearchSources([]);
+        setResearchSummary('');
+        setActiveTab('sk');
+        setTargetLanguages(['sk', 'en']);
+        setToneStyle('Client-Friendly');
+        setToneInstructions(toneDefaults['Client-Friendly']);
+        setToneCustom(false);
+        setCurrentModel(savedModel);
+        setThinkingBudget(savedThinkingBudget);
+        setRequestBudgetUsd(savedRequestBudgetUsd);
+        setGenerationStatus('');
+        setGenerationElapsedMs(0);
+        setGenerationTimeMs(null);
+        setEstimatedCost(null);
+        setLastRequestId(null);
+        window.localStorage.removeItem(SESSION_STORAGE_KEY);
+        window.localStorage.removeItem(RECOVERY_STORAGE_KEY);
+        toast.success('AI Lab session reset.');
+    };
 
     const addLink = () => setLinks([...links, '']);
     const removeLink = (index: number) => setLinks(links.filter((_, i) => i !== index));
@@ -1103,6 +1325,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                 tab: targetTab,
                 edit: articleId,
             });
+            if (targetTab === 'article-studio') {
+                params.set('stage', 'edit');
+            }
             if (options?.openLinkedIn) {
                 params.set('panel', 'linkedin');
                 params.set('linkedinTarget', options.linkedinTarget === 'organization' ? 'organization' : 'member');
@@ -1128,7 +1353,44 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             <AdminPanelHeader
                 title="AI Article Generator"
                 description="Set topic and research inputs, generate draft, then hand off to editor."
+                actions={
+                    hasSessionDraft ? (
+                        <Button type="button" variant="outline" size="sm" onClick={resetSession}>
+                            Reset Session
+                        </Button>
+                    ) : undefined
+                }
             />
+            <div className="grid gap-4 xl:grid-cols-4">
+                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
+                    <CardContent className="space-y-1 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 1</div>
+                        <div className="text-base font-semibold text-[#210059]">Brief</div>
+                        <p className="text-sm text-muted-foreground">Lock topic, languages, research mode, and tone before dispatch.</p>
+                    </CardContent>
+                </Card>
+                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
+                    <CardContent className="space-y-1 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 2</div>
+                        <div className="text-base font-semibold text-[#210059]">Generate</div>
+                        <p className="text-sm text-muted-foreground">Run research and article generation with guardrails, model caps, and recovery.</p>
+                    </CardContent>
+                </Card>
+                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
+                    <CardContent className="space-y-1 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 3</div>
+                        <div className="text-base font-semibold text-[#210059]">Review</div>
+                        <p className="text-sm text-muted-foreground">Check multilingual preview, SEO payload, sources, and usage before saving.</p>
+                    </CardContent>
+                </Card>
+                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
+                    <CardContent className="space-y-1 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 4</div>
+                        <div className="text-base font-semibold text-[#210059]">Handoff</div>
+                        <p className="text-sm text-muted-foreground">Save draft to Article Studio, then continue workflow in editor or LinkedIn panel.</p>
+                    </CardContent>
+                </Card>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Input Pane */}
                 <Card>
@@ -1720,7 +1982,7 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             )}
                         </div>
                         <div className="flex items-center justify-between w-full text-xs text-muted-foreground">
-                            <div className="flex flex-col">
+                            <div className="flex flex-col" aria-live="polite">
                                 <span>
                                     {generationStatus
                                         ? `${generationStatus}${generationElapsedMs ? ` • ${formatDuration(generationElapsedMs)}` : ''}`
@@ -1751,6 +2013,10 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             <span>
                                 Cooldown: {cooldownActive ? `${requestCooldownSeconds}s` : 'Off'}
                             </span>
+                        </div>
+                        <div className="flex items-center justify-between w-full text-[11px] text-muted-foreground">
+                            <span>Languages: {targetLanguages.map((lang) => lang.toUpperCase()).join(', ')}</span>
+                            <span>Mode: {uiMode === 'power' ? 'Power' : 'Basic'}</span>
                         </div>
                         {budgetExceeded && (
                             <div className="w-full rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">

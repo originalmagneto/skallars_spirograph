@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import AILab from "@/components/admin/AILab";
 import ArticleEditor from "@/components/admin/ArticleEditor";
 import { AdminActionBar, AdminPanelHeader, AdminSectionCard } from "@/components/admin/AdminPrimitives";
+import { useAdminDirtyRegistry } from "@/hooks/use-admin-dirty-state";
 
 type Stage = "generate" | "edit";
 
@@ -14,13 +15,57 @@ export default function ArticleStudio() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const editId = searchParams.get("edit");
+    const stageParam = searchParams.get("stage");
     const [stage, setStage] = useState<Stage>("generate");
+    const { confirmDirtyNavigation } = useAdminDirtyRegistry();
 
     useEffect(() => {
+        if (stageParam === "edit" && editId) {
+            setStage("edit");
+            return;
+        }
+
+        if (stageParam === "generate") {
+            setStage("generate");
+            return;
+        }
+
         if (editId) {
             setStage("edit");
+            return;
         }
-    }, [editId]);
+        setStage("generate");
+    }, [editId, stageParam]);
+
+    const replaceStudioState = (nextStage: Stage, nextEditId?: string | null) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("workspace", "publishing");
+        params.set("tab", "article-studio");
+        params.set("stage", nextStage);
+        if (nextEditId) {
+            params.set("edit", nextEditId);
+        } else if (nextStage === "generate") {
+            params.delete("edit");
+        }
+        router.replace(`/admin?${params.toString()}`);
+    };
+
+    const handleStageChange = (nextStage: Stage) => {
+        if (nextStage === stage) return;
+        if (!confirmDirtyNavigation(`switch to the ${nextStage === "generate" ? "Generate" : "Edit & Publish"} step`)) return;
+        setStage(nextStage);
+        replaceStudioState(nextStage, editId);
+    };
+
+    const handleOpenArticles = () => {
+        if (!confirmDirtyNavigation("open the Articles list")) return;
+        router.push("/admin?workspace=publishing&tab=articles");
+    };
+
+    const handleOpenAdvancedLab = () => {
+        if (!confirmDirtyNavigation("open the Advanced AI Lab")) return;
+        router.push("/admin?workspace=publishing&tab=ai-lab");
+    };
 
     const badgeLabel = useMemo(() => {
         if (!editId) return null;
@@ -36,14 +81,14 @@ export default function ArticleStudio() {
                     <>
                     <Button
                         variant="outline"
-                        onClick={() => router.push("/admin?workspace=publishing&tab=articles")}
+                        onClick={handleOpenArticles}
                     >
                         Open Articles List
                     </Button>
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push("/admin?workspace=publishing&tab=ai-lab")}
+                        onClick={handleOpenAdvancedLab}
                     >
                         Advanced AI Lab
                     </Button>
@@ -55,14 +100,14 @@ export default function ArticleStudio() {
                 <Button
                     size="sm"
                     variant={stage === "generate" ? "default" : "outline"}
-                    onClick={() => setStage("generate")}
+                    onClick={() => handleStageChange("generate")}
                 >
                     1. Generate
                 </Button>
                 <Button
                     size="sm"
                     variant={stage === "edit" ? "default" : "outline"}
-                    onClick={() => setStage("edit")}
+                    onClick={() => handleStageChange("edit")}
                     disabled={!editId}
                 >
                     2. Edit & Publish
@@ -70,10 +115,37 @@ export default function ArticleStudio() {
                 {badgeLabel && <Badge variant="secondary">{badgeLabel}</Badge>}
             </AdminActionBar>
 
+            <div className="grid gap-4 md:grid-cols-3">
+                <AdminSectionCard className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 1</div>
+                    <div className="text-base font-semibold text-[#210059]">Brief & Generate</div>
+                    <p className="text-sm text-muted-foreground">
+                        Prepare topic, research depth, languages, and review the AI preview before saving.
+                    </p>
+                </AdminSectionCard>
+                <AdminSectionCard className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 2</div>
+                    <div className="text-base font-semibold text-[#210059]">Edit & Publish</div>
+                    <p className="text-sm text-muted-foreground">
+                        Finalize article content, workflow status, SEO data, and schedule publishing.
+                    </p>
+                </AdminSectionCard>
+                <AdminSectionCard className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 3</div>
+                    <div className="text-base font-semibold text-[#210059]">Distribute</div>
+                    <p className="text-sm text-muted-foreground">
+                        Share instantly or queue LinkedIn distribution once the article URL and assets are ready.
+                    </p>
+                </AdminSectionCard>
+            </div>
+
             {stage === "generate" && (
                 <AILab
                     redirectTab="article-studio"
-                    onDraftSaved={() => setStage("edit")}
+                    onDraftSaved={(newArticleId) => {
+                        setStage("edit");
+                        replaceStudioState("edit", newArticleId);
+                    }}
                 />
             )}
 
@@ -83,7 +155,7 @@ export default function ArticleStudio() {
                         articleId={editId}
                         onClose={() => {
                             setStage("generate");
-                            router.replace("/admin?workspace=publishing&tab=article-studio");
+                            replaceStudioState("generate", null);
                         }}
                     />
                 ) : (

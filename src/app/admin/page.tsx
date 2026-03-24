@@ -43,6 +43,7 @@ import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
 import PublishingCalendar from "@/components/admin/PublishingCalendar";
 import ArticleStudio from "@/components/admin/ArticleStudio";
 import LinkedInSettings from "@/components/admin/LinkedInSettings";
+import { useAdminDirtyRegistry } from "@/hooks/use-admin-dirty-state";
 
 type WorkspaceId = "site" | "publishing";
 type SettingsPanelId = "ai" | "linkedin" | "seo";
@@ -74,6 +75,7 @@ export default function AdminPage() {
     const { user, isAdmin, isEditor } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { hasDirtyChanges, dirtyLabels, confirmDirtyNavigation } = useAdminDirtyRegistry();
 
     const paramTab = searchParams.get("tab");
     const paramWorkspace = searchParams.get("workspace") as WorkspaceId | null;
@@ -200,6 +202,7 @@ export default function AdminPage() {
 
     const handleWorkspaceChange = (nextWorkspace: WorkspaceId) => {
         if (nextWorkspace === activeWorkspace) return;
+        if (!confirmDirtyNavigation(`switch to the ${workspaceConfig[nextWorkspace].label} workspace`)) return;
         const nextTab = inferTab(nextWorkspace);
         setActiveWorkspace(nextWorkspace);
         setActiveTab(nextTab);
@@ -208,12 +211,15 @@ export default function AdminPage() {
 
     const handleTabChange = (nextTab: string) => {
         if (nextTab === activeTab) return;
+        const nextMeta = tabLookup.get(nextTab);
+        if (!confirmDirtyNavigation(`open ${nextMeta?.item.label || "another admin section"}`)) return;
         setActiveTab(nextTab);
         updateQuery(activeWorkspace, nextTab);
     };
 
     const handleSettingsPanelChange = (panel: SettingsPanelId) => {
         if (activeSettingsPanel === panel) return;
+        if (!confirmDirtyNavigation(`switch to the ${panel.toUpperCase()} settings panel`)) return;
         setActiveSettingsPanel(panel);
         const params = new URLSearchParams(searchParams.toString());
         params.set("workspace", activeWorkspace);
@@ -315,9 +321,22 @@ export default function AdminPage() {
 
     return (
         <div className="space-y-6">
+            {hasDirtyChanges && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-[0_16px_34px_-30px_rgba(146,64,14,0.35)]">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div className="text-sm font-semibold text-amber-900">Unsaved Changes</div>
+                            <p className="text-xs text-amber-800">
+                                Save before switching sections or confirm navigation to discard changes in{" "}
+                                {Array.from(new Set(dirtyLabels)).join(", ")}.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="grid grid-cols-1 xl:grid-cols-[320px,minmax(0,1fr)] gap-6">
-                <aside className="space-y-4">
-                    <div className="rounded-2xl border bg-white p-4 space-y-3">
+                <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+                    <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)] backdrop-blur-sm space-y-3">
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Workspace</div>
                         <div className="grid gap-2">
                             {(Object.keys(workspaceConfig) as WorkspaceId[]).map((workspaceId) => {
@@ -326,7 +345,7 @@ export default function AdminPage() {
                                     <Button
                                         key={workspaceId}
                                         variant={isActive ? "default" : "outline"}
-                                        className="h-auto justify-start px-4 py-3"
+                                        className="h-auto justify-start px-4 py-3 text-left"
                                         onClick={() => handleWorkspaceChange(workspaceId)}
                                     >
                                         <span className="flex flex-col items-start">
@@ -340,7 +359,11 @@ export default function AdminPage() {
                     </div>
 
                     {workspaceConfig[activeWorkspace].sections.map((section) => (
-                        <div key={section.title} className="rounded-2xl border bg-white p-4 space-y-3">
+                        <nav
+                            key={section.title}
+                            aria-label={section.title}
+                            className="rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)] backdrop-blur-sm space-y-3"
+                        >
                             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{section.title}</div>
                             <div className="space-y-2">
                                 {section.items
@@ -354,11 +377,12 @@ export default function AdminPage() {
                                                 key={item.value}
                                                 type="button"
                                                 onClick={() => handleTabChange(item.value)}
+                                                aria-current={isActive ? "page" : undefined}
                                                 className={cn(
-                                                    "w-full rounded-xl border px-3.5 py-3 text-left transition-colors",
+                                                    "w-full rounded-2xl border px-3.5 py-3 text-left transition-colors",
                                                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                                     isActive
-                                                        ? "border-primary/30 bg-primary/10 text-primary"
+                                                        ? "border-primary/30 bg-primary/10 text-primary shadow-[0_16px_36px_-30px_rgba(93,0,255,0.55)]"
                                                         : "border-border bg-white hover:bg-muted/30"
                                                 )}
                                             >
@@ -366,22 +390,45 @@ export default function AdminPage() {
                                                     <Icon size={16} className={cn("mt-0.5", isActive ? "text-primary" : "text-muted-foreground")} />
                                                     <div className="min-w-0">
                                                         <div className="text-sm font-semibold leading-tight">{item.label}</div>
-                                                        <div className="mt-1 text-xs text-muted-foreground leading-snug">{item.description}</div>
+                                                        <div className={cn("mt-1 text-xs leading-snug", isActive ? "text-primary/80" : "text-muted-foreground")}>{item.description}</div>
                                                     </div>
                                                 </div>
                                             </button>
                                         );
                                     })}
                             </div>
-                        </div>
+                        </nav>
                     ))}
                 </aside>
 
                 <section className="space-y-4">
-                    <div className="rounded-2xl border bg-white px-5 py-4 lg:px-6">
-                        <div className="text-xs uppercase tracking-wide text-muted-foreground">{workspaceConfig[activeWorkspace].label}</div>
-                        <h1 className="mt-1 text-xl font-semibold leading-tight">{activeMeta?.item.label ?? "Admin"}</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">{activeMeta?.item.description ?? "Manage this section."}</p>
+                    <div className="rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-[#f7f3ff] px-5 py-4 shadow-[0_18px_40px_-34px_rgba(33,0,89,0.42)] lg:px-6">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0">
+                                <div className="text-xs uppercase tracking-wide text-muted-foreground">{workspaceConfig[activeWorkspace].label}</div>
+                                <h1 className="mt-1 text-xl font-semibold leading-tight text-balance text-[#210059]">{activeMeta?.item.label ?? "Admin"}</h1>
+                                <p className="mt-1 text-sm text-muted-foreground">{activeMeta?.item.description ?? "Manage this section."}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {activeWorkspace === "publishing" && (
+                                    <>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => handleTabChange("article-studio")}>
+                                            Open Studio
+                                        </Button>
+                                        {isAdmin && (
+                                            <Button type="button" variant="outline" size="sm" onClick={() => handleTabChange("settings")}>
+                                                Open Settings
+                                            </Button>
+                                        )}
+                                    </>
+                                )}
+                                {activeWorkspace === "site" && isAdmin && (
+                                    <Button type="button" variant="outline" size="sm" onClick={() => handleTabChange("layout")}>
+                                        Open Layout Controls
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-6">{renderActiveTab()}</div>
