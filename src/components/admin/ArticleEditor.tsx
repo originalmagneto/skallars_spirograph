@@ -1432,6 +1432,14 @@ export default function ArticleEditor({ articleId, onClose, embedded = false }: 
         }
     };
 
+    const currentTitle = getCurrentTitle();
+    const currentExcerpt = getCurrentExcerpt();
+    const currentContent = getCurrentContent();
+    const articleUrl = getArticleUrl();
+    const wordCount = stripHtml(currentContent).split(/\s+/).filter(Boolean).length;
+    const readingMinutes = wordCount > 0 ? Math.max(1, Math.round(wordCount / 200)) : 0;
+    const localEditorialScan = useMemo(() => buildLocalEditorialScan(currentContent), [currentContent]);
+
     if (articleLoading) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -1604,13 +1612,6 @@ Rules:
     const getLabel = (enLabel: string, skLabel: string) => {
         return activeTab === 'sk' ? skLabel : enLabel + ` (${activeTab.toUpperCase()})`;
     };
-    const currentTitle = getCurrentTitle();
-    const currentExcerpt = getCurrentExcerpt();
-    const currentContent = getCurrentContent();
-    const articleUrl = getArticleUrl();
-    const wordCount = stripHtml(currentContent).split(/\s+/).filter(Boolean).length;
-    const readingMinutes = wordCount > 0 ? Math.max(1, Math.round(wordCount / 200)) : 0;
-    const localEditorialScan = useMemo(() => buildLocalEditorialScan(currentContent), [currentContent]);
 
     const handleRunEditorialReview = async () => {
         if (!currentContent.trim()) {
