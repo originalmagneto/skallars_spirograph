@@ -53,6 +53,39 @@ export interface ResearchPack {
     };
 }
 
+export type EditorialReviewSeverity = 'low' | 'medium' | 'high';
+export type EditorialReviewVerdict = 'publish-ready' | 'needs-rewrite' | 'high-ai-slop-risk';
+
+export interface EditorialReviewIssue {
+    title: string;
+    severity: EditorialReviewSeverity;
+    rationale: string;
+    fix: string;
+}
+
+export interface EditorialReviewDimension {
+    score: number;
+    rationale: string;
+}
+
+export interface EditorialReviewResult {
+    summary: string;
+    verdict: EditorialReviewVerdict;
+    overallScore: number;
+    dimensions: {
+        specificity: EditorialReviewDimension;
+        originality: EditorialReviewDimension;
+        legalPrecision: EditorialReviewDimension;
+        structure: EditorialReviewDimension;
+        voice: EditorialReviewDimension;
+        evidence: EditorialReviewDimension;
+    };
+    wins: string[];
+    antiSlopSignals: string[];
+    issues: EditorialReviewIssue[];
+    rewriteBrief: string;
+}
+
 export type RecoverableArticleGenerationError = Error & {
     code?: 'ARTICLE_OUTPUT_RECOVERABLE';
     rawOutput?: string;
@@ -1724,7 +1757,7 @@ ${cleanedRawOutput}`;
 
 export async function generateAIEdit(
     text: string,
-    options: { mode: 'rewrite' | 'expand' | 'shorten' | 'simplify'; customInstruction?: string; tone?: string; toneInstructions?: string; languageLabel?: string; signal?: AbortSignal } = {
+    options: { mode: 'rewrite' | 'expand' | 'shorten' | 'simplify' | 'humanize' | 'tighten'; customInstruction?: string; tone?: string; toneInstructions?: string; languageLabel?: string; signal?: AbortSignal } = {
         mode: 'rewrite'
     }
 ): Promise<string> {
@@ -1746,6 +1779,8 @@ export async function generateAIEdit(
         expand: 'Expand with additional detail and context, but do not invent facts. Maintain structure.',
         shorten: 'Shorten the text by ~40% while preserving key facts and conclusions.',
         simplify: 'Simplify the language for a general audience without losing accuracy.',
+        humanize: 'Remove generic AI-sounding phrasing, flatten cliches, vary sentence rhythm, and make the text sound more concrete and editorial.',
+        tighten: 'Tighten claims, remove filler, reduce repetition, and make the legal/business reasoning more precise.',
     };
 
     const toneGuide = getToneGuide(tone, toneInstructions);
@@ -1801,6 +1836,167 @@ Return ONLY the edited HTML string.`;
     const jsonMatch = content.match(/```html\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/);
     const cleanContent = (jsonMatch ? jsonMatch[1] : content).trim();
     return cleanContent;
+}
+
+const clampReviewScore = (value: unknown) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.max(0, Math.min(100, Math.round(numeric)));
+};
+
+const normalizeReviewDimension = (value: any): EditorialReviewDimension => ({
+    score: clampReviewScore(value?.score),
+    rationale: typeof value?.rationale === 'string' ? value.rationale.trim() : '',
+});
+
+const normalizeEditorialReview = (value: any): EditorialReviewResult => ({
+    summary: typeof value?.summary === 'string' ? value.summary.trim() : '',
+    verdict:
+        value?.verdict === 'publish-ready' || value?.verdict === 'high-ai-slop-risk' || value?.verdict === 'needs-rewrite'
+            ? value.verdict
+            : 'needs-rewrite',
+    overallScore: clampReviewScore(value?.overallScore),
+    dimensions: {
+        specificity: normalizeReviewDimension(value?.dimensions?.specificity),
+        originality: normalizeReviewDimension(value?.dimensions?.originality),
+        legalPrecision: normalizeReviewDimension(value?.dimensions?.legalPrecision),
+        structure: normalizeReviewDimension(value?.dimensions?.structure),
+        voice: normalizeReviewDimension(value?.dimensions?.voice),
+        evidence: normalizeReviewDimension(value?.dimensions?.evidence),
+    },
+    wins: Array.isArray(value?.wins) ? value.wins.filter((item: unknown): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 6) : [],
+    antiSlopSignals: Array.isArray(value?.antiSlopSignals)
+        ? value.antiSlopSignals.filter((item: unknown): item is string => typeof item === 'string').map((item) => item.trim()).filter(Boolean).slice(0, 8)
+        : [],
+    issues: Array.isArray(value?.issues)
+        ? value.issues
+            .map((issue: any) => ({
+                title: typeof issue?.title === 'string' ? issue.title.trim() : '',
+                severity: issue?.severity === 'high' || issue?.severity === 'medium' || issue?.severity === 'low' ? issue.severity : 'medium',
+                rationale: typeof issue?.rationale === 'string' ? issue.rationale.trim() : '',
+                fix: typeof issue?.fix === 'string' ? issue.fix.trim() : '',
+            }))
+            .filter((issue) => issue.title && issue.rationale && issue.fix)
+            .slice(0, 8)
+        : [],
+    rewriteBrief: typeof value?.rewriteBrief === 'string' ? value.rewriteBrief.trim() : '',
+});
+
+export async function generateAIEditorialReview(
+    input: { title?: string; excerpt?: string; content: string },
+    options: {
+        focus?: 'anti-slop' | 'legal-precision' | 'executive-clarity' | 'client-friendly';
+        customInstruction?: string;
+        languageLabel?: string;
+        signal?: AbortSignal;
+    } = {}
+): Promise<EditorialReviewResult> {
+    const apiKey = await getSetting('gemini_api_key');
+    if (!apiKey) throw new Error('Gemini API Key not found in settings.');
+
+    const selectedModel = await getSetting('gemini_model') || 'gemini-2.0-flash';
+    const {
+        focus = 'anti-slop',
+        customInstruction = '',
+        languageLabel = 'English (EN)',
+        signal,
+    } = options;
+
+    const focusGuide: Record<string, string> = {
+        'anti-slop': 'Aggressively flag generic AI-sounding phrasing, repetitive sentence rhythm, empty abstractions, cliches, and vague claims.',
+        'legal-precision': 'Emphasize precision of legal framing, hedging, jurisdiction clarity, and whether claims are supported without overstatement.',
+        'executive-clarity': 'Prioritize scannability, strategic clarity, concise takeaways, and decision-useful structure.',
+        'client-friendly': 'Prioritize warmth, intelligibility, low jargon density, and whether the text sounds human and helpful without becoming fluffy.',
+    };
+
+    const prompt = `You are a senior legal-editorial reviewer.
+Review the article draft below and return ONLY strict JSON.
+
+### REVIEW OBJECTIVE
+- Language: ${languageLabel}
+- Primary focus: ${focus}
+- Focus guidance: ${focusGuide[focus] || focusGuide['anti-slop']}
+${customInstruction ? `- Additional editor note: ${customInstruction}` : ''}
+
+### REVIEW STANDARD
+Assess whether this draft reads like serious human editorial work instead of generic AI output.
+You must penalize:
+- empty abstractions
+- repetitive transitions and sentence shape
+- cliche framing
+- overconfident claims without support
+- generic conclusions
+- weak hierarchy and scannability
+
+### REQUIRED JSON SHAPE
+{
+  "summary": "string",
+  "verdict": "publish-ready | needs-rewrite | high-ai-slop-risk",
+  "overallScore": 0,
+  "dimensions": {
+    "specificity": { "score": 0, "rationale": "string" },
+    "originality": { "score": 0, "rationale": "string" },
+    "legalPrecision": { "score": 0, "rationale": "string" },
+    "structure": { "score": 0, "rationale": "string" },
+    "voice": { "score": 0, "rationale": "string" },
+    "evidence": { "score": 0, "rationale": "string" }
+  },
+  "wins": ["string"],
+  "antiSlopSignals": ["string"],
+  "issues": [
+    {
+      "title": "string",
+      "severity": "low | medium | high",
+      "rationale": "string",
+      "fix": "string"
+    }
+  ],
+  "rewriteBrief": "A concise instruction block for a follow-up rewrite that removes the detected weaknesses without changing the facts."
+}
+
+### ARTICLE INPUT
+Title: ${input.title || ''}
+Excerpt: ${input.excerpt || ''}
+Content (HTML):
+${input.content}
+`;
+
+    const body: any = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+            responseMimeType: "application/json",
+            response_mime_type: "application/json",
+            temperature: 0.2,
+            maxOutputTokens: 4096,
+        }
+    };
+
+    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body),
+        signal,
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Gemini editorial review failed: ${response.statusText} - ${errorBody}`);
+    }
+
+    const result = await response.json();
+    const content = extractTextFromCandidate(result?.candidates?.[0]);
+    if (!content) throw new Error(formatGeminiError(result));
+
+    let parsed = tryParseJson(content);
+    if (!parsed) {
+        parsed = await repairJsonWithGemini(content, selectedModel, apiKey, signal);
+    }
+
+    const normalized = normalizeEditorialReview(parsed);
+    if (!normalized.summary || !normalized.rewriteBrief) {
+        throw new Error('Editorial review returned incomplete data.');
+    }
+    return normalized;
 }
 export async function generateAIOutline(
     prompt: string,

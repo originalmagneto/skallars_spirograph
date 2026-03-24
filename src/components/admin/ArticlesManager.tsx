@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -64,22 +64,35 @@ const ARTICLES_LAYOUT_DEFAULTS: Record<ArticlesLayoutKey, BentoSize> = {
 const STATUS_FILTER_VALUES = ['all', 'draft', 'review', 'scheduled', 'published', 'needs-action', 'shared'] as const;
 const SORT_ORDER_VALUES = ['newest', 'oldest'] as const;
 
+const sanitizeArticleSearchQuery = (value: string) =>
+    value
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .replace(/[\u0000-\u001F\u007F]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+const normalizeStatusFilter = (value: string | null) =>
+    STATUS_FILTER_VALUES.includes((value || 'all') as any)
+        ? (value as typeof STATUS_FILTER_VALUES[number]) || 'all'
+        : 'all';
+
+const normalizeSortOrder = (value: string | null) =>
+    SORT_ORDER_VALUES.includes((value || 'newest') as any)
+        ? (value as typeof SORT_ORDER_VALUES[number]) || 'newest'
+        : 'newest';
+
 export default function ArticlesManager() {
     const queryClient = useQueryClient();
     const { isAdmin, session } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const { confirmDirtyNavigation } = useAdminDirtyRegistry();
-    const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+    const [searchQuery, setSearchQuery] = useState(sanitizeArticleSearchQuery(searchParams.get('q') || ''));
     const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'review' | 'scheduled' | 'published' | 'needs-action' | 'shared'>(
-        STATUS_FILTER_VALUES.includes((searchParams.get('status') || 'all') as any)
-            ? (searchParams.get('status') as any)
-            : 'all',
+        normalizeStatusFilter(searchParams.get('status')),
     );
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(
-        SORT_ORDER_VALUES.includes((searchParams.get('sort') || 'newest') as any)
-            ? (searchParams.get('sort') as any)
-            : 'newest',
+        normalizeSortOrder(searchParams.get('sort')),
     );
     const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
     const [isCreating, setIsCreating] = useState(false);
@@ -127,24 +140,50 @@ export default function ArticlesManager() {
     }, [searchParams]);
 
     useEffect(() => {
-        const nextQuery = searchParams.get('q') || '';
-        const nextStatus = STATUS_FILTER_VALUES.includes((searchParams.get('status') || 'all') as any)
-            ? (searchParams.get('status') as typeof STATUS_FILTER_VALUES[number])
-            : 'all';
-        const nextSort = SORT_ORDER_VALUES.includes((searchParams.get('sort') || 'newest') as any)
-            ? (searchParams.get('sort') as typeof SORT_ORDER_VALUES[number])
-            : 'newest';
+        const nextQuery = sanitizeArticleSearchQuery(searchParams.get('q') || '');
+        const nextStatus = normalizeStatusFilter(searchParams.get('status'));
+        const nextSort = normalizeSortOrder(searchParams.get('sort'));
 
         setSearchQuery(nextQuery);
         setStatusFilter(nextStatus);
         setSortOrder(nextSort);
     }, [searchParams]);
 
+    useEffect(() => {
+        const rawQuery = searchParams.get('q') || '';
+        const rawStatus = searchParams.get('status');
+        const rawSort = searchParams.get('sort');
+        const cleanedQuery = sanitizeArticleSearchQuery(rawQuery);
+        const cleanedStatus = normalizeStatusFilter(rawStatus);
+        const cleanedSort = normalizeSortOrder(rawSort);
+        const shouldClean =
+            rawQuery !== cleanedQuery ||
+            (rawStatus !== null && rawStatus !== cleanedStatus && !(rawStatus === 'all' && cleanedStatus === 'all')) ||
+            (rawSort !== null && rawSort !== cleanedSort && !(rawSort === 'newest' && cleanedSort === 'newest'));
+
+        if (!shouldClean) return;
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('workspace', 'publishing');
+        params.set('tab', 'articles');
+
+        if (cleanedQuery) params.set('q', cleanedQuery);
+        else params.delete('q');
+
+        if (cleanedStatus !== 'all') params.set('status', cleanedStatus);
+        else params.delete('status');
+
+        if (cleanedSort !== 'newest') params.set('sort', cleanedSort);
+        else params.delete('sort');
+
+        router.replace(`/admin?${params.toString()}`);
+    }, [router, searchParams]);
+
     const updateListQuery = (updates: Partial<{ q: string; status: string; sort: string; edit: string | null; create: boolean }>) => {
         const params = new URLSearchParams(searchParams.toString());
-        const nextQ = updates.q ?? searchQuery;
-        const nextStatus = updates.status ?? statusFilter;
-        const nextSort = updates.sort ?? sortOrder;
+        const nextQ = sanitizeArticleSearchQuery(updates.q ?? searchQuery);
+        const nextStatus = normalizeStatusFilter(updates.status ?? statusFilter);
+        const nextSort = normalizeSortOrder(updates.sort ?? sortOrder);
 
         params.set('workspace', 'publishing');
         params.set('tab', 'articles');
@@ -175,6 +214,8 @@ export default function ArticlesManager() {
 
         router.replace(`/admin?${params.toString()}`);
     };
+
+    const deferredSearchQuery = useDeferredValue(searchQuery);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -415,14 +456,40 @@ export default function ArticlesManager() {
         setLayout((prev) => ({ ...prev, [key]: size }));
     };
 
+    const sortedArticles = useMemo(() => {
+        const source = [...(articles || [])];
+        source.sort((a, b) => {
+            const left = new Date(a.created_at).getTime();
+            const right = new Date(b.created_at).getTime();
+            return sortOrder === 'newest' ? right - left : left - right;
+        });
+        return source;
+    }, [articles, sortOrder]);
+
+    const effectiveSearchQuery = useMemo(
+        () => sanitizeArticleSearchQuery(deferredSearchQuery).toLowerCase(),
+        [deferredSearchQuery],
+    );
+
     const filteredArticles = useMemo(() => {
-        const source = articles || [];
-        const filtered = source.filter((article) => {
+        const filtered = sortedArticles.filter((article) => {
             const titleSk = (article.title_sk || '').toLowerCase();
             const titleEn = (article.title_en || '').toLowerCase();
+            const titleDe = (article.title_de || '').toLowerCase();
+            const titleCn = (article.title_cn || '').toLowerCase();
             const slug = (article.slug || '').toLowerCase();
-            const term = searchQuery.toLowerCase().trim();
-            const matchesSearch = !term || titleSk.includes(term) || titleEn.includes(term) || slug.includes(term);
+            const excerptSk = (article.excerpt_sk || '').toLowerCase();
+            const excerptEn = (article.excerpt_en || '').toLowerCase();
+            const term = effectiveSearchQuery;
+            const matchesSearch =
+                !term ||
+                titleSk.includes(term) ||
+                titleEn.includes(term) ||
+                titleDe.includes(term) ||
+                titleCn.includes(term) ||
+                slug.includes(term) ||
+                excerptSk.includes(term) ||
+                excerptEn.includes(term);
             if (!matchesSearch) return false;
 
             const status = getStatus(article);
@@ -434,14 +501,8 @@ export default function ArticlesManager() {
             if (statusFilter === 'shared') return isShared;
             return status === statusFilter;
         });
-
-        filtered.sort((a, b) => {
-            const left = new Date(a.created_at).getTime();
-            const right = new Date(b.created_at).getTime();
-            return sortOrder === 'newest' ? right - left : left - right;
-        });
         return filtered;
-    }, [articles, searchQuery, statusFilter, sortOrder, linkedinSummary]);
+    }, [sortedArticles, effectiveSearchQuery, statusFilter, linkedinSummary]);
 
     const summary = useMemo(() => {
         const counts = {
@@ -470,7 +531,12 @@ export default function ArticlesManager() {
         counts.shared = Object.values(linkedinSummary).filter((item) => !!item.sharedAt).length;
         return counts;
     }, [articles, linkedinSummary]);
-    const hasActiveFilters = Boolean(searchQuery.trim()) || statusFilter !== 'all' || sortOrder !== 'newest';
+    const hasActiveFilters = Boolean(effectiveSearchQuery) || statusFilter !== 'all' || sortOrder !== 'newest';
+    const visibleArticles = useMemo(() => {
+        if (filteredArticles.length > 0) return filteredArticles;
+        if (!hasActiveFilters && sortedArticles.length > 0) return sortedArticles;
+        return filteredArticles;
+    }, [filteredArticles, hasActiveFilters, sortedArticles]);
 
     // Show editor view
     if (editingArticleId || isCreating) {
@@ -615,7 +681,7 @@ export default function ArticlesManager() {
                                     placeholder="Search title or slug..."
                                     value={searchQuery}
                                     onChange={(e) => {
-                                        const nextValue = e.target.value;
+                                        const nextValue = sanitizeArticleSearchQuery(e.target.value);
                                         setSearchQuery(nextValue);
                                         updateListQuery({ q: nextValue, edit: null, create: false });
                                     }}
@@ -654,7 +720,7 @@ export default function ArticlesManager() {
                                 <option value="oldest">Oldest first</option>
                             </select>
                             <div className="flex items-center justify-end text-xs text-muted-foreground lg:justify-start">
-                                <span>{filteredArticles.length} / {summary.total}</span>
+                                <span>{visibleArticles.length} / {summary.total}</span>
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -700,6 +766,11 @@ export default function ArticlesManager() {
                                     {filter.label}
                                 </Button>
                             ))}
+                            {effectiveSearchQuery && (
+                                <Badge variant="outline" className="h-8 px-3">
+                                    Search: {searchQuery}
+                                </Badge>
+                            )}
                         </div>
                     </AdminActionBar>
                 </AdminSectionCard>
@@ -726,12 +797,24 @@ export default function ArticlesManager() {
                         <div className="py-12 text-center">
                             <p className="text-muted-foreground">Loading articles...</p>
                         </div>
-                    ) : filteredArticles.length === 0 ? (
+                    ) : visibleArticles.length === 0 ? (
                         <div className="py-12 text-center">
                             <p className="text-muted-foreground mb-4">
-                                {searchQuery ? 'No articles match your search' : 'No articles yet'}
+                                {summary.total > 0 ? 'No articles match the current filters' : 'No articles yet'}
                             </p>
-                            {!searchQuery && (
+                            {summary.total > 0 ? (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setStatusFilter('all');
+                                        setSortOrder('newest');
+                                        updateListQuery({ q: '', status: 'all', sort: 'newest', edit: null, create: false });
+                                    }}
+                                >
+                                    Clear Filters & Restore List
+                                </Button>
+                            ) : (
                                 <Button onClick={() => updateListQuery({ create: true, edit: null })}>
                                     <Plus size={16} className="mr-2" />
                                     Create First Article
@@ -740,7 +823,7 @@ export default function ArticlesManager() {
                         </div>
                     ) : (
                         <div className="grid gap-4">
-                            {filteredArticles.map((article) => {
+                            {visibleArticles.map((article) => {
                                 const metricsLabel = formatLinkedInMetrics(article.id);
                                 const workflowHint = getWorkflowHint(article);
                                 const primaryLabel = getPrimaryActionLabel(article);

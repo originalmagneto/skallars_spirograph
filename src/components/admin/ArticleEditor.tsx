@@ -26,7 +26,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { generateAIEdit, generateAIImage } from '@/lib/aiService';
+import { type EditorialReviewResult, generateAIEdit, generateAIEditorialReview, generateAIImage } from '@/lib/aiService';
 import {
     fetchAISettings,
     DEFAULT_NANO_BANANA_2_MODEL,
@@ -84,6 +84,155 @@ interface ArticleEditorProps {
     onClose?: () => void;
     embedded?: boolean;
 }
+
+type EditorialReviewFocus = 'anti-slop' | 'legal-precision' | 'executive-clarity' | 'client-friendly';
+type LocalEditorialFlag = {
+    title: string;
+    detail: string;
+    severity: 'low' | 'medium' | 'high';
+};
+
+type LocalEditorialScan = {
+    score: number;
+    flaggedPhrases: string[];
+    repeatedOpeners: string[];
+    headingCount: number;
+    bulletCount: number;
+    longParagraphCount: number;
+    averageSentenceLength: number;
+    paragraphCount: number;
+    wordCount: number;
+    flags: LocalEditorialFlag[];
+};
+
+const EDITORIAL_REVIEW_FOCUS_OPTIONS: Array<{ value: EditorialReviewFocus; label: string }> = [
+    { value: 'anti-slop', label: 'Anti-AI Slop' },
+    { value: 'legal-precision', label: 'Legal Precision' },
+    { value: 'executive-clarity', label: 'Executive Clarity' },
+    { value: 'client-friendly', label: 'Client-Friendly' },
+];
+
+const AI_SLOP_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
+    { label: 'generic transition stack', pattern: /\b(moreover|furthermore|additionally|in conclusion|ultimately)\b/gi },
+    { label: 'vague strategic cliché', pattern: /\b(game[- ]changer|ever[- ]evolving|navigate|landscape|unlock|leverage|robust|seamless|transformative)\b/gi },
+    { label: 'generic opener', pattern: /\b(in today'?s|in the modern|it is important to note|it is worth noting)\b/gi },
+    { label: 'empty intensifier', pattern: /\b(crucial|key|vital|significant|important)\b/gi },
+];
+
+const getPlainEditorialText = (html: string) =>
+    html
+        .replace(/<\/(p|blockquote|li|h[1-6]|ul|ol)>/gi, '\n\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .trim();
+
+const clampEditorialScore = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+const buildLocalEditorialScan = (html: string): LocalEditorialScan => {
+    const plainText = getPlainEditorialText(html);
+    const paragraphs = plainText.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+    const sentences = plainText.match(/[^.!?]+[.!?]+/g)?.map((sentence) => sentence.trim()) ?? [];
+    const words = plainText.split(/\s+/).filter(Boolean);
+    const wordCount = words.length;
+    const headingCount = (html.match(/<h[23]\b/gi) || []).length;
+    const bulletCount = (html.match(/<li\b/gi) || []).length;
+    const longParagraphCount = paragraphs.filter((paragraph) => paragraph.split(/\s+/).filter(Boolean).length > 120).length;
+    const averageSentenceLength = sentences.length
+        ? Math.round(sentences.reduce((sum, sentence) => sum + sentence.split(/\s+/).filter(Boolean).length, 0) / sentences.length)
+        : 0;
+
+    const flaggedPhrases = AI_SLOP_PATTERNS.flatMap(({ label, pattern }) => {
+        const matches = plainText.match(pattern);
+        return matches?.length ? [`${label} (${matches.length})`] : [];
+    });
+
+    const openerCounts = new Map<string, number>();
+    sentences.forEach((sentence) => {
+        const opener = sentence
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/gi, ' ')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 3)
+            .join(' ');
+        if (!opener || opener.length < 8) return;
+        openerCounts.set(opener, (openerCounts.get(opener) || 0) + 1);
+    });
+    const repeatedOpeners = Array.from(openerCounts.entries())
+        .filter(([, count]) => count > 1)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([opener, count]) => `${opener} (${count}x)`);
+
+    const flags: LocalEditorialFlag[] = [];
+    if (flaggedPhrases.length > 0) {
+        flags.push({
+            title: 'AI-sounding cliché density',
+            detail: `Detected ${flaggedPhrases.join(', ')}.`,
+            severity: flaggedPhrases.length >= 3 ? 'high' : 'medium',
+        });
+    }
+    if (repeatedOpeners.length > 0) {
+        flags.push({
+            title: 'Repeated sentence openings',
+            detail: `Sentence rhythm is repetitive: ${repeatedOpeners.join(', ')}.`,
+            severity: repeatedOpeners.length >= 3 ? 'high' : 'medium',
+        });
+    }
+    if (longParagraphCount > 0) {
+        flags.push({
+            title: 'Paragraphs need compression',
+            detail: `${longParagraphCount} paragraph${longParagraphCount > 1 ? 's are' : ' is'} longer than 120 words.`,
+            severity: longParagraphCount > 2 ? 'high' : 'medium',
+        });
+    }
+    if (wordCount > 700 && headingCount < 2) {
+        flags.push({
+            title: 'Weak content hierarchy',
+            detail: 'Long-form draft has too few section headings for fast scanning.',
+            severity: 'medium',
+        });
+    }
+    if (wordCount > 900 && bulletCount === 0) {
+        flags.push({
+            title: 'No list-based relief',
+            detail: 'A long article without bullets can feel monotonous and harder to scan.',
+            severity: 'low',
+        });
+    }
+    if (averageSentenceLength > 28) {
+        flags.push({
+            title: 'Sentence length is heavy',
+            detail: `Average sentence length is ${averageSentenceLength} words, which risks sounding dense or synthetic.`,
+            severity: averageSentenceLength > 34 ? 'high' : 'medium',
+        });
+    }
+
+    let score = 96;
+    score -= flaggedPhrases.length * 7;
+    score -= repeatedOpeners.length * 5;
+    score -= longParagraphCount * 6;
+    if (wordCount > 700 && headingCount < 2) score -= 10;
+    if (wordCount > 900 && bulletCount === 0) score -= 5;
+    if (averageSentenceLength > 28) score -= Math.min(12, averageSentenceLength - 28);
+
+    return {
+        score: clampEditorialScore(score),
+        flaggedPhrases,
+        repeatedOpeners,
+        headingCount,
+        bulletCount,
+        longParagraphCount,
+        averageSentenceLength,
+        paragraphCount: paragraphs.length,
+        wordCount,
+        flags,
+    };
+};
 
 export default function ArticleEditor({ articleId, onClose, embedded = false }: ArticleEditorProps) {
     const isNew = !articleId || articleId === 'new';
@@ -159,10 +308,15 @@ export default function ArticleEditor({ articleId, onClose, embedded = false }: 
     const [uploading, setUploading] = useState(false);
     const [activeTab, setActiveTab] = useState<'sk' | 'en' | 'de' | 'cn'>('sk');
     const [editTarget, setEditTarget] = useState<'content' | 'excerpt'>('content');
-    const [editMode, setEditMode] = useState<'rewrite' | 'expand' | 'shorten' | 'simplify'>('rewrite');
+    const [editMode, setEditMode] = useState<'rewrite' | 'expand' | 'shorten' | 'simplify' | 'humanize' | 'tighten'>('rewrite');
     const [editInstruction, setEditInstruction] = useState('');
     const [editOutput, setEditOutput] = useState('');
     const [editLoading, setEditLoading] = useState(false);
+    const [reviewFocus, setReviewFocus] = useState<EditorialReviewFocus>('anti-slop');
+    const [reviewInstruction, setReviewInstruction] = useState('');
+    const [reviewLoading, setReviewLoading] = useState(false);
+    const [editorialReview, setEditorialReview] = useState<EditorialReviewResult | null>(null);
+    const [reviewLanguageSnapshot, setReviewLanguageSnapshot] = useState('');
     const [editorMode, setEditorMode] = useState<'visual' | 'html'>('visual');
     const [tagsInput, setTagsInput] = useState('');
     const [savedSnapshot, setSavedSnapshot] = useState('');
@@ -1456,6 +1610,90 @@ Rules:
     const articleUrl = getArticleUrl();
     const wordCount = stripHtml(currentContent).split(/\s+/).filter(Boolean).length;
     const readingMinutes = wordCount > 0 ? Math.max(1, Math.round(wordCount / 200)) : 0;
+    const localEditorialScan = useMemo(() => buildLocalEditorialScan(currentContent), [currentContent]);
+
+    const handleRunEditorialReview = async () => {
+        if (!currentContent.trim()) {
+            toast.error('Please add article content first.');
+            return;
+        }
+        setReviewLoading(true);
+        try {
+            const result = await generateAIEditorialReview(
+                {
+                    title: currentTitle,
+                    excerpt: currentExcerpt,
+                    content: currentContent,
+                },
+                {
+                    focus: reviewFocus,
+                    customInstruction: reviewInstruction,
+                    languageLabel: languageLabel(),
+                },
+            );
+            setEditorialReview(result);
+            setReviewLanguageSnapshot(languageLabel());
+            toast.success('Editorial review ready.');
+        } catch (error: any) {
+            toast.error(error.message || 'Editorial review failed');
+        } finally {
+            setReviewLoading(false);
+        }
+    };
+
+    const useReviewRewriteBrief = () => {
+        if (!editorialReview?.rewriteBrief) return;
+        setEditTarget('content');
+        setEditMode('rewrite');
+        setEditInstruction(editorialReview.rewriteBrief);
+        toast.success('Rewrite brief copied into Editorial Tools.');
+    };
+
+    const handleGenerateRevisionFromReview = async () => {
+        if (!editorialReview?.rewriteBrief || !currentContent.trim()) {
+            toast.error('Run an editorial review first.');
+            return;
+        }
+        setEditTarget('content');
+        setEditMode('rewrite');
+        setEditLoading(true);
+        try {
+            const output = await generateAIEdit(currentContent, {
+                mode: 'rewrite',
+                customInstruction: editorialReview.rewriteBrief,
+                languageLabel: languageLabel(),
+            });
+            setEditInstruction(editorialReview.rewriteBrief);
+            setEditOutput(output);
+            toast.success('Revision draft is ready to review.');
+        } catch (error: any) {
+            toast.error(error.message || 'Revision generation failed');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const reviewVerdictTone = (verdict: EditorialReviewResult['verdict']) => {
+        switch (verdict) {
+            case 'publish-ready':
+                return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+            case 'high-ai-slop-risk':
+                return 'border-rose-200 bg-rose-50 text-rose-700';
+            default:
+                return 'border-amber-200 bg-amber-50 text-amber-700';
+        }
+    };
+
+    const reviewIssueTone = (severity: 'low' | 'medium' | 'high') => {
+        switch (severity) {
+            case 'high':
+                return 'border-rose-200 bg-rose-50/80';
+            case 'medium':
+                return 'border-amber-200 bg-amber-50/80';
+            default:
+                return 'border-slate-200 bg-slate-50';
+        }
+    };
     const contentChecklist = {
         title: Boolean(currentTitle.trim()),
         excerpt: Boolean(currentExcerpt.trim()),
@@ -2734,7 +2972,7 @@ Rules:
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Action</Label>
-                                    <Select value={editMode} onValueChange={(value) => setEditMode(value as 'rewrite' | 'expand' | 'shorten' | 'simplify')}>
+                                    <Select value={editMode} onValueChange={(value) => setEditMode(value as 'rewrite' | 'expand' | 'shorten' | 'simplify' | 'humanize' | 'tighten')}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select action" />
                                         </SelectTrigger>
@@ -2743,6 +2981,8 @@ Rules:
                                             <SelectItem value="expand">Expand</SelectItem>
                                             <SelectItem value="shorten">Shorten</SelectItem>
                                             <SelectItem value="simplify">Simplify</SelectItem>
+                                            <SelectItem value="humanize">Humanize / De-slop</SelectItem>
+                                            <SelectItem value="tighten">Tighten Claims</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -2788,6 +3028,214 @@ Rules:
                             )}
                         </AdminSectionCard>
                     </div>
+
+                    <AdminSectionCard className="space-y-4 bg-muted/20">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                            <div>
+                                <Label className="text-sm font-semibold">Editorial Review & Anti-Slop Scan</Label>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Combine local heuristics with an AI editorial pass before publishing or LinkedIn distribution.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline">Local score {localEditorialScan.score}/100</Badge>
+                                {editorialReview && (
+                                    <Badge className={reviewVerdictTone(editorialReview.verdict)}>
+                                        AI review {editorialReview.overallScore}/100
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[320px,minmax(0,1fr)]">
+                            <div className="space-y-4">
+                                <div className="rounded-xl border bg-white p-4 space-y-3">
+                                    <div className="text-sm font-semibold text-[#210059]">Heuristic Scan</div>
+                                    <div className="grid grid-cols-2 gap-3 text-sm">
+                                        <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Words</div>
+                                            <div className="mt-1 font-semibold">{localEditorialScan.wordCount}</div>
+                                        </div>
+                                        <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Paragraphs</div>
+                                            <div className="mt-1 font-semibold">{localEditorialScan.paragraphCount}</div>
+                                        </div>
+                                        <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">H2/H3</div>
+                                            <div className="mt-1 font-semibold">{localEditorialScan.headingCount}</div>
+                                        </div>
+                                        <div className="rounded-lg border bg-muted/20 px-3 py-2">
+                                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Bullets</div>
+                                            <div className="mt-1 font-semibold">{localEditorialScan.bulletCount}</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Avg sentence length: {localEditorialScan.averageSentenceLength || 0} words · Long paragraphs: {localEditorialScan.longParagraphCount}
+                                    </div>
+                                    {localEditorialScan.flags.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {localEditorialScan.flags.map((flag) => (
+                                                <div key={`${flag.title}-${flag.detail}`} className={`rounded-lg border px-3 py-2 text-xs ${reviewIssueTone(flag.severity)}`}>
+                                                    <div className="font-semibold text-foreground">{flag.title}</div>
+                                                    <div className="mt-1 text-muted-foreground">{flag.detail}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                                            No strong local slop signals detected in the current draft.
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="rounded-xl border bg-white p-4 space-y-3">
+                                    <div className="text-sm font-semibold text-[#210059]">AI Review Controls</div>
+                                    <div className="space-y-2">
+                                        <Label>Review Focus</Label>
+                                        <Select value={reviewFocus} onValueChange={(value) => setReviewFocus(value as EditorialReviewFocus)}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select focus" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {EDITORIAL_REVIEW_FOCUS_OPTIONS.map((option) => (
+                                                    <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Editor Note (optional)</Label>
+                                        <Textarea
+                                            value={reviewInstruction}
+                                            onChange={(e) => setReviewInstruction(e.target.value)}
+                                            rows={3}
+                                            placeholder="e.g., Be ruthless about generic AI-sounding transitions and flatten any overclaiming."
+                                        />
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button onClick={handleRunEditorialReview} disabled={reviewLoading}>
+                                            {reviewLoading ? 'Reviewing…' : 'Run AI Review'}
+                                        </Button>
+                                        <Button variant="outline" onClick={useReviewRewriteBrief} disabled={!editorialReview?.rewriteBrief}>
+                                            Use Rewrite Brief
+                                        </Button>
+                                        <Button variant="outline" onClick={handleGenerateRevisionFromReview} disabled={!editorialReview?.rewriteBrief || editLoading}>
+                                            Generate Revision
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-xl border bg-white p-4 space-y-4">
+                                {editorialReview ? (
+                                    <>
+                                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                            <div>
+                                                <div className="text-sm font-semibold text-[#210059]">AI Editorial Review</div>
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    Reviewed for {reviewLanguageSnapshot || languageLabel()} with focus on {reviewFocus.replace('-', ' ')}.
+                                                </p>
+                                            </div>
+                                            <Badge className={reviewVerdictTone(editorialReview.verdict)}>
+                                                {editorialReview.verdict.replace(/-/g, ' ')} · {editorialReview.overallScore}/100
+                                            </Badge>
+                                        </div>
+
+                                        <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm text-foreground/90">
+                                            {editorialReview.summary}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                            {([
+                                                { label: 'Specificity', dimension: editorialReview.dimensions.specificity },
+                                                { label: 'Originality', dimension: editorialReview.dimensions.originality },
+                                                { label: 'Legal Precision', dimension: editorialReview.dimensions.legalPrecision },
+                                                { label: 'Structure', dimension: editorialReview.dimensions.structure },
+                                                { label: 'Voice', dimension: editorialReview.dimensions.voice },
+                                                { label: 'Evidence', dimension: editorialReview.dimensions.evidence },
+                                            ]).map(({ label, dimension }) => (
+                                                <div key={label} className="rounded-lg border bg-muted/20 px-3 py-3">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+                                                        <div className="text-sm font-semibold text-[#210059]">{dimension.score}/100</div>
+                                                    </div>
+                                                    <div className="mt-2 text-xs text-muted-foreground">{dimension.rationale}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {editorialReview.wins.length > 0 && (
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-semibold">What Already Works</Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {editorialReview.wins.map((win) => (
+                                                        <Badge key={win} variant="secondary" className="h-auto whitespace-normal px-3 py-1 text-xs">
+                                                            {win}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {(editorialReview.antiSlopSignals.length > 0 || localEditorialScan.flaggedPhrases.length > 0) && (
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-semibold">Anti-Slop Signals</Label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {editorialReview.antiSlopSignals.map((signal) => (
+                                                        <Badge key={signal} variant="outline" className="h-auto whitespace-normal px-3 py-1 text-xs">
+                                                            {signal}
+                                                        </Badge>
+                                                    ))}
+                                                    {localEditorialScan.flaggedPhrases.map((signal) => (
+                                                        <Badge key={`local-${signal}`} variant="outline" className="h-auto whitespace-normal px-3 py-1 text-xs">
+                                                            Local: {signal}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {editorialReview.issues.length > 0 && (
+                                            <div className="space-y-3">
+                                                <Label className="text-sm font-semibold">Issues To Fix</Label>
+                                                <div className="space-y-3">
+                                                    {editorialReview.issues.map((issue) => (
+                                                        <div key={`${issue.title}-${issue.rationale}`} className={`rounded-lg border px-4 py-3 ${reviewIssueTone(issue.severity)}`}>
+                                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                                <div className="text-sm font-semibold text-foreground">{issue.title}</div>
+                                                                <Badge variant="outline" className="capitalize">
+                                                                    {issue.severity}
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="mt-2 text-sm text-muted-foreground">{issue.rationale}</p>
+                                                            <p className="mt-2 text-xs font-medium text-foreground/85">Fix: {issue.fix}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-semibold">Rewrite Brief</Label>
+                                            <Textarea
+                                                value={editorialReview.rewriteBrief}
+                                                onChange={(e) =>
+                                                    setEditorialReview((prev) => (prev ? { ...prev, rewriteBrief: e.target.value } : prev))
+                                                }
+                                                rows={7}
+                                            />
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed bg-muted/20 px-6 text-center text-sm text-muted-foreground">
+                                        Run an AI editorial review to get a quality score, issue list, anti-slop signals, and a rewrite brief you can apply directly.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </AdminSectionCard>
 
                     {/* Compliance & Fact Check */}
                     <AdminSectionCard className="space-y-4 bg-muted/30">
