@@ -1439,6 +1439,8 @@ export default function ArticleEditor({ articleId, onClose, embedded = false }: 
     const wordCount = stripHtml(currentContent).split(/\s+/).filter(Boolean).length;
     const readingMinutes = wordCount > 0 ? Math.max(1, Math.round(wordCount / 200)) : 0;
     const localEditorialScan = useMemo(() => buildLocalEditorialScan(currentContent), [currentContent]);
+    const isDirty = savedSnapshot !== '' && savedSnapshot !== buildSnapshot(formData);
+    const { confirmDiscardChanges } = useAdminDirtyState(isDirty, isNew ? 'new article draft' : 'article editor');
 
     if (articleLoading) {
         return (
@@ -1511,9 +1513,6 @@ export default function ArticleEditor({ articleId, onClose, embedded = false }: 
         await saveMutation.mutateAsync(next);
         await logArticleAction(actionLabel, next.status ?? formData.status);
     };
-
-    const isDirty = savedSnapshot !== '' && savedSnapshot !== buildSnapshot(formData);
-    const { confirmDiscardChanges } = useAdminDirtyState(isDirty, isNew ? 'new article draft' : 'article editor');
 
     const handleCloseRequest = () => {
         if (!onClose) return;
