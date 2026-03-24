@@ -8,22 +8,25 @@ type AdminPanelHeaderProps = {
     description?: string;
     actions?: ReactNode;
     className?: string;
+    eyebrow?: string;
 };
 
-export function AdminPanelHeader({ title, description, actions, className }: AdminPanelHeaderProps) {
+export function AdminPanelHeader({ title, description, actions, className, eyebrow }: AdminPanelHeaderProps) {
     return (
         <div
             className={cn(
-                "rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-[#f7f3ff] px-5 py-4 shadow-[0_18px_40px_-34px_rgba(33,0,89,0.45)] lg:px-6",
+                "rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.14)] lg:px-6",
                 className,
             )}
         >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#5d00ff]/70">
-                        Admin Workspace
-                    </div>
-                    <h2 className="mt-1 text-xl font-semibold leading-tight text-balance text-[#210059]">{title}</h2>
+                    {eyebrow && (
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#5d00ff]/70">
+                            {eyebrow}
+                        </div>
+                    )}
+                    <h2 className={cn("text-xl font-semibold leading-tight text-balance text-[#210059]", eyebrow && "mt-1")}>{title}</h2>
                     {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
                 </div>
                 {actions && <div className="flex flex-wrap items-center gap-2 lg:justify-end">{actions}</div>}

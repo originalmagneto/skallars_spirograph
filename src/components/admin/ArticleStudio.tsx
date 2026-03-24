@@ -62,11 +62,6 @@ export default function ArticleStudio() {
         router.push("/admin?workspace=publishing&tab=articles");
     };
 
-    const handleOpenAdvancedLab = () => {
-        if (!confirmDirtyNavigation("open the Advanced AI Lab")) return;
-        router.push("/admin?workspace=publishing&tab=ai-lab");
-    };
-
     const badgeLabel = useMemo(() => {
         if (!editId) return null;
         return `Draft ${editId.slice(0, 8)}…`;
@@ -76,72 +71,53 @@ export default function ArticleStudio() {
         <div className="space-y-6">
             <AdminPanelHeader
                 title="Article Studio"
-                description="Generate, refine, and publish articles from one workspace."
+                description="One focused workflow for drafting, editing, publishing, and distribution."
                 actions={
-                    <>
                     <Button
                         variant="outline"
                         onClick={handleOpenArticles}
                     >
                         Open Articles List
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleOpenAdvancedLab}
-                    >
-                        Advanced AI Lab
-                    </Button>
-                    </>
                 }
             />
 
             <AdminActionBar>
-                <Button
-                    size="sm"
-                    variant={stage === "generate" ? "default" : "outline"}
-                    onClick={() => handleStageChange("generate")}
-                >
-                    1. Generate
-                </Button>
-                <Button
-                    size="sm"
-                    variant={stage === "edit" ? "default" : "outline"}
-                    onClick={() => handleStageChange("edit")}
-                    disabled={!editId}
-                >
-                    2. Edit & Publish
-                </Button>
-                {badgeLabel && <Badge variant="secondary">{badgeLabel}</Badge>}
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <Button
+                        size="sm"
+                        variant={stage === "generate" ? "default" : "outline"}
+                        onClick={() => handleStageChange("generate")}
+                    >
+                        1. Generate Draft
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant={stage === "edit" ? "default" : "outline"}
+                        onClick={() => handleStageChange("edit")}
+                        disabled={!editId}
+                    >
+                        2. Edit & Publish
+                    </Button>
+                    {badgeLabel && <Badge variant="secondary">{badgeLabel}</Badge>}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    {stage === "generate"
+                        ? "Set the brief, generate, and review before saving to the editor."
+                        : "Finalize content, publishing status, SEO, and LinkedIn distribution."}
+                </div>
             </AdminActionBar>
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <AdminSectionCard className="space-y-1">
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 1</div>
-                    <div className="text-base font-semibold text-[#210059]">Brief & Generate</div>
-                    <p className="text-sm text-muted-foreground">
-                        Prepare topic, research depth, languages, and review the AI preview before saving.
-                    </p>
+            {!editId && stage === "edit" && (
+                <AdminSectionCard className="text-sm text-muted-foreground">
+                    Generate a draft first, then continue to editing and publishing.
                 </AdminSectionCard>
-                <AdminSectionCard className="space-y-1">
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 2</div>
-                    <div className="text-base font-semibold text-[#210059]">Edit & Publish</div>
-                    <p className="text-sm text-muted-foreground">
-                        Finalize article content, workflow status, SEO data, and schedule publishing.
-                    </p>
-                </AdminSectionCard>
-                <AdminSectionCard className="space-y-1">
-                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 3</div>
-                    <div className="text-base font-semibold text-[#210059]">Distribute</div>
-                    <p className="text-sm text-muted-foreground">
-                        Share instantly or queue LinkedIn distribution once the article URL and assets are ready.
-                    </p>
-                </AdminSectionCard>
-            </div>
+            )}
 
             {stage === "generate" && (
                 <AILab
                     redirectTab="article-studio"
+                    embedded
                     onDraftSaved={(newArticleId) => {
                         setStage("edit");
                         replaceStudioState("edit", newArticleId);
@@ -153,6 +129,7 @@ export default function ArticleStudio() {
                 editId ? (
                     <ArticleEditor
                         articleId={editId}
+                        embedded
                         onClose={() => {
                             setStage("generate");
                             replaceStudioState("generate", null);

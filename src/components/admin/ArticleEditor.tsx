@@ -82,9 +82,10 @@ interface ArticleFormData {
 interface ArticleEditorProps {
     articleId?: string;
     onClose?: () => void;
+    embedded?: boolean;
 }
 
-export default function ArticleEditor({ articleId, onClose }: ArticleEditorProps) {
+export default function ArticleEditor({ articleId, onClose, embedded = false }: ArticleEditorProps) {
     const isNew = !articleId || articleId === 'new';
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -1477,74 +1478,89 @@ Rules:
         setLinkedinAdvancedOpen('linkedin-advanced');
         linkedinSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
+    const headerActions = (
+        <div className="flex flex-wrap items-center gap-3">
+            {onClose && (
+                <Button variant="outline" size="sm" onClick={handleCloseRequest}>
+                    <ArrowLeft size={14} className="mr-1" />
+                    Back
+                </Button>
+            )}
+            {isDirty && (
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                    Unsaved Changes
+                </Badge>
+            )}
+            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(formData.status)}`}>
+                {statusLabel(formData.status)}
+            </span>
+            {articleUrl && (
+                <>
+                    <Button variant="outline" size="sm" onClick={handleCopyArticleUrl}>
+                        Copy URL
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                        <a href={articleUrl} target="_blank" rel="noopener noreferrer">
+                            Open Preview
+                        </a>
+                    </Button>
+                </>
+            )}
+            <Button onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
+                <Save size={16} className="mr-2" />
+                {saveMutation.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            {!isNew && isAdmin && (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" aria-label="Delete article">
+                            <Trash2 size={16} />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Article</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Are you sure you want to delete this article? This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteMutation.mutate()}
+                            >
+                                Delete
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
+        </div>
+    );
 
     return (
         <div className="space-y-6">
             {/* Header */}
-            <AdminPanelHeader
-                title={isNew ? 'New Article' : 'Edit Article'}
-                description="Edit content, media, workflow status, and LinkedIn sharing from one place."
-                actions={(
-                    <div className="flex flex-wrap items-center gap-3">
-                        {onClose && (
-                            <Button variant="outline" size="sm" onClick={handleCloseRequest}>
-                                <ArrowLeft size={14} className="mr-1" />
-                                Back
-                            </Button>
-                        )}
-                        {isDirty && (
-                            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
-                                Unsaved Changes
-                            </Badge>
-                        )}
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusBadgeClass(formData.status)}`}>
-                            {statusLabel(formData.status)}
-                        </span>
-                        {articleUrl && (
-                            <>
-                                <Button variant="outline" size="sm" onClick={handleCopyArticleUrl}>
-                                    Copy URL
-                                </Button>
-                                <Button variant="outline" size="sm" asChild>
-                                    <a href={articleUrl} target="_blank" rel="noopener noreferrer">
-                                        Open Preview
-                                    </a>
-                                </Button>
-                            </>
-                        )}
-                        <Button onClick={() => saveMutation.mutate(undefined)} disabled={saveMutation.isPending}>
-                            <Save size={16} className="mr-2" />
-                            {saveMutation.isPending ? 'Saving…' : 'Save'}
-                        </Button>
-                        {!isNew && isAdmin && (
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                    <Button variant="destructive" size="sm" aria-label="Delete article">
-                                        <Trash2 size={16} />
-                                    </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Article</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            Are you sure you want to delete this article? This action cannot be undone.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                            onClick={() => deleteMutation.mutate()}
-                                        >
-                                            Delete
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
-                        )}
+            {embedded ? (
+                <div className="rounded-2xl border border-slate-200/80 bg-white px-4 py-4 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.14)]">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                            <div className="text-sm font-semibold text-[#210059]">{isNew ? 'New Article' : 'Edit Article'}</div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Finalize article content, workflow, and distribution without leaving the studio.
+                            </p>
+                        </div>
+                        {headerActions}
                     </div>
-                )}
-            />
+                </div>
+            ) : (
+                <AdminPanelHeader
+                    title={isNew ? 'New Article' : 'Edit Article'}
+                    description="Edit content, media, workflow status, and LinkedIn sharing from one place."
+                    actions={headerActions}
+                />
+            )}
 
             {!workflowFieldsAvailable && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">

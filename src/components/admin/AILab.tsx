@@ -48,14 +48,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { formatArticleHtml } from '@/lib/articleFormat';
 import { AdminPanelHeader } from '@/components/admin/AdminPrimitives';
 import { useAdminDirtyState } from '@/hooks/use-admin-dirty-state';
-import { AlertTriangle, Building2, ClipboardCopy, RefreshCw, UserRound, Wand2 } from 'lucide-react';
+import { AlertTriangle, ClipboardCopy, RefreshCw, Wand2 } from 'lucide-react';
 
 type AILabProps = {
     redirectTab?: string;
     onDraftSaved?: (articleId: string) => void;
+    embedded?: boolean;
 };
 
-const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
+const AILab = ({ redirectTab, onDraftSaved, embedded = false }: AILabProps) => {
     const { user } = useAuth();
     const router = useRouter();
     const [prompt, setPrompt] = useState('');
@@ -1330,7 +1331,9 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
             }
             if (options?.openLinkedIn) {
                 params.set('panel', 'linkedin');
-                params.set('linkedinTarget', options.linkedinTarget === 'organization' ? 'organization' : 'member');
+                if (options.linkedinTarget) {
+                    params.set('linkedinTarget', options.linkedinTarget);
+                }
             }
             const targetUrl = `/admin?${params.toString()}`;
             onDraftSaved?.(articleId);
@@ -1350,47 +1353,36 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
 
     return (
         <div className="space-y-6">
-            <AdminPanelHeader
-                title="AI Article Generator"
-                description="Set topic and research inputs, generate draft, then hand off to editor."
-                actions={
-                    hasSessionDraft ? (
-                        <Button type="button" variant="outline" size="sm" onClick={resetSession}>
-                            Reset Session
-                        </Button>
-                    ) : undefined
-                }
-            />
-            <div className="grid gap-4 xl:grid-cols-4">
-                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
-                    <CardContent className="space-y-1 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 1</div>
-                        <div className="text-base font-semibold text-[#210059]">Brief</div>
-                        <p className="text-sm text-muted-foreground">Lock topic, languages, research mode, and tone before dispatch.</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
-                    <CardContent className="space-y-1 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 2</div>
-                        <div className="text-base font-semibold text-[#210059]">Generate</div>
-                        <p className="text-sm text-muted-foreground">Run research and article generation with guardrails, model caps, and recovery.</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
-                    <CardContent className="space-y-1 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 3</div>
-                        <div className="text-base font-semibold text-[#210059]">Review</div>
-                        <p className="text-sm text-muted-foreground">Check multilingual preview, SEO payload, sources, and usage before saving.</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-primary/10 bg-white/95 shadow-[0_16px_34px_-30px_rgba(33,0,89,0.28)]">
-                    <CardContent className="space-y-1 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Step 4</div>
-                        <div className="text-base font-semibold text-[#210059]">Handoff</div>
-                        <p className="text-sm text-muted-foreground">Save draft to Article Studio, then continue workflow in editor or LinkedIn panel.</p>
-                    </CardContent>
-                </Card>
-            </div>
+            {embedded ? (
+                <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/85 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1">
+                        <div className="text-sm font-semibold text-[#210059]">Draft Generation</div>
+                        <p className="text-xs text-muted-foreground">
+                            Prepare the brief, run generation, review the preview, then hand off to the editor.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">{uiMode === "power" ? "Power Mode" : "Basic Mode"}</Badge>
+                        {hasSessionDraft && (
+                            <Button type="button" variant="outline" size="sm" onClick={resetSession}>
+                                Reset Session
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <AdminPanelHeader
+                    title="AI Article Generator"
+                    description="Set topic and research inputs, generate draft, then hand off to editor."
+                    actions={
+                        hasSessionDraft ? (
+                            <Button type="button" variant="outline" size="sm" onClick={resetSession}>
+                                Reset Session
+                            </Button>
+                        ) : undefined
+                    }
+                />
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Input Pane */}
                 <Card>
@@ -1399,9 +1391,11 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                             <AiMagicIcon size={24} className="text-primary" />
                             <CardTitle>Generation Inputs</CardTitle>
                         </div>
-                        <CardDescription>
-                            Define topic, language, depth, and controls before generation.
-                        </CardDescription>
+                        {!embedded && (
+                            <CardDescription>
+                                Define topic, language, depth, and controls before generation.
+                            </CardDescription>
+                        )}
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="rounded-lg border border-primary/10 bg-muted/20 p-3">
@@ -2297,32 +2291,22 @@ const AILab = ({ redirectTab, onDraftSaved }: AILabProps) => {
                     {generatedContent && (
                         <CardFooter className="pt-4 border-t">
                             <div className="w-full space-y-2">
-                                <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                                     <Button onClick={() => handleSave()} className="w-full" disabled={isSavingDraft}>
                                         <FloppyDiskIcon size={18} className="mr-2" />
                                         {isSavingDraft ? 'Saving draft...' : 'Save Draft & Edit'}
                                     </Button>
                                     <Button
                                         variant="outline"
-                                        onClick={() => handleSave({ openLinkedIn: true, linkedinTarget: 'member' })}
+                                        onClick={() => handleSave({ openLinkedIn: true })}
                                         className="w-full"
                                         disabled={isSavingDraft}
                                     >
-                                        <UserRound size={16} className="mr-2" />
-                                        Save & Open LinkedIn (Personal)
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => handleSave({ openLinkedIn: true, linkedinTarget: 'organization' })}
-                                        className="w-full"
-                                        disabled={isSavingDraft}
-                                    >
-                                        <Building2 size={16} className="mr-2" />
-                                        Save & Open LinkedIn (Company)
+                                        Save & Open LinkedIn Panel
                                     </Button>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
-                                    Company sharing requires LinkedIn organization scopes in your connected account.
+                                    Pick personal or company sharing inside the LinkedIn panel after the draft opens in the editor.
                                 </p>
                             </div>
                         </CardFooter>

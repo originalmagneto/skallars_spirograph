@@ -334,23 +334,25 @@ export default function AdminPage() {
                     </div>
                 </div>
             )}
-            <div className="grid grid-cols-1 xl:grid-cols-[320px,minmax(0,1fr)] gap-6">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[280px,minmax(0,1fr)]">
                 <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
-                    <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)] backdrop-blur-sm space-y-3">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)] backdrop-blur-sm space-y-3">
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Workspace</div>
-                        <div className="grid gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                             {(Object.keys(workspaceConfig) as WorkspaceId[]).map((workspaceId) => {
                                 const isActive = workspaceId === activeWorkspace;
                                 return (
                                     <Button
                                         key={workspaceId}
                                         variant={isActive ? "default" : "outline"}
-                                        className="h-auto justify-start px-4 py-3 text-left"
+                                        className="h-auto min-h-[64px] justify-start px-3 py-3 text-left"
                                         onClick={() => handleWorkspaceChange(workspaceId)}
                                     >
                                         <span className="flex flex-col items-start">
                                             <span className="text-sm font-semibold leading-tight">{workspaceConfig[workspaceId].label}</span>
-                                            <span className={cn("text-xs leading-snug", isActive ? "text-primary-foreground/80" : "text-muted-foreground")}>{workspaceConfig[workspaceId].description}</span>
+                                            <span className={cn("mt-1 text-[11px] leading-snug", isActive ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                                                {workspaceId === "site" ? "Website" : "Publishing"}
+                                            </span>
                                         </span>
                                     </Button>
                                 );
@@ -362,10 +364,10 @@ export default function AdminPage() {
                         <nav
                             key={section.title}
                             aria-label={section.title}
-                            className="rounded-3xl border border-slate-200/80 bg-white/95 p-4 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)] backdrop-blur-sm space-y-3"
+                            className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.18)] backdrop-blur-sm space-y-2"
                         >
                             <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{section.title}</div>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 {section.items
                                     .filter((item) => canAccess(item.visibility))
                                     .filter((item) => !item.hidden || item.value === activeTab)
@@ -379,18 +381,20 @@ export default function AdminPage() {
                                                 onClick={() => handleTabChange(item.value)}
                                                 aria-current={isActive ? "page" : undefined}
                                                 className={cn(
-                                                    "w-full rounded-2xl border px-3.5 py-3 text-left transition-colors",
+                                                    "w-full rounded-xl border px-3 py-2.5 text-left transition-colors",
                                                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                                                     isActive
-                                                        ? "border-primary/30 bg-primary/10 text-primary shadow-[0_16px_36px_-30px_rgba(93,0,255,0.55)]"
-                                                        : "border-border bg-white hover:bg-muted/30"
+                                                        ? "border-primary/25 bg-primary/10 text-primary shadow-[0_16px_36px_-30px_rgba(93,0,255,0.4)]"
+                                                        : "border-transparent bg-white hover:border-slate-200 hover:bg-muted/20"
                                                 )}
                                             >
-                                                <div className="flex items-start gap-3">
-                                                    <Icon size={16} className={cn("mt-0.5", isActive ? "text-primary" : "text-muted-foreground")} />
+                                                <div className="flex items-start gap-2.5">
+                                                    <Icon size={16} className={cn("mt-0.5 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
                                                     <div className="min-w-0">
                                                         <div className="text-sm font-semibold leading-tight">{item.label}</div>
-                                                        <div className={cn("mt-1 text-xs leading-snug", isActive ? "text-primary/80" : "text-muted-foreground")}>{item.description}</div>
+                                                        {isActive && (
+                                                            <div className="mt-1 text-[11px] leading-snug text-primary/80">{item.description}</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </button>
@@ -402,33 +406,10 @@ export default function AdminPage() {
                 </aside>
 
                 <section className="space-y-4">
-                    <div className="rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white via-white to-[#f7f3ff] px-5 py-4 shadow-[0_18px_40px_-34px_rgba(33,0,89,0.42)] lg:px-6">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="min-w-0">
-                                <div className="text-xs uppercase tracking-wide text-muted-foreground">{workspaceConfig[activeWorkspace].label}</div>
-                                <h1 className="mt-1 text-xl font-semibold leading-tight text-balance text-[#210059]">{activeMeta?.item.label ?? "Admin"}</h1>
-                                <p className="mt-1 text-sm text-muted-foreground">{activeMeta?.item.description ?? "Manage this section."}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {activeWorkspace === "publishing" && (
-                                    <>
-                                        <Button type="button" variant="outline" size="sm" onClick={() => handleTabChange("article-studio")}>
-                                            Open Studio
-                                        </Button>
-                                        {isAdmin && (
-                                            <Button type="button" variant="outline" size="sm" onClick={() => handleTabChange("settings")}>
-                                                Open Settings
-                                            </Button>
-                                        )}
-                                    </>
-                                )}
-                                {activeWorkspace === "site" && isAdmin && (
-                                    <Button type="button" variant="outline" size="sm" onClick={() => handleTabChange("layout")}>
-                                        Open Layout Controls
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
+                    <div className="flex flex-wrap items-center gap-2 px-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                        <span>{workspaceConfig[activeWorkspace].label}</span>
+                        <span className="text-slate-300">/</span>
+                        <span className="text-[#5d00ff]">{activeMeta?.item.label ?? "Admin"}</span>
                     </div>
 
                     <div className="space-y-6">{renderActiveTab()}</div>

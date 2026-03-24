@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import SiteHeader from "@/components/SiteHeader";
+import AppChrome from "@/components/AppChrome";
 import { Providers } from "@/components/Providers";
 import { fetchSeoSettings, getBaseUrlFromHeaders } from "@/lib/seoSettings";
 
@@ -68,8 +68,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
-          <SiteHeader />
-          <div className="pt-20">{children}</div>
+          <AppChrome>{children}</AppChrome>
         </Providers>
       </body>
     </html>
